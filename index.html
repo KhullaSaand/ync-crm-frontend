@@ -412,10 +412,13 @@ async function api(method, path, body) {
 }
 
 let _refreshTimer = null;
+let _viewingDetail = false;
 function startAutoRefresh() {
   if (_refreshTimer) clearInterval(_refreshTimer);
   _refreshTimer = setInterval(() => {
-    if (!token || !curPage) return;
+    if (!token || !curPage || _viewingDetail) return;
+    const modalOpen = document.getElementById('modal-overlay')?.classList.contains('show');
+    if (modalOpen) return;
     const pageMap = {
       'dashboard':     ['/api/reports?type=summary', '/api/reports?type=activity&range=month'],
       'contacts':      ['/api/contacts?page=1&limit=15'],
@@ -428,7 +431,7 @@ function startAutoRefresh() {
       urls.forEach(u => _apiCache.delete(cacheKey('GET', u)));
       renderPage(curPage);
     }
-  }, 15000); // refresh every 15s
+  }, 15000);
 }
 
 function preloadAll() {
@@ -540,6 +543,7 @@ const ADD_LABELS = {
 
 function nav(page) {
   curPage = page; curSearch = ''; curPageNum = 1; curFilter = {};
+  _viewingDetail = false;
   localStorage.setItem('ync_page', page);
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   const ni = document.getElementById('nav-' + page);
@@ -650,6 +654,7 @@ async function renderContacts() {
 }
 
 async function viewContact(id) {
+  _viewingDetail = true;
   const r = await api('GET', `/api/contacts/${id}`);
   const c = r?.data; if (!c) return;
   document.getElementById('content').innerHTML = `
@@ -732,6 +737,7 @@ async function renderQuoteLeads() {
 }
 
 async function viewQuoteLead(id) {
+  _viewingDetail = true;
   const r = await api('GET', `/api/quote-leads/${id}`);
   const l = r?.data; if (!l) return;
   document.getElementById('content').innerHTML = `
@@ -844,6 +850,7 @@ async function renderShipmentLeads() {
 }
 
 async function viewShipmentLead(id) {
+  _viewingDetail = true;
   const r = await api('GET', `/api/shipment-leads/${id}`);
   const l = r?.data; if (!l) return;
   document.getElementById('content').innerHTML = `
