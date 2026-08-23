@@ -391,7 +391,7 @@ let curCategoryFilter = '';
 
 // ─── API CACHE ──────────────────────────────────────────────────────────────
 const _apiCache = new Map();
-const CACHE_TTL = 30000; // 30s
+const CACHE_TTL = 60000; // 60s auto-refresh
 
 function cacheKey(method, path) { return `${method}:${path}`; }
 
@@ -407,6 +407,7 @@ async function api(method, path, body) {
     const ck = cacheKey(method, path);
     const cached = _apiCache.get(ck);
     if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+    if (cached) _apiCache.delete(ck); // expired
   }
   const opts = { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } };
   if (body) opts.body = JSON.stringify(body);
@@ -416,6 +417,39 @@ async function api(method, path, body) {
   if (method === 'GET' && j.success) _apiCache.set(cacheKey(method, path), { data: j, ts: Date.now() });
   if (method !== 'GET' && j.success) { invalidateCache(path.split('?')[0].replace(/\/[^/]*$/, '')); }
   return j;
+}
+
+let _refreshTimer = null;
+function startAutoRefresh() {
+  if (_refreshTimer) clearInterval(_refreshTimer);
+  _refreshTimer = setInterval(() => {
+    if (!token || !curPage) return;
+    const pageMap = {
+      'dashboard':     ['/api/reports?type=summary', '/api/reports?type=activity&range=month'],
+      'contacts':      ['/api/contacts?page=1&limit=15'],
+      'quote-leads':   ['/api/quote-leads?page=1&limit=15'],
+      'shipment-leads':['/api/shipment-leads?page=1&limit=15'],
+      'tasks':         ['/api/tasks?page=1&limit=15'],
+    };
+    const urls = pageMap[curPage];
+    if (urls) {
+      urls.forEach(u => _apiCache.delete(cacheKey('GET', u)));
+      renderPage(curPage);
+    }
+  }, 15000); // refresh every 15s
+}
+
+function preloadAll() {
+  const pages = [
+    '/api/reports?type=summary',
+    '/api/reports?type=activity&range=month',
+    '/api/contacts?page=1&limit=15',
+    '/api/quote-leads?page=1&limit=15',
+    '/api/shipment-leads?page=1&limit=15',
+    '/api/tasks?page=1&limit=15',
+  ];
+  if (me.role === 'admin' || me.role === 'manager') pages.push('/api/users?page=1&limit=50');
+  pages.forEach(p => api('GET', p));
 }
 
 // ─── AUTH ──────────────────────────────────────────────────────────────────
@@ -466,6 +500,7 @@ async function doLogout() {
   if (token) await fetch(API + '/api/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }).catch(() => {});
   token = ''; me = null;
   _apiCache.clear();
+  if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
   localStorage.removeItem('ync_token'); localStorage.removeItem('ync_me');
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').classList.remove('show');
@@ -482,6 +517,8 @@ function initApp() {
     document.getElementById('nav-section-admin').style.display = '';
   }
   nav(localStorage.getItem('ync_page') || 'dashboard');
+  preloadAll();
+  startAutoRefresh();
 }
 
 window.onload = () => {
@@ -536,9 +573,6 @@ function onSearch(v) {
 
 // ─── RENDER ROUTER ────────────────────────────────────────────────────────
 function renderPage(page) {
-  const c = document.getElementById('content');
-  const hasCache = [..._apiCache.keys()].some(k => k.includes(page.replace('-', '_')) || k.includes(page));
-  if (!hasCache) c.innerHTML = `<div class="loading"><div class="spinner"></div>Loading...</div>`;
   switch(page) {
     case 'dashboard':     renderDashboard(); break;
     case 'contacts':      renderContacts(); break;
