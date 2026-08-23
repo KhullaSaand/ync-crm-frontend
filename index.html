@@ -1021,6 +1021,20 @@ async function renderReports() {
 }
 
 // ─── MODALS ────────────────────────────────────────────────────────────────
+let _usersCache = null;
+async function getUsersForAssign() {
+  if (_usersCache) return _usersCache;
+  const r = await api('GET', '/api/users');
+  _usersCache = r?.data || [];
+  return _usersCache;
+}
+function assignDropdown(currentId) {
+  return `<select id="mf-assigned">
+    <option value="">Unassigned</option>
+    ${_usersCache.map(u => `<option value="${u.id}" ${currentId === u.id ? 'selected' : ''}>${esc(u.name)} (${fmtStatus(u.role)})</option>`).join('')}
+  </select>`;
+}
+
 function openAddModal() {
   switch(curPage) {
     case 'contacts':       openContactModal(null); break;
@@ -1042,7 +1056,8 @@ function closeModalOutside(e) { if (e.target === document.getElementById('modal-
 function modalSave() { if (modalCb) modalCb(); }
 
 // Contact Modal
-function openContactModal(c) {
+async function openContactModal(c) {
+  await getUsersForAssign();
   showModal(c ? 'Edit Contact' : 'New Contact', `
   <div class="form-row"><div class="fg"><label>Full Name *</label><input id="mf-name" value="${esc(c?.name||'')}"/></div>
   <div class="fg"><label>Email</label><input id="mf-email" type="email" value="${esc(c?.email||'')}"/></div></div>
@@ -1054,12 +1069,14 @@ function openContactModal(c) {
   </select></div></div>
   <div class="form-row"><div class="fg"><label>Deal Value (INR)</label><input id="mf-dealvalue" type="number" value="${c?.dealValue||''}"/></div>
   <div class="fg"><label>Website</label><input id="mf-website" value="${esc(c?.website||'')}"/></div></div>
+  <div class="fg"><label>Assigned To</label>${assignDropdown(c?.assignedToId||'')}</div>
   <div class="fg"><label>Notes</label><textarea id="mf-notes">${esc(c?.notes||'')}</textarea></div>`, async () => {
     const body = {
       name: document.getElementById('mf-name').value, email: document.getElementById('mf-email').value,
       phone: document.getElementById('mf-phone').value, company: document.getElementById('mf-company').value,
       jobTitle: document.getElementById('mf-jobtitle').value, status: document.getElementById('mf-status').value,
       dealValue: document.getElementById('mf-dealvalue').value, website: document.getElementById('mf-website').value,
+      assignedToId: document.getElementById('mf-assigned').value || null,
       notes: document.getElementById('mf-notes').value,
     };
     const r = c ? await api('PATCH', `/api/contacts/${c.id}`, body) : await api('POST', '/api/contacts', body);
@@ -1078,7 +1095,8 @@ async function deleteContact(id) {
 }
 
 // Quote Lead Modal
-function openQuoteLeadModal(l) {
+async function openQuoteLeadModal(l) {
+  await getUsersForAssign();
   const cat = l?.category || '';
   showModal(l ? 'Edit Quote Lead' : 'New Lead', `
   <div class="fg"><label>Category *</label><select id="mf-category" onchange="updateQuoteLeadFields()">
@@ -1097,6 +1115,7 @@ function openQuoteLeadModal(l) {
     <div class="fg"><label>Status</label><select id="mf-status">
       ${['new_inquiry','quoted','follow_up','shipment_booked','cancelled'].map(s=>`<option value="${s}" ${(l?.status||'new_inquiry')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
     </select></div></div>
+    <div class="fg"><label>Assigned To</label>${assignDropdown(l?.assignedToId||'')}</div>
   </div>
 
   <div id="ql-logistics-fields" style="display:none">
@@ -1153,6 +1172,7 @@ function openQuoteLeadModal(l) {
       phone: document.getElementById('mf-phone')?.value || '',
       email: document.getElementById('mf-email')?.value || '',
       status: document.getElementById('mf-status')?.value || 'new_inquiry',
+      assignedToId: document.getElementById('mf-assigned')?.value || null,
       notes: document.getElementById('mf-notes')?.value || '',
     };
     if (category === 'logistics') {
@@ -1206,7 +1226,8 @@ async function deleteQuoteLead(id) {
 }
 
 // Shipment Lead Modal
-function openShipmentLeadModal(l) {
+async function openShipmentLeadModal(l) {
+  await getUsersForAssign();
   const parseDim = (s) => { if(!s) return ['','','']; const p=s.split('x'); return [p[0]||'',p[1]||'',p[2]||'']; };
   const [pl,pw,ph] = parseDim(l?.dimensions);
   showModal(l ? 'Edit Shipment Lead' : 'New Shipment', `
@@ -1279,6 +1300,7 @@ function openShipmentLeadModal(l) {
   <div class="fg"><label>Currency</label><select id="mf-currency">
     ${['INR','USD','AED','GBP','EUR'].map(c=>`<option value="${c}" ${(l?.currency||'INR')===c?'selected':''}>${c}</option>`).join('')}
   </select></div></div>
+  <div class="fg"><label>Assigned To</label>${assignDropdown(l?.assignedToId||'')}</div>
   <div class="fg"><label>Notes</label><textarea id="mf-notes">${esc(l?.notes||'')}</textarea></div>`, async () => {
     const L=document.getElementById('mf-len').value;
     const W=document.getElementById('mf-wid').value;
@@ -1299,6 +1321,7 @@ function openShipmentLeadModal(l) {
       expectedPickup: document.getElementById('mf-pickup').value||null,
       expectedDelivery: document.getElementById('mf-delivery').value||null,
       status: document.getElementById('mf-status').value, currency: document.getElementById('mf-currency').value,
+      assignedToId: document.getElementById('mf-assigned')?.value || null,
       notes: document.getElementById('mf-notes').value,
     };
     const r = l ? await api('PATCH', `/api/shipment-leads/${l.id}`, body) : await api('POST', '/api/shipment-leads', body);
