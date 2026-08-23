@@ -768,7 +768,7 @@ async function viewQuoteLead(id) {
         <div style="margin-top:8px;display:flex;gap:8px">${l.category?`<span class="badge badge-${l.category}">${fmtStatus(l.category)}</span>`:''}${badge(l.status)}${l.shipmentMode?badge(l.shipmentMode):''}</div>
       </div>
       <div class="dp-actions">
-        ${t ? `<button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(t.timeline||[]).replace(/"/g,'&quot;')})">📦 Manage Tracking</button>` : ''}
+        ${t ? `<button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(t.timeline||[]).replace(/"/g,'&quot;')},'${l.id}','quote')">📦 Manage Tracking</button>` : ''}
         <button class="btn-edit" onclick="editQuoteLead(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏️ Edit</button>
         ${me.role!=='sales_rep'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteQuoteLead('${l.id}')">Delete</button>`:''}
       </div>
@@ -888,7 +888,7 @@ async function viewShipmentLead(id) {
         <div style="margin-top:8px;display:flex;gap:8px">${badge(l.status)}${l.shipmentMode?badge(l.shipmentMode):''}</div>
       </div>
       <div class="dp-actions">
-        ${t ? `<button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(t.timeline||[]).replace(/"/g,'&quot;')})">📦 Manage Tracking</button>` : ''}
+        ${t ? `<button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(t.timeline||[]).replace(/"/g,'&quot;')},'${l.id}','shipment')">📦 Manage Tracking</button>` : ''}
         <button class="btn-edit" onclick="editShipmentLead(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏️ Edit</button>
         ${me.role!=='sales_rep'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteShipmentLead('${l.id}')">Delete</button>`:''}
       </div>
@@ -1483,10 +1483,14 @@ function toast(msg, type='info') {
 // Tracking Management Modal
 let _trackId = null;
 let _trackTimeline = [];
+let _trackLeadId = null;
+let _trackLeadType = null;
 
-function openTrackingModal(trackId, timeline) {
+function openTrackingModal(trackId, timeline, leadId, leadType) {
   _trackId = trackId;
   _trackTimeline = Array.isArray(timeline) ? [...timeline] : [];
+  _trackLeadId = leadId;
+  _trackLeadType = leadType;
   renderTrackingModal();
 }
 
@@ -1513,8 +1517,17 @@ function renderTrackingModal() {
       <div class="fg"><label>Date & Time</label><input id="tl-date" type="datetime-local"/></div>
       <button class="btn-save" style="width:100%;margin-top:8px" onclick="addTrackingEntry()">➕ Add Entry</button>
     </div>`;
-  document.getElementById('modal-foot').innerHTML = '<button class="btn-cancel" onclick="closeModal()">Done</button>';
+  document.getElementById('modal-foot').innerHTML = '<button class="btn-cancel" onclick="closeTrackingAndRefresh()">Done</button>';
   document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeTrackingAndRefresh() {
+  closeModal();
+  if (_trackLeadId && _trackLeadType) {
+    invalidateCache('/api/tracking/');
+    if (_trackLeadType === 'quote') viewQuoteLead(_trackLeadId);
+    else if (_trackLeadType === 'shipment') viewShipmentLead(_trackLeadId);
+  }
 }
 
 async function addTrackingEntry() {
@@ -1530,6 +1543,9 @@ async function addTrackingEntry() {
 
   _trackTimeline.push({ id: r.data.id, status: statusText, location, timestamp: r.data.timestamp });
   toast('Status added!', 'success');
+  document.getElementById('tl-status-text').value = '';
+  document.getElementById('tl-location').value = '';
+  document.getElementById('tl-date').value = '';
   renderTrackingModal();
 }
 
