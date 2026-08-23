@@ -133,20 +133,12 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .badge-won{background:var(--green-bg);color:var(--green)}
 .badge-lost{background:#fee2e2;color:#dc2626}
 .badge-cold{background:#f1f5f9;color:#94a3b8}
-/* quote lead statuses */
+/* lead statuses (unified) */
 .badge-new_inquiry{background:var(--blue-bg);color:var(--blue)}
 .badge-quoted{background:var(--yellow-bg);color:var(--yellow)}
 .badge-follow_up{background:#fff7ed;color:#c2410c}
-.badge-confirmed{background:var(--green-bg);color:var(--green)}
+.badge-shipment_booked{background:var(--green-bg);color:var(--green)}
 .badge-cancelled{background:#fee2e2;color:#dc2626}
-.badge-expired{background:#f1f5f9;color:#94a3b8}
-/* shipment statuses */
-.badge-new_booking{background:var(--blue-bg);color:var(--blue)}
-.badge-documents_pending{background:var(--yellow-bg);color:var(--yellow)}
-.badge-in_transit{background:var(--purple-bg);color:var(--purple)}
-.badge-out_for_delivery{background:#fff7ed;color:#c2410c}
-.badge-delivered{background:var(--green-bg);color:var(--green)}
-.badge-on_hold{background:#fee2e2;color:#dc2626}
 /* task */
 .badge-pending{background:var(--yellow-bg);color:var(--yellow)}
 .badge-in_progress{background:var(--blue-bg);color:var(--blue)}
@@ -704,7 +696,7 @@ async function renderQuoteLeads() {
   if (curCategoryFilter) url += `&category=${curCategoryFilter}`;
   const r = await api('GET', url);
   const items = r?.data || []; const pg = r?.pagination || {};
-  const statusOpts = ['','new_inquiry','quoted','follow_up','negotiation','confirmed','cancelled','expired'];
+  const statusOpts = ['','new_inquiry','quoted','follow_up','shipment_booked','cancelled'];
   const modeOpts   = ['','air','sea','road','courier'];
   document.getElementById('content').innerHTML = `
   <div class="table-card">
@@ -817,7 +809,7 @@ async function renderShipmentLeads() {
   if (curFilter.mode)   url += `&mode=${curFilter.mode}`;
   const r = await api('GET', url);
   const items = r?.data || []; const pg = r?.pagination || {};
-  const statusOpts = ['','new_booking','documents_pending','in_transit','out_for_delivery','delivered','cancelled','on_hold'];
+  const statusOpts = ['','new_inquiry','quoted','follow_up','shipment_booked','cancelled'];
   const modeOpts   = ['','air','sea','road','courier'];
   document.getElementById('content').innerHTML = `
   <div class="table-card">
@@ -1066,7 +1058,10 @@ function openQuoteLeadModal(l) {
   <div id="ql-common-fields">
     <div class="form-row"><div class="fg"><label>Customer Name *</label><input id="mf-name" value="${esc(l?.customerName||'')}"/></div>
     <div class="fg"><label>Phone</label><input id="mf-phone" value="${esc(l?.phone||'')}"/></div></div>
-    <div class="fg"><label>Email</label><input id="mf-email" type="email" value="${esc(l?.email||'')}"/></div>
+    <div class="form-row"><div class="fg"><label>Email</label><input id="mf-email" type="email" value="${esc(l?.email||'')}"/></div>
+    <div class="fg"><label>Status</label><select id="mf-status">
+      ${['new_inquiry','quoted','follow_up','shipment_booked','cancelled'].map(s=>`<option value="${s}" ${(l?.status||'new_inquiry')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
+    </select></div></div>
   </div>
 
   <div id="ql-logistics-fields" style="display:none">
@@ -1122,6 +1117,7 @@ function openQuoteLeadModal(l) {
       customerName: document.getElementById('mf-name')?.value || '',
       phone: document.getElementById('mf-phone')?.value || '',
       email: document.getElementById('mf-email')?.value || '',
+      status: document.getElementById('mf-status')?.value || 'new_inquiry',
       notes: document.getElementById('mf-notes')?.value || '',
     };
     if (category === 'logistics') {
@@ -1243,7 +1239,7 @@ function openShipmentLeadModal(l) {
   <div class="form-row"><div class="fg"><label>Expected Pickup</label><input id="mf-pickup" type="date" value="${l?.expectedPickup?l.expectedPickup.slice(0,10):''}"/></div>
   <div class="fg"><label>Expected Delivery</label><input id="mf-delivery" type="date" value="${l?.expectedDelivery?l.expectedDelivery.slice(0,10):''}"/></div></div>
   <div class="form-row"><div class="fg"><label>Status</label><select id="mf-status">
-    ${['new_booking','documents_pending','in_transit','out_for_delivery','delivered','cancelled','on_hold'].map(s=>`<option value="${s}" ${(l?.status||'new_booking')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
+    ${['new_inquiry','quoted','follow_up','shipment_booked','cancelled'].map(s=>`<option value="${s}" ${(l?.status||'new_inquiry')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
   </select></div>
   <div class="fg"><label>Currency</label><select id="mf-currency">
     ${['INR','USD','AED','GBP','EUR'].map(c=>`<option value="${c}" ${(l?.currency||'INR')===c?'selected':''}>${c}</option>`).join('')}
@@ -1428,8 +1424,7 @@ function badge(s) { return `<span class="badge badge-${s}">${fmtStatus(s)}</span
 function fmtStatus(s) {
   const map = {
     prospect:'Prospect', qualified:'Qualified', hot_lead:'Hot Lead', negotiation:'Negotiation', won:'Won', lost:'Lost', cold:'Cold',
-    new_inquiry:'New Inquiry', quoted:'Quoted', follow_up:'Follow Up', confirmed:'Confirmed', cancelled:'Cancelled', expired:'Expired',
-    new_booking:'New Booking', documents_pending:'Docs Pending', in_transit:'In Transit', out_for_delivery:'Out for Delivery', delivered:'Delivered', on_hold:'On Hold',
+    new_inquiry:'New Inquiry', quoted:'Quoted', follow_up:'Follow Up', shipment_booked:'Shipment Booked', cancelled:'Cancelled',
     pending:'Pending', in_progress:'In Progress', completed:'Completed', overdue:'Overdue',
     high:'High', medium:'Medium', low:'Low',
     air:'Air', sea:'Sea', road:'Road', courier:'Courier',
