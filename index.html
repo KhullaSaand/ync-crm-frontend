@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>YNC CRM</title>
+<style>
+:root{
+  --brand:#8B0000;
+  --brand-dark:#5a0000;
+  --brand-light:#b30000;
+  --brand-bg:#fff5f5;
+  --brand-border:#f5cccc;
+  --black:#111;
+  --gray:#64748b;
+  --gray2:#94a3b8;
+  --gray3:#e2e8f0;
+  --gray4:#f8fafc;
+  --white:#fff;
+  --green:#16a34a;
+  --green-bg:#dcfce7;
+  --orange:#ea580c;
+  --orange-bg:#fff7ed;
+  --blue:#2563eb;
+  --blue-bg:#eff6ff;
+  --yellow:#ca8a04;
+  --yellow-bg:#fefce8;
+  --purple:#7c3aed;
+  --purple-bg:#f3e8ff;
+  --radius:10px;
+  --shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+  --shadow-lg:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -2px rgba(0,0,0,.05);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;color:var(--black);min-height:100vh}
+button{cursor:pointer;border:none;outline:none;font-family:inherit}
+input,select,textarea{font-family:inherit;outline:none}
+a{text-decoration:none;color:inherit}
+
+/* AUTH */
+#auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#5a0000 0%,#8B0000 50%,#b30000 100%)}
+.auth-card{background:var(--white);border-radius:16px;padding:40px;width:100%;max-width:420px;box-shadow:var(--shadow-lg)}
+.auth-logo{text-align:center;margin-bottom:28px}
+.auth-logo .logo-ync{font-size:42px;font-weight:900;color:var(--brand);letter-spacing:-2px;line-height:1}
+.auth-logo .logo-sub{font-size:11px;letter-spacing:4px;color:var(--gray);text-transform:uppercase;margin-top:4px}
+.auth-logo .logo-tagline{font-size:13px;color:var(--gray);margin-top:8px}
+.auth-tabs{display:flex;border-bottom:2px solid var(--gray3);margin-bottom:24px}
+.auth-tab{flex:1;padding:10px;text-align:center;font-size:14px;font-weight:600;color:var(--gray);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.auth-tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:600;color:var(--gray);margin-bottom:6px}
+.form-group input,.form-group select{width:100%;padding:10px 14px;border:1.5px solid var(--gray3);border-radius:var(--radius);font-size:14px;transition:border .2s}
+.form-group input:focus,.form-group select:focus{border-color:var(--brand)}
+.btn-primary{width:100%;padding:12px;background:var(--brand);color:var(--white);border-radius:var(--radius);font-size:15px;font-weight:700;transition:background .2s;margin-top:4px}
+.btn-primary:hover{background:var(--brand-dark)}
+.auth-error{background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none}
+.auth-error.show{display:block}
+
+/* LAYOUT */
+#app{display:none;height:100vh;overflow:hidden;flex-direction:row}
+#app.show{display:flex}
+#sidebar{width:240px;min-width:240px;background:var(--brand-dark);display:flex;flex-direction:column;overflow-y:auto}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#topbar{background:var(--white);border-bottom:1px solid var(--gray3);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#content{flex:1;overflow-y:auto;padding:24px}
+
+/* SIDEBAR */
+.sidebar-logo{padding:20px 16px 16px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sidebar-logo .s-ync{font-size:28px;font-weight:900;color:#fff;letter-spacing:-1px}
+.sidebar-logo .s-crm{font-size:10px;letter-spacing:3px;color:rgba(255,255,255,.6);text-transform:uppercase;margin-top:2px}
+.sidebar-logo .s-tag{font-size:10px;color:rgba(255,255,255,.4);margin-top:3px}
+.sidebar-nav{padding:12px 8px;flex:1}
+.nav-section{margin-bottom:6px}
+.nav-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.4);padding:8px 10px 4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;transition:all .15s;color:rgba(255,255,255,.75);font-size:13.5px;font-weight:500;margin-bottom:2px}
+.nav-item:hover{background:rgba(255,255,255,.1);color:#fff}
+.nav-item.active{background:rgba(255,255,255,.15);color:#fff;font-weight:600}
+.nav-item .ni{font-size:16px;width:20px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--brand-light);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px}
+.sidebar-user{padding:14px 16px;border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.su-avatar{width:34px;height:34px;border-radius:50%;background:var(--brand-light);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.su-name{font-size:13px;font-weight:600;color:#fff;line-height:1.3}
+.su-role{font-size:11px;color:rgba(255,255,255,.5)}
+.su-logout{margin-left:auto;background:none;color:rgba(255,255,255,.5);font-size:18px;padding:4px;border-radius:6px;transition:color .2s}
+.su-logout:hover{color:#fff}
+
+/* TOPBAR */
+.topbar-title{font-size:18px;font-weight:700;color:var(--black)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.btn-add{background:var(--brand);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;transition:background .2s}
+.btn-add:hover{background:var(--brand-dark)}
+.search-box{position:relative}
+.search-box input{padding:8px 12px 8px 34px;border:1.5px solid var(--gray3);border-radius:8px;font-size:13px;width:220px;transition:border .2s}
+.search-box input:focus{border-color:var(--brand)}
+.search-box .si{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--gray2);font-size:15px}
+
+/* CARDS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);border-left:4px solid var(--brand)}
+.stat-card.green{border-left-color:var(--green)}
+.stat-card.blue{border-left-color:var(--blue)}
+.stat-card.orange{border-left-color:var(--orange)}
+.stat-card.purple{border-left-color:var(--purple)}
+.stat-label{font-size:12px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.5px}
+.stat-value{font-size:28px;font-weight:500;color:var(--black);margin-top:6px;line-height:1}
+.stat-sub{font-size:12px;color:var(--gray2);margin-top:4px}
+
+/* TABLE */
+.table-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.table-header{padding:16px 20px;border-bottom:1px solid var(--gray3);display:flex;align-items:center;justify-content:space-between}
+.table-title{font-size:15px;font-weight:700}
+.table-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.filter-select{padding:6px 10px;border:1.5px solid var(--gray3);border-radius:7px;font-size:13px;color:var(--black);background:var(--white)}
+.filter-select:focus{border-color:var(--brand);outline:none}
+table{width:100%;border-collapse:collapse}
+thead th{background:var(--gray4);padding:10px 16px;text-align:left;font-size:12px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--gray3)}
+tbody tr{border-bottom:1px solid var(--gray3);transition:background .1s;cursor:pointer}
+tbody tr:hover{background:var(--brand-bg)}
+tbody tr:last-child{border-bottom:none}
+td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
+.avatar-cell{display:flex;align-items:center;gap:10px}
+.av{width:32px;height:32px;border-radius:50%;background:var(--brand-bg);border:1.5px solid var(--brand-border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--brand);flex-shrink:0}
+.av.sm{width:26px;height:26px;font-size:10px}
+.cell-name{font-weight:600;color:var(--black)}
+.cell-sub{font-size:12px;color:var(--gray2);margin-top:1px}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.badge-prospect{background:#f1f5f9;color:#475569}
+.badge-qualified{background:var(--blue-bg);color:var(--blue)}
+.badge-hot_lead{background:#fff7ed;color:#c2410c}
+.badge-negotiation{background:var(--yellow-bg);color:var(--yellow)}
+.badge-won{background:var(--green-bg);color:var(--green)}
+.badge-lost{background:#fee2e2;color:#dc2626}
+.badge-cold{background:#f1f5f9;color:#94a3b8}
+/* quote lead statuses */
+.badge-new_inquiry{background:var(--blue-bg);color:var(--blue)}
+.badge-quoted{background:var(--yellow-bg);color:var(--yellow)}
+.badge-follow_up{background:#fff7ed;color:#c2410c}
+.badge-confirmed{background:var(--green-bg);color:var(--green)}
+.badge-cancelled{background:#fee2e2;color:#dc2626}
+.badge-expired{background:#f1f5f9;color:#94a3b8}
+/* shipment statuses */
+.badge-new_booking{background:var(--blue-bg);color:var(--blue)}
+.badge-documents_pending{background:var(--yellow-bg);color:var(--yellow)}
+.badge-in_transit{background:var(--purple-bg);color:var(--purple)}
+.badge-out_for_delivery{background:#fff7ed;color:#c2410c}
+.badge-delivered{background:var(--green-bg);color:var(--green)}
+.badge-on_hold{background:#fee2e2;color:#dc2626}
+/* task */
+.badge-pending{background:var(--yellow-bg);color:var(--yellow)}
+.badge-in_progress{background:var(--blue-bg);color:var(--blue)}
+.badge-completed{background:var(--green-bg);color:var(--green)}
+.badge-overdue{background:#fee2e2;color:#dc2626}
+/* priority */
+.badge-high{background:#fee2e2;color:#dc2626}
+.badge-medium{background:var(--yellow-bg);color:var(--yellow)}
+.badge-low{background:var(--green-bg);color:var(--green)}
+/* shipment mode */
+.badge-air{background:var(--blue-bg);color:var(--blue)}
+.badge-sea{background:var(--purple-bg);color:var(--purple)}
+.badge-road{background:var(--green-bg);color:var(--green)}
+.badge-courier{background:#fff7ed;color:#c2410c}
+/* category badges */
+.badge-logistics{background:var(--blue-bg);color:var(--blue)}
+.badge-ecommerce{background:var(--purple-bg);color:var(--purple)}
+.badge-customs{background:var(--orange-bg);color:var(--orange)}
+.badge-moving{background:var(--green-bg);color:var(--green)}
+.badge-warehousing{background:var(--yellow-bg);color:var(--yellow)}
+/* sub-nav category filters */
+.cat-filters{padding:2px 0 6px 0}
+.cat-filter{display:block;padding:5px 12px 5px 42px;font-size:12px;color:rgba(255,255,255,.5);cursor:pointer;border-radius:6px;transition:all .15s;margin-bottom:1px}
+.cat-filter:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.85)}
+.cat-filter.active{background:rgba(255,255,255,.12);color:#fff;font-weight:600}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:var(--white);border-radius:16px;width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)}
+.modal.wide{max-width:720px}
+.modal-head{padding:20px 24px 16px;border-bottom:1px solid var(--gray3);display:flex;align-items:center;justify-content:space-between}
+.modal-head h2{font-size:17px;font-weight:700}
+.modal-close{background:none;font-size:22px;color:var(--gray);padding:4px;border-radius:6px;line-height:1}
+.modal-close:hover{color:var(--black)}
+.modal-body{padding:20px 24px;overflow-y:auto;flex:1}
+.modal-foot{padding:16px 24px;border-top:1px solid var(--gray3);display:flex;justify-content:flex-end;gap:10px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-row.three{grid-template-columns:1fr 1fr 1fr}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:12px;font-weight:700;color:var(--gray);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.fg input,.fg select,.fg textarea{width:100%;padding:9px 12px;border:1.5px solid var(--gray3);border-radius:8px;font-size:13.5px;transition:border .2s;color:var(--black);background:var(--white)}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--brand)}
+.fg textarea{resize:vertical;min-height:70px}
+.btn-cancel{padding:9px 20px;border:1.5px solid var(--gray3);border-radius:8px;font-size:13px;font-weight:600;color:var(--gray);background:var(--white)}
+.btn-cancel:hover{background:var(--gray4)}
+.btn-save{padding:9px 24px;background:var(--brand);color:#fff;border-radius:8px;font-size:13px;font-weight:700}
+.btn-save:hover{background:var(--brand-dark)}
+.btn-danger{padding:9px 20px;background:#dc2626;color:#fff;border-radius:8px;font-size:13px;font-weight:700}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:60px 20px;color:var(--gray2)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.empty-title{font-size:16px;font-weight:600;color:var(--gray);margin-bottom:6px}
+.empty-sub{font-size:13px}
+
+/* PAGINATION */
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-top:1px solid var(--gray3);font-size:13px;color:var(--gray)}
+.page-btns{display:flex;gap:6px}
+.page-btn{padding:6px 12px;border:1.5px solid var(--gray3);border-radius:7px;font-size:13px;background:var(--white);color:var(--gray);font-weight:600}
+.page-btn:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
+.page-btn:disabled{opacity:.4;cursor:default}
+.page-btn.active{background:var(--brand);border-color:var(--brand);color:#fff}
+
+/* DETAIL PANEL */
+.detail-panel{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;margin-bottom:20px}
+.dp-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px}
+.dp-name{font-size:20px;font-weight:800}
+.dp-company{font-size:14px;color:var(--gray);margin-top:3px}
+.dp-actions{display:flex;gap:8px}
+.btn-edit{padding:7px 16px;background:var(--brand-bg);color:var(--brand);border:1.5px solid var(--brand-border);border-radius:8px;font-size:13px;font-weight:600}
+.btn-edit:hover{background:var(--brand);color:#fff}
+.btn-back{padding:7px 14px;background:var(--gray4);border:1.5px solid var(--gray3);border-radius:8px;font-size:13px;font-weight:600;color:var(--gray);display:flex;align-items:center;gap:6px}
+.btn-back:hover{background:var(--gray3)}
+.dp-fields{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.dp-field label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray2);margin-bottom:3px;display:block}
+.dp-field span{font-size:14px;color:var(--black);font-weight:500}
+.section-title{font-size:14px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--gray3)}
+
+/* DASHBOARD QUICK */
+.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.quick-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+.quick-card-title{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.activity-item{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray3)}
+.activity-item:last-child{border:none}
+.act-dot{width:8px;height:8px;border-radius:50%;background:var(--brand);flex-shrink:0;margin-top:5px}
+.act-title{font-size:13px;font-weight:500}
+.act-time{font-size:11px;color:var(--gray2)}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast-item{background:#1e293b;color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;animation:slideIn .3s ease}
+.toast-item.success::before{content:'✅'}
+.toast-item.error::before{content:'❌'}
+.toast-item.info::before{content:'ℹ️'}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ROLE BADGE */
+.role-badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.role-admin{background:#fee2e2;color:#991b1b}
+.role-manager{background:var(--blue-bg);color:#1d4ed8}
+.role-sales_rep{background:var(--green-bg);color:#15803d}
+
+/* LOADING */
+.loading{text-align:center;padding:60px;color:var(--gray2);font-size:14px}
+.spinner{width:28px;height:28px;border:3px solid var(--gray3);border-top-color:var(--brand);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TABS */
+.tab-strip{display:flex;gap:4px;background:var(--gray4);padding:4px;border-radius:10px;margin-bottom:20px;width:fit-content}
+.tab-btn{padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;color:var(--gray);background:none;transition:all .15s}
+.tab-btn.active{background:var(--white);color:var(--brand);box-shadow:var(--shadow)}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-ync">YNC</div>
+      <div class="logo-crm">CRM</div>
+      <div class="logo-tagline">Your Next Courier — CRM</div>
+    </div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchAuthTab('login')">Sign In</div>
+      <div class="auth-tab" onclick="switchAuthTab('register')">Register</div>
+    </div>
+    <div id="auth-error" class="auth-error"></div>
+    <div id="tab-login">
+      <div class="form-group"><label>Email</label><input id="login-email" type="email" placeholder="admin@ync.in"/></div>
+      <div class="form-group"><label>Password</label><input id="login-password" type="password" placeholder="Password"/></div>
+      <button class="btn-primary" onclick="doLogin()">Sign In</button>
+    </div>
+    <div id="tab-register" style="display:none">
+      <div class="form-group"><label>Full Name</label><input id="reg-name" type="text" placeholder="Your name"/></div>
+      <div class="form-group"><label>Email</label><input id="reg-email" type="email" placeholder="you@company.com"/></div>
+      <div class="form-group"><label>Password</label><input id="reg-password" type="password" placeholder="Min 8 characters"/></div>
+      <div class="form-group"><label>Company Name</label><input id="reg-company" type="text" placeholder="Your company (optional)"/></div>
+      <button class="btn-primary" onclick="doRegister()">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sidebar-logo">
+      <div class="s-ync">YNC</div>
+      <div class="s-crm">CRM</div>
+      <div class="s-tag">Your Next Courier</div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Main</div>
+        <div class="nav-item active" onclick="nav('dashboard')" id="nav-dashboard"><span class="ni">📊</span>Dashboard</div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Leads</div>
+        <div class="nav-item" onclick="nav('quote-leads')" id="nav-quote-leads"><span class="ni">💬</span>Leads</div>
+        <div class="cat-filters" id="cat-filters" style="display:none">
+          <div class="cat-filter active" data-cat="" onclick="setCategoryFilter('')">All</div>
+          <div class="cat-filter" data-cat="logistics" onclick="setCategoryFilter('logistics')">Logistics</div>
+          <div class="cat-filter" data-cat="ecommerce" onclick="setCategoryFilter('ecommerce')">eCommerce</div>
+          <div class="cat-filter" data-cat="customs" onclick="setCategoryFilter('customs')">Customs</div>
+          <div class="cat-filter" data-cat="moving" onclick="setCategoryFilter('moving')">Moving</div>
+          <div class="cat-filter" data-cat="warehousing" onclick="setCategoryFilter('warehousing')">Warehousing</div>
+        </div>
+        <div class="nav-item" onclick="nav('shipment-leads')" id="nav-shipment-leads"><span class="ni">🚢</span>Shipment</div>
+        <div class="nav-item" onclick="nav('contacts')" id="nav-contacts"><span class="ni">👥</span>Contacts</div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Work</div>
+        <div class="nav-item" onclick="nav('tasks')" id="nav-tasks"><span class="ni">✅</span>Tasks</div>
+      </div>
+      <div class="nav-section" id="nav-section-admin" style="display:none">
+        <div class="nav-section-title">Admin</div>
+        <div class="nav-item" onclick="nav('users')" id="nav-users"><span class="ni">🏢</span>Team</div>
+        <div class="nav-item" onclick="nav('reports')" id="nav-reports"><span class="ni">📈</span>Reports</div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="su-avatar" id="su-avatar">?</div>
+      <div>
+        <div class="su-name" id="su-name">Loading...</div>
+        <div class="su-role" id="su-role"></div>
+      </div>
+      <button class="su-logout" onclick="doLogout()" title="Logout">⏻</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div id="topbar">
+      <div class="topbar-title" id="page-title">Dashboard</div>
+      <div class="topbar-right">
+        <div class="search-box" id="search-wrap" style="display:none">
+          <span class="si">🔍</span>
+          <input type="text" id="search-input" placeholder="Search..." oninput="onSearch(this.value)"/>
+        </div>
+        <button class="btn-add" id="btn-add" style="display:none" onclick="openAddModal()">+ Add</button>
+      </div>
+    </div>
+    <div id="content"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal wide" id="modal">
+    <div class="modal-head">
+      <h2 id="modal-title">Add</h2>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot" id="modal-foot">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" id="modal-save" onclick="modalSave()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────────────────────────
+const API = 'https://ync-crm-backend.vercel.app';
+
+// ─── STATE ─────────────────────────────────────────────────────────────────
+let token    = localStorage.getItem('ync_token') || '';
+let me       = JSON.parse(localStorage.getItem('ync_me') || 'null');
+let curPage  = 'dashboard';
+let curData  = {};
+let modalCb  = null;
+let searchTimer = null;
+let curSearch = '';
+let curFilter = {};
+let curPageNum = 1;
+let curCategoryFilter = '';
+
+// ─── API HELPER ────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  const j = await r.json();
+  if (!j.success && r.status === 401) { doLogout(); return null; }
+  return j;
+}
+
+// ─── AUTH ──────────────────────────────────────────────────────────────────
+function switchAuthTab(t) {
+  document.querySelectorAll('.auth-tab').forEach((el,i) => el.classList.toggle('active', (t==='login'&&i===0)||(t==='register'&&i===1)));
+  document.getElementById('tab-login').style.display    = t==='login'    ? '' : 'none';
+  document.getElementById('tab-register').style.display = t==='register' ? '' : 'none';
+  clearAuthErr();
+}
+function showAuthErr(msg) { const e = document.getElementById('auth-error'); e.textContent = msg; e.classList.add('show'); }
+function clearAuthErr()   { const e = document.getElementById('auth-error'); e.classList.remove('show'); }
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  if (!email || !pass) { showAuthErr('Email and password are required'); return; }
+  clearAuthErr();
+  const r = await fetch(API + '/api/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password: pass })
+  }).then(x => x.json()).catch(() => null);
+  if (!r || !r.success) { showAuthErr(r?.error || 'Login failed'); return; }
+  token = r.data.token; me = r.data.user;
+  localStorage.setItem('ync_token', token);
+  localStorage.setItem('ync_me', JSON.stringify(me));
+  initApp();
+}
+
+async function doRegister() {
+  const name    = document.getElementById('reg-name').value.trim();
+  const email   = document.getElementById('reg-email').value.trim();
+  const pass    = document.getElementById('reg-password').value;
+  const company = document.getElementById('reg-company').value.trim();
+  if (!name || !email || !pass) { showAuthErr('Name, email and password are required'); return; }
+  clearAuthErr();
+  const r = await fetch(API + '/api/auth/register', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password: pass, company })
+  }).then(x => x.json()).catch(() => null);
+  if (!r || !r.success) { showAuthErr(r?.error || 'Registration failed'); return; }
+  token = r.data.token; me = r.data.user;
+  localStorage.setItem('ync_token', token);
+  localStorage.setItem('ync_me', JSON.stringify(me));
+  initApp();
+}
+
+async function doLogout() {
+  if (token) await fetch(API + '/api/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }).catch(() => {});
+  token = ''; me = null;
+  localStorage.removeItem('ync_token'); localStorage.removeItem('ync_me');
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app').classList.remove('show');
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+function initApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').classList.add('show');
+  document.getElementById('su-avatar').textContent = me.avatar || me.name?.slice(0,2).toUpperCase() || '??';
+  document.getElementById('su-name').textContent   = me.name;
+  document.getElementById('su-role').textContent   = roleLabel(me.role);
+  if (me.role === 'admin' || me.role === 'manager') {
+    document.getElementById('nav-section-admin').style.display = '';
+  }
+  nav('dashboard');
+}
+
+window.onload = () => {
+  // Check invite token in URL
+  const params = new URLSearchParams(location.search);
+  const invite = params.get('invite');
+  if (invite) {
+    switchAuthTab('register');
+    document.getElementById('auth-screen').style.display = 'flex';
+    window._inviteToken = invite;
+    return;
+  }
+  if (token && me) { initApp(); }
+  else { document.getElementById('auth-screen').style.display = 'flex'; }
+};
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────────
+const PAGE_TITLES = {
+  dashboard: 'Dashboard', contacts: 'Contacts',
+  'quote-leads': 'Leads', 'shipment-leads': 'Shipment',
+  tasks: 'Tasks', users: 'Team Management', reports: 'Reports'
+};
+const ADD_LABELS = {
+  contacts: '+ Contact', 'quote-leads': '+ Quote Lead',
+  'shipment-leads': '+ Shipment Lead', tasks: '+ Task', users: '+ Team Member'
+};
+
+function nav(page) {
+  curPage = page; curSearch = ''; curPageNum = 1; curFilter = {};
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const ni = document.getElementById('nav-' + page);
+  if (ni) ni.classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_TITLES[page] || page;
+  const addBtn = document.getElementById('btn-add');
+  const srchWrap = document.getElementById('search-wrap');
+  if (ADD_LABELS[page]) { addBtn.style.display = ''; addBtn.textContent = ADD_LABELS[page]; }
+  else addBtn.style.display = 'none';
+  const searchPages = ['contacts','quote-leads','shipment-leads','tasks','users'];
+  srchWrap.style.display = searchPages.includes(page) ? '' : 'none';
+  document.getElementById('search-input').value = '';
+  const catFilters = document.getElementById('cat-filters');
+  if (catFilters) catFilters.style.display = page === 'quote-leads' ? '' : 'none';
+  if (page !== 'quote-leads') { curCategoryFilter = ''; }
+  renderPage(page);
+}
+
+function onSearch(v) {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { curSearch = v; curPageNum = 1; renderPage(curPage); }, 350);
+}
+
+// ─── RENDER ROUTER ────────────────────────────────────────────────────────
+function renderPage(page) {
+  const c = document.getElementById('content');
+  c.innerHTML = `<div class="loading"><div class="spinner"></div>Loading...</div>`;
+  switch(page) {
+    case 'dashboard':     renderDashboard(); break;
+    case 'contacts':      renderContacts(); break;
+    case 'quote-leads':   renderQuoteLeads(); break;
+    case 'shipment-leads':renderShipmentLeads(); break;
+    case 'tasks':         renderTasks(); break;
+    case 'users':         renderUsers(); break;
+    case 'reports':       renderReports(); break;
+  }
+}
+
+// ─── DASHBOARD ─────────────────────────────────────────────────────────────
+async function renderDashboard() {
+  const [summary, activity] = await Promise.all([
+    api('GET', '/api/reports?type=summary'),
+    api('GET', '/api/reports?type=activity&range=month')
+  ]);
+  const s = summary?.data || {};
+  const acts = activity?.data || [];
+  document.getElementById('content').innerHTML = `
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">Total Contacts</div><div class="stat-value">${s.total||0}</div><div class="stat-sub">All time</div></div>
+    <div class="stat-card green"><div class="stat-label">Deals Won</div><div class="stat-value">${s.won||0}</div><div class="stat-sub">Conv. rate: ${s.convRate||0}%</div></div>
+    <div class="stat-card blue"><div class="stat-label">Quote Leads</div><div class="stat-value">${s.quoteLeads||0}</div><div class="stat-sub">Get a quote requests</div></div>
+    <div class="stat-card orange"><div class="stat-label">Shipment Leads</div><div class="stat-value">${s.shipmentLeads||0}</div><div class="stat-sub">Book a shipment</div></div>
+    <div class="stat-card purple"><div class="stat-label">Pipeline Value</div><div class="stat-value">${fmtCur(s.pipeline)}</div><div class="stat-sub">Active deals</div></div>
+    <div class="stat-card"><div class="stat-label">Open Tasks</div><div class="stat-value">${s.openTasks||0}</div><div class="stat-sub">Pending completion</div></div>
+  </div>
+  <div class="quick-grid">
+    <div class="quick-card">
+      <div class="quick-card-title">⚡ Recent Activity</div>
+      ${acts.length ? acts.slice(0,8).map(a=>`
+        <div class="activity-item">
+          <div class="act-dot"></div>
+          <div><div class="act-title">${esc(a.title)}</div><div class="act-time">${fmtDate(a.createdAt)} · ${esc(a.user?.name||'')}</div></div>
+        </div>`).join('') : '<div class="empty-sub">No recent activity</div>'}
+    </div>
+    <div class="quick-card">
+      <div class="quick-card-title">🚀 Quick Actions</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+        <button onclick="nav('quote-leads');openAddModal()" style="background:var(--brand-bg);border:1.5px solid var(--brand-border);border-radius:10px;padding:12px 16px;text-align:left;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--brand)">💬 New Quote Lead</button>
+        <button onclick="nav('shipment-leads');openAddModal()" style="background:var(--blue-bg);border:1.5px solid #bfdbfe;border-radius:10px;padding:12px 16px;text-align:left;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--blue)">🚢 New Shipment Lead</button>
+        <button onclick="nav('contacts');openAddModal()" style="background:var(--green-bg);border:1.5px solid #bbf7d0;border-radius:10px;padding:12px 16px;text-align:left;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--green)">👤 New Contact</button>
+        <button onclick="nav('tasks');openAddModal()" style="background:var(--yellow-bg);border:1.5px solid #fde68a;border-radius:10px;padding:12px 16px;text-align:left;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--yellow)">✅ New Task</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── CONTACTS ──────────────────────────────────────────────────────────────
+async function renderContacts() {
+  let url = `/api/contacts?page=${curPageNum}&limit=15`;
+  if (curSearch) url += `&search=${encodeURIComponent(curSearch)}`;
+  if (curFilter.status) url += `&status=${curFilter.status}`;
+  const r = await api('GET', url);
+  const items = r?.data || []; const pg = r?.pagination || {};
+  const statusOpts = ['','prospect','qualified','hot_lead','negotiation','won','lost','cold'];
+  document.getElementById('content').innerHTML = `
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title">Contacts (${pg.total||0})</div>
+      <div class="table-filters">
+        <select class="filter-select" onchange="setFilter('status',this.value)" value="${curFilter.status||''}">
+          ${statusOpts.map(s=>`<option value="${s}" ${curFilter.status===s?'selected':''}>${s?fmtStatus(s):'All Statuses'}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    ${items.length ? `<table><thead><tr>
+      <th>Name</th><th>Company</th><th>Status</th><th>Deal Value</th><th>Assigned To</th><th>Created</th>
+    </tr></thead><tbody>
+    ${items.map(c=>`<tr onclick="viewContact('${c.id}')">
+      <td><div class="avatar-cell"><div class="av">${c.avatar||c.name?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(c.name)}</div><div class="cell-sub">${esc(c.email||'')}</div></div></div></td>
+      <td>${esc(c.company||'—')}</td>
+      <td>${badge(c.status)}</td>
+      <td>${c.dealValue ? fmtCur(c.dealValue) : '—'}</td>
+      <td><div class="avatar-cell"><div class="av sm">${c.assignedTo?.avatar||'?'}</div>${esc(c.assignedTo?.name||'—')}</div></td>
+      <td>${fmtDate(c.createdAt)}</td>
+    </tr>`).join('')}
+    </tbody></table>` : emptyState('👥','No contacts found','Add your first contact using the button above')}
+    ${pgHtml(pg)}
+  </div>`;
+}
+
+async function viewContact(id) {
+  const r = await api('GET', `/api/contacts/${id}`);
+  const c = r?.data; if (!c) return;
+  document.getElementById('content').innerHTML = `
+  <button class="btn-back" onclick="nav('contacts')">← Back</button>
+  <div class="detail-panel" style="margin-top:16px">
+    <div class="dp-header">
+      <div>
+        <div class="dp-name">${esc(c.name)}</div>
+        <div class="dp-company">${esc(c.company||'')} ${c.jobTitle?'· '+esc(c.jobTitle):''}</div>
+        <div style="margin-top:8px">${badge(c.status)}</div>
+      </div>
+      <div class="dp-actions">
+        <button class="btn-edit" onclick="editContact(${JSON.stringify(c).replace(/"/g,'&quot;')})">✏️ Edit</button>
+        ${me.role!=='sales_rep'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteContact('${c.id}')">Delete</button>`:''}
+      </div>
+    </div>
+    <div class="dp-fields">
+      <div class="dp-field"><label>Email</label><span>${esc(c.email||'—')}</span></div>
+      <div class="dp-field"><label>Phone</label><span>${esc(c.phone||'—')}</span></div>
+      <div class="dp-field"><label>Website</label><span>${esc(c.website||'—')}</span></div>
+      <div class="dp-field"><label>Deal Value</label><span>${c.dealValue?fmtCur(c.dealValue):'—'}</span></div>
+      <div class="dp-field"><label>Assigned To</label><span>${esc(c.assignedTo?.name||'—')}</span></div>
+      <div class="dp-field"><label>Created</label><span>${fmtDate(c.createdAt)}</span></div>
+    </div>
+    ${c.notes?`<div style="margin-top:16px"><div class="dp-field"><label>Notes</label><span>${esc(c.notes)}</span></div></div>`:''}
+  </div>
+  ${c.activities?.length?`
+  <div class="table-card">
+    <div class="table-header"><div class="table-title">Activity</div></div>
+    ${c.activities.map(a=>`
+    <div class="activity-item" style="padding:10px 20px">
+      <div class="act-dot"></div>
+      <div><div class="act-title">${esc(a.title)}</div><div class="act-time">${fmtDate(a.createdAt)} · ${esc(a.user?.name||'')}</div></div>
+    </div>`).join('')}
+  </div>`:''}`;
+}
+
+// ─── QUOTE LEADS ──────────────────────────────────────────────────────────
+async function renderQuoteLeads() {
+  let url = `/api/quote-leads?page=${curPageNum}&limit=15`;
+  if (curSearch) url += `&search=${encodeURIComponent(curSearch)}`;
+  if (curFilter.status) url += `&status=${curFilter.status}`;
+  if (curFilter.mode)   url += `&mode=${curFilter.mode}`;
+  if (curCategoryFilter) url += `&category=${curCategoryFilter}`;
+  const r = await api('GET', url);
+  const items = r?.data || []; const pg = r?.pagination || {};
+  const statusOpts = ['','new_inquiry','quoted','follow_up','negotiation','confirmed','cancelled','expired'];
+  const modeOpts   = ['','air','sea','road','courier'];
+  document.getElementById('content').innerHTML = `
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title">Leads (${pg.total||0})</div>
+      <div class="table-filters">
+        <select class="filter-select" onchange="setFilter('status',this.value)">
+          ${statusOpts.map(s=>`<option value="${s}" ${curFilter.status===s?'selected':''}>${s?fmtStatus(s):'All Statuses'}</option>`).join('')}
+        </select>
+        <select class="filter-select" onchange="setFilter('mode',this.value)">
+          ${modeOpts.map(m=>`<option value="${m}" ${curFilter.mode===m?'selected':''}>${m?m.toUpperCase():'All Modes'}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    ${items.length ? `<table><thead><tr>
+      <th>Customer</th><th>Category</th><th>Route</th><th>Mode</th><th>Cargo</th><th>Weight</th><th>Quoted</th><th>Status</th><th>Assigned</th>
+    </tr></thead><tbody>
+    ${items.map(l=>`<tr onclick="viewQuoteLead('${l.id}')">
+      <td><div class="avatar-cell"><div class="av">${l.customerName?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(l.customerName)}</div><div class="cell-sub">${esc(l.company||l.email||'')}</div></div></div></td>
+      <td>${l.category?`<span class="badge badge-${l.category}">${fmtStatus(l.category)}</span>`:'—'}</td>
+      <td><div class="cell-name">${esc(l.origin||'?')} → ${esc(l.destination||'?')}</div></td>
+      <td>${l.shipmentMode?badge(l.shipmentMode):'—'}</td>
+      <td>${esc(l.cargoType||'—')}</td>
+      <td>${l.weight?l.weight+' kg':'—'}</td>
+      <td>${l.quotedAmount?fmtCur(l.quotedAmount):'—'}</td>
+      <td>${badge(l.status)}</td>
+      <td>${esc(l.assignedTo?.name||'—')}</td>
+    </tr>`).join('')}
+    </tbody></table>` : emptyState('💬','No quote leads found','Add your first quote lead using the button above')}
+    ${pgHtml(pg)}
+  </div>`;
+}
+
+async function viewQuoteLead(id) {
+  const r = await api('GET', `/api/quote-leads/${id}`);
+  const l = r?.data; if (!l) return;
+  document.getElementById('content').innerHTML = `
+  <button class="btn-back" onclick="nav('quote-leads')">← Back</button>
+  <div class="detail-panel" style="margin-top:16px">
+    <div class="dp-header">
+      <div>
+        <div class="dp-name">${esc(l.customerName)}</div>
+        <div class="dp-company">${esc(l.company||'')}${l.email?' · '+esc(l.email):''}</div>
+        <div style="margin-top:8px;display:flex;gap:8px">${l.category?`<span class="badge badge-${l.category}">${fmtStatus(l.category)}</span>`:''}${badge(l.status)}${l.shipmentMode?badge(l.shipmentMode):''}</div>
+      </div>
+      <div class="dp-actions">
+        <button class="btn-edit" onclick="editQuoteLead(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏️ Edit</button>
+        ${me.role!=='sales_rep'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteQuoteLead('${l.id}')">Delete</button>`:''}
+      </div>
+    </div>
+    <div class="dp-fields">
+      <div class="dp-field"><label>Phone</label><span>${esc(l.phone||'—')}</span></div>
+      <div class="dp-field"><label>Origin → Dest</label><span>${esc(l.origin||'?')} → ${esc(l.destination||'?')}</span></div>
+      <div class="dp-field"><label>Cargo Type</label><span>${esc(l.cargoType||'—')}</span></div>
+      <div class="dp-field"><label>Weight</label><span>${l.weight?l.weight+' kg':'—'}</span></div>
+      <div class="dp-field"><label>Dimensions</label><span>${esc(l.dimensions||'—')}</span></div>
+      <div class="dp-field"><label>Est. Cargo Value</label><span>${l.estimatedValue?fmtCur(l.estimatedValue):'—'}</span></div>
+      <div class="dp-field"><label>Quoted Amount</label><span>${l.quotedAmount?fmtCur(l.quotedAmount):'—'}</span></div>
+      <div class="dp-field"><label>Currency</label><span>${l.currency}</span></div>
+      <div class="dp-field"><label>Assigned To</label><span>${esc(l.assignedTo?.name||'—')}</span></div>
+      <div class="dp-field"><label>Created</label><span>${fmtDate(l.createdAt)}</span></div>
+    </div>
+    ${l.notes?`<div style="margin-top:16px"><div class="dp-field"><label>Notes</label><span>${esc(l.notes)}</span></div></div>`:''}
+  </div>
+  <div class="table-card" style="margin-top:16px">
+    <div class="table-header">
+      <div class="table-title">Vendor Rates</div>
+      <button class="btn-add" onclick="getVendorRates('${l.id}')" style="font-size:12px;padding:6px 14px">🔍 Get Rates</button>
+    </div>
+    <div id="vendor-rates-container" style="padding:20px">
+      <div class="empty-sub" style="color:var(--gray2);font-size:13px;text-align:center;padding:20px">Click "Get Rates" to fetch vendor pricing</div>
+    </div>
+  </div>`;
+}
+
+function getVendorRates(id) {
+  const container = document.getElementById('vendor-rates-container');
+  if (!container) return;
+  container.innerHTML = `
+    <div style="text-align:center;padding:30px">
+      <div style="font-size:14px;font-weight:600;color:var(--gray);margin-bottom:8px">Vendor API integration coming soon</div>
+      <div style="font-size:12px;color:var(--gray2)">Rates from multiple vendors will appear here</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px">
+      <div style="background:var(--gray4);border:1.5px solid var(--gray3);border-radius:10px;padding:16px;text-align:center">
+        <div style="font-size:13px;font-weight:700;color:var(--gray)">Vendor 1</div>
+        <div style="font-size:12px;color:var(--gray2);margin-top:4px">Pending</div>
+      </div>
+      <div style="background:var(--gray4);border:1.5px solid var(--gray3);border-radius:10px;padding:16px;text-align:center">
+        <div style="font-size:13px;font-weight:700;color:var(--gray)">Vendor 2</div>
+        <div style="font-size:12px;color:var(--gray2);margin-top:4px">Pending</div>
+      </div>
+      <div style="background:var(--gray4);border:1.5px solid var(--gray3);border-radius:10px;padding:16px;text-align:center">
+        <div style="font-size:13px;font-weight:700;color:var(--gray)">Vendor 3</div>
+        <div style="font-size:12px;color:var(--gray2);margin-top:4px">Pending</div>
+      </div>
+      <div style="background:var(--gray4);border:1.5px solid var(--gray3);border-radius:10px;padding:16px;text-align:center">
+        <div style="font-size:13px;font-weight:700;color:var(--gray)">Vendor 4</div>
+        <div style="font-size:12px;color:var(--gray2);margin-top:4px">Pending</div>
+      </div>
+    </div>`;
+}
+
+// ─── SHIPMENT LEADS ────────────────────────────────────────────────────────
+async function renderShipmentLeads() {
+  let url = `/api/shipment-leads?page=${curPageNum}&limit=15`;
+  if (curSearch) url += `&search=${encodeURIComponent(curSearch)}`;
+  if (curFilter.status) url += `&status=${curFilter.status}`;
+  if (curFilter.mode)   url += `&mode=${curFilter.mode}`;
+  const r = await api('GET', url);
+  const items = r?.data || []; const pg = r?.pagination || {};
+  const statusOpts = ['','new_booking','documents_pending','in_transit','out_for_delivery','delivered','cancelled','on_hold'];
+  const modeOpts   = ['','air','sea','road','courier'];
+  document.getElementById('content').innerHTML = `
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title">Shipment (${pg.total||0})</div>
+      <div class="table-filters">
+        <select class="filter-select" onchange="setFilter('status',this.value)">
+          ${statusOpts.map(s=>`<option value="${s}" ${curFilter.status===s?'selected':''}>${s?fmtStatus(s):'All Statuses'}</option>`).join('')}
+        </select>
+        <select class="filter-select" onchange="setFilter('mode',this.value)">
+          ${modeOpts.map(m=>`<option value="${m}" ${curFilter.mode===m?'selected':''}>${m?m.toUpperCase():'All Modes'}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    ${items.length ? `<table><thead><tr>
+      <th>Customer</th><th>Route</th><th>Mode</th><th>Booking Ref</th><th>AWB / Tracking</th><th>Freight</th><th>Status</th><th>Assigned</th>
+    </tr></thead><tbody>
+    ${items.map(l=>`<tr onclick="viewShipmentLead('${l.id}')">
+      <td><div class="avatar-cell"><div class="av">${l.customerName?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(l.customerName)}</div><div class="cell-sub">${esc(l.company||l.email||'')}</div></div></div></td>
+      <td><div class="cell-name">${esc(l.origin||'?')} → ${esc(l.destination||'?')}</div></td>
+      <td>${l.shipmentMode?badge(l.shipmentMode):'—'}</td>
+      <td>${esc(l.bookingRef||'—')}</td>
+      <td>${esc(l.awbNumber||'—')}</td>
+      <td>${l.freightCharge?fmtCur(l.freightCharge):'—'}</td>
+      <td>${badge(l.status)}</td>
+      <td>${esc(l.assignedTo?.name||'—')}</td>
+    </tr>`).join('')}
+    </tbody></table>` : emptyState('🚢','No shipment leads found','Add your first shipment booking using the button above')}
+    ${pgHtml(pg)}
+  </div>`;
+}
+
+async function viewShipmentLead(id) {
+  const r = await api('GET', `/api/shipment-leads/${id}`);
+  const l = r?.data; if (!l) return;
+  document.getElementById('content').innerHTML = `
+  <button class="btn-back" onclick="nav('shipment-leads')">← Back</button>
+  <div class="detail-panel" style="margin-top:16px">
+    <div class="dp-header">
+      <div>
+        <div class="dp-name">${esc(l.customerName)}</div>
+        <div class="dp-company">${esc(l.company||'')}${l.email?' · '+esc(l.email):''}</div>
+        <div style="margin-top:8px;display:flex;gap:8px">${badge(l.status)}${l.shipmentMode?badge(l.shipmentMode):''}</div>
+      </div>
+      <div class="dp-actions">
+        <button class="btn-edit" onclick="editShipmentLead(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏️ Edit</button>
+        ${me.role!=='sales_rep'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteShipmentLead('${l.id}')">Delete</button>`:''}
+      </div>
+    </div>
+    <div class="dp-fields">
+      <div class="dp-field"><label>Phone</label><span>${esc(l.phone||'—')}</span></div>
+      <div class="dp-field"><label>Route</label><span>${esc(l.origin||'?')} → ${esc(l.destination||'?')}</span></div>
+      <div class="dp-field"><label>Cargo Type</label><span>${esc(l.cargoType||'—')}</span></div>
+      <div class="dp-field"><label>Weight</label><span>${l.weight?l.weight+' kg':'—'}</span></div>
+      <div class="dp-field"><label>Dimensions</label><span>${esc(l.dimensions||'—')}</span></div>
+      <div class="dp-field"><label>Declared Value</label><span>${l.declaredValue?fmtCur(l.declaredValue):'—'}</span></div>
+      <div class="dp-field"><label>Booking Ref</label><span>${esc(l.bookingRef||'—')}</span></div>
+      <div class="dp-field"><label>AWB / Tracking</label><span>${esc(l.awbNumber||'—')}</span></div>
+      <div class="dp-field"><label>Expected Pickup</label><span>${l.expectedPickup?fmtDate(l.expectedPickup):'—'}</span></div>
+      <div class="dp-field"><label>Expected Delivery</label><span>${l.expectedDelivery?fmtDate(l.expectedDelivery):'—'}</span></div>
+      <div class="dp-field"><label>Freight Charge</label><span>${l.freightCharge?fmtCur(l.freightCharge):'—'}</span></div>
+      <div class="dp-field"><label>Currency</label><span>${l.currency}</span></div>
+      <div class="dp-field"><label>Assigned To</label><span>${esc(l.assignedTo?.name||'—')}</span></div>
+      <div class="dp-field"><label>Created</label><span>${fmtDate(l.createdAt)}</span></div>
+    </div>
+    ${l.notes?`<div style="margin-top:16px"><div class="dp-field"><label>Notes</label><span>${esc(l.notes)}</span></div></div>`:''}
+  </div>`;
+}
+
+// ─── TASKS ─────────────────────────────────────────────────────────────────
+async function renderTasks() {
+  let url = `/api/tasks?page=${curPageNum}&limit=20`;
+  if (curSearch) url += `&search=${encodeURIComponent(curSearch)}`;
+  if (curFilter.status)   url += `&status=${curFilter.status}`;
+  if (curFilter.priority) url += `&priority=${curFilter.priority}`;
+  const r = await api('GET', url);
+  const items = r?.data || []; const pg = r?.pagination || {};
+  document.getElementById('content').innerHTML = `
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title">Tasks (${pg.total||0})</div>
+      <div class="table-filters">
+        <select class="filter-select" onchange="setFilter('status',this.value)">
+          ${['','pending','in_progress','completed','overdue'].map(s=>`<option value="${s}" ${curFilter.status===s?'selected':''}>${s?fmtStatus(s):'All Statuses'}</option>`).join('')}
+        </select>
+        <select class="filter-select" onchange="setFilter('priority',this.value)">
+          ${['','high','medium','low'].map(p=>`<option value="${p}" ${curFilter.priority===p?'selected':''}>${p?p.charAt(0).toUpperCase()+p.slice(1):'All Priorities'}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    ${items.length ? `<table><thead><tr>
+      <th>Title</th><th>Priority</th><th>Status</th><th>Due Date</th><th>Contact</th><th>Assigned</th><th>Actions</th>
+    </tr></thead><tbody>
+    ${items.map(t=>`<tr>
+      <td><div class="cell-name" style="${t.isDone?'text-decoration:line-through;color:var(--gray2)':''}">${esc(t.title)}</div>${t.description?`<div class="cell-sub">${esc(t.description.slice(0,60))}</div>`:''}</td>
+      <td>${badge(t.priority)}</td>
+      <td>${badge(t.status)}</td>
+      <td>${t.dueDate?fmtDate(t.dueDate):'—'}</td>
+      <td>${t.contact?esc(t.contact.name):'—'}</td>
+      <td>${esc(t.assignedTo?.name||'—')}</td>
+      <td style="white-space:nowrap">
+        ${!t.isDone?`<button onclick="toggleTask('${t.id}',true,event)" style="background:var(--green-bg);color:var(--green);border:1.5px solid #bbf7d0;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">Done</button>`
+        :`<button onclick="toggleTask('${t.id}',false,event)" style="background:var(--gray4);color:var(--gray);border:1.5px solid var(--gray3);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">Undo</button>`}
+        <button onclick="editTask(${JSON.stringify(t).replace(/"/g,'&quot;')},event)" style="background:var(--brand-bg);color:var(--brand);border:1.5px solid var(--brand-border);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-left:4px">Edit</button>
+      </td>
+    </tr>`).join('')}
+    </tbody></table>` : emptyState('✅','No tasks found','Create your first task using the button above')}
+    ${pgHtml(pg)}
+  </div>`;
+}
+
+async function toggleTask(id, done, e) {
+  e.stopPropagation();
+  await api('PATCH', `/api/tasks/${id}`, { isDone: done, status: done ? 'completed' : 'pending' });
+  toast(done ? 'Task marked complete!' : 'Task reopened', 'success');
+  renderTasks();
+}
+
+// ─── USERS ────────────────────────────────────────────────────────────────
+async function renderUsers() {
+  const r = await api('GET', '/api/users');
+  const items = r?.data || [];
+  document.getElementById('content').innerHTML = `
+  <div class="table-card">
+    <div class="table-header"><div class="table-title">Team Members (${items.length})</div></div>
+    ${items.length ? `<table><thead><tr>
+      <th>Name</th><th>Role</th><th>Title</th><th>Manager</th><th>Status</th><th>Actions</th>
+    </tr></thead><tbody>
+    ${items.map(u=>`<tr>
+      <td><div class="avatar-cell"><div class="av">${u.avatar||u.name?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(u.name)}</div><div class="cell-sub">${esc(u.email)}</div></div></div></td>
+      <td><span class="role-badge role-${u.role}">${roleLabel(u.role)}</span></td>
+      <td>${esc(u.title||'—')}</td>
+      <td>${u.manager?esc(u.manager.name):'—'}</td>
+      <td><span class="badge ${u.isActive?'badge-won':'badge-lost'}">${u.isActive?'Active':'Inactive'}</span></td>
+      <td>
+        <button onclick="editUser(${JSON.stringify(u).replace(/"/g,'&quot;')},event)" style="background:var(--brand-bg);color:var(--brand);border:1.5px solid var(--brand-border);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">Edit</button>
+        ${u.id!==me.id?`<button onclick="deactivateUser('${u.id}','${esc(u.name)}',event)" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-left:4px">${u.isActive?'Deactivate':'Activate'}</button>`:''}
+      </td>
+    </tr>`).join('')}
+    </tbody></table>` : emptyState('🏢','No team members','Add team members using the button above')}
+  </div>`;
+}
+
+// ─── REPORTS ─────────────────────────────────────────────────────────────
+async function renderReports() {
+  const [summary, pipeline] = await Promise.all([
+    api('GET', '/api/reports?type=summary'),
+    api('GET', '/api/reports?type=pipeline')
+  ]);
+  const s = summary?.data || {};
+  const p = pipeline?.data || {};
+  const statusMap = { prospect:'Prospect', qualified:'Qualified', hot_lead:'Hot Lead', negotiation:'Negotiation', won:'Won', lost:'Lost', cold:'Cold' };
+  const byStatus = p.byStatus || {};
+  document.getElementById('content').innerHTML = `
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">Total Contacts</div><div class="stat-value">${s.total||0}</div></div>
+    <div class="stat-card green"><div class="stat-label">Won Deals</div><div class="stat-value">${s.won||0}</div><div class="stat-sub">Conv. rate: ${s.convRate||0}%</div></div>
+    <div class="stat-card blue"><div class="stat-label">Revenue</div><div class="stat-value">${fmtCur(s.revenue)}</div></div>
+    <div class="stat-card purple"><div class="stat-label">Pipeline</div><div class="stat-value">${fmtCur(s.pipeline)}</div></div>
+    <div class="stat-card orange"><div class="stat-label">Quote Leads</div><div class="stat-value">${s.quoteLeads||0}</div></div>
+    <div class="stat-card"><div class="stat-label">Shipment Leads</div><div class="stat-value">${s.shipmentLeads||0}</div></div>
+  </div>
+  <div class="table-card">
+    <div class="table-header"><div class="table-title">Pipeline by Status</div></div>
+    <table><thead><tr><th>Status</th><th>Count</th><th>Value</th></tr></thead><tbody>
+    ${Object.entries(byStatus).map(([st,d])=>`<tr>
+      <td>${badge(st)} <span style="margin-left:8px">${statusMap[st]||st}</span></td>
+      <td><strong>${d.count}</strong></td>
+      <td>${fmtCur(d.value)}</td>
+    </tr>`).join('')}
+    </tbody></table>
+  </div>`;
+}
+
+// ─── MODALS ────────────────────────────────────────────────────────────────
+function openAddModal() {
+  switch(curPage) {
+    case 'contacts':       openContactModal(null); break;
+    case 'quote-leads':    openQuoteLeadModal(null); break;
+    case 'shipment-leads': openShipmentLeadModal(null); break;
+    case 'tasks':          openTaskModal(null); break;
+    case 'users':          openUserModal(null); break;
+  }
+}
+
+function showModal(title, bodyHtml, saveCb) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHtml;
+  document.getElementById('modal-overlay').classList.add('show');
+  modalCb = saveCb;
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); modalCb = null; }
+function closeModalOutside(e) { if (e.target === document.getElementById('modal-overlay')) closeModal(); }
+function modalSave() { if (modalCb) modalCb(); }
+
+// Contact Modal
+function openContactModal(c) {
+  showModal(c ? 'Edit Contact' : 'New Contact', `
+  <div class="form-row"><div class="fg"><label>Full Name *</label><input id="mf-name" value="${esc(c?.name||'')}"/></div>
+  <div class="fg"><label>Email</label><input id="mf-email" type="email" value="${esc(c?.email||'')}"/></div></div>
+  <div class="form-row"><div class="fg"><label>Phone</label><input id="mf-phone" value="${esc(c?.phone||'')}"/></div>
+  <div class="fg"><label>Company</label><input id="mf-company" value="${esc(c?.company||'')}"/></div></div>
+  <div class="form-row"><div class="fg"><label>Job Title</label><input id="mf-jobtitle" value="${esc(c?.jobTitle||'')}"/></div>
+  <div class="fg"><label>Status</label><select id="mf-status">
+    ${['prospect','qualified','hot_lead','negotiation','won','lost','cold'].map(s=>`<option value="${s}" ${(c?.status||'prospect')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
+  </select></div></div>
+  <div class="form-row"><div class="fg"><label>Deal Value (INR)</label><input id="mf-dealvalue" type="number" value="${c?.dealValue||''}"/></div>
+  <div class="fg"><label>Website</label><input id="mf-website" value="${esc(c?.website||'')}"/></div></div>
+  <div class="fg"><label>Notes</label><textarea id="mf-notes">${esc(c?.notes||'')}</textarea></div>`, async () => {
+    const body = {
+      name: document.getElementById('mf-name').value, email: document.getElementById('mf-email').value,
+      phone: document.getElementById('mf-phone').value, company: document.getElementById('mf-company').value,
+      jobTitle: document.getElementById('mf-jobtitle').value, status: document.getElementById('mf-status').value,
+      dealValue: document.getElementById('mf-dealvalue').value, website: document.getElementById('mf-website').value,
+      notes: document.getElementById('mf-notes').value,
+    };
+    const r = c ? await api('PATCH', `/api/contacts/${c.id}`, body) : await api('POST', '/api/contacts', body);
+    if (!r?.success) { toast(r?.error || 'Error saving contact', 'error'); return; }
+    toast(c ? 'Contact updated!' : 'Contact created!', 'success');
+    closeModal(); renderContacts();
+  });
+}
+function editContact(c) { openContactModal(c); }
+
+async function deleteContact(id) {
+  if (!confirm('Delete this contact?')) return;
+  const r = await api('DELETE', `/api/contacts/${id}`);
+  if (r?.success) { toast('Contact deleted', 'success'); nav('contacts'); }
+  else toast(r?.error || 'Error', 'error');
+}
+
+// Quote Lead Modal
+function openQuoteLeadModal(l) {
+  const cat = l?.category || '';
+  showModal(l ? 'Edit Quote Lead' : 'New Lead', `
+  <div class="fg"><label>Category *</label><select id="mf-category" onchange="updateQuoteLeadFields()">
+    <option value="" ${!cat?'selected':''}>Select Category</option>
+    <option value="logistics" ${cat==='logistics'?'selected':''}>Logistics</option>
+    <option value="ecommerce" ${cat==='ecommerce'?'selected':''}>eCommerce</option>
+    <option value="customs" ${cat==='customs'?'selected':''}>Customs</option>
+    <option value="moving" ${cat==='moving'?'selected':''}>Moving</option>
+    <option value="warehousing" ${cat==='warehousing'?'selected':''}>Warehousing</option>
+  </select></div>
+
+  <div id="ql-common-fields">
+    <div class="form-row"><div class="fg"><label>Customer Name *</label><input id="mf-name" value="${esc(l?.customerName||'')}"/></div>
+    <div class="fg"><label>Phone</label><input id="mf-phone" value="${esc(l?.phone||'')}"/></div></div>
+    <div class="fg"><label>Email</label><input id="mf-email" type="email" value="${esc(l?.email||'')}"/></div>
+  </div>
+
+  <div id="ql-logistics-fields" style="display:none">
+    <div class="form-row"><div class="fg"><label>Origin</label><input id="mf-origin" value="${esc(l?.origin||'')}"/></div>
+    <div class="fg"><label>Destination</label><input id="mf-destination" value="${esc(l?.destination||'')}"/></div></div>
+    <div class="form-row"><div class="fg"><label>Shipment Mode</label><select id="mf-mode">
+      <option value="">Select Mode</option>
+      ${['Air','Ocean','Road','Rail'].map(m=>`<option value="${m.toLowerCase()}" ${(l?.shipmentMode||'')===m.toLowerCase()?'selected':''}>${m}</option>`).join('')}
+    </select></div>
+    <div class="fg"><label>Cargo Type</label><input id="mf-cargo" value="${esc(l?.cargoType||'')}"/></div></div>
+    <div class="fg"><label>Weight (kg)</label><input id="mf-weight" type="number" step="0.01" value="${l?.weight||''}"/></div>
+  </div>
+
+  <div id="ql-ecommerce-fields" style="display:none">
+    <div class="form-row"><div class="fg"><label>Origin</label><input id="mf-origin" value="${esc(l?.origin||'')}"/></div>
+    <div class="fg"><label>Destination</label><input id="mf-destination" value="${esc(l?.destination||'')}"/></div></div>
+    <div class="fg"><label>Cargo Type</label><input id="mf-cargo" value="${esc(l?.cargoType||'')}"/></div>
+  </div>
+
+  <div id="ql-customs-fields" style="display:none">
+    <div class="fg"><label>Company Name</label><input id="mf-company" value="${esc(l?.company||'')}"/></div>
+    <div class="fg"><label>IEC Number</label><input id="mf-iec" value="${esc(l?.iecNumber||'')}"/></div>
+    <div class="fg"><label>Clearance Type</label><select id="mf-clearance">
+      <option value="">Select Type</option>
+      ${['Import','Export','Both'].map(t=>`<option value="${t.toLowerCase()}" ${(l?.clearanceType||'')===t.toLowerCase()?'selected':''}>${t}</option>`).join('')}
+    </select></div>
+    <div class="fg"><label>Port / Location</label><input id="mf-port" value="${esc(l?.portLocation||'')}"/></div>
+  </div>
+
+  <div id="ql-moving-fields" style="display:none">
+    <div class="form-row"><div class="fg"><label>Origin</label><input id="mf-origin" value="${esc(l?.origin||'')}"/></div>
+    <div class="fg"><label>Destination</label><input id="mf-destination" value="${esc(l?.destination||'')}"/></div></div>
+    <div class="form-row"><div class="fg"><label>Moving Type</label><select id="mf-movingtype">
+      <option value="">Select Type</option>
+      ${['Household','Office','Vehicle','International'].map(t=>`<option value="${t.toLowerCase()}" ${(l?.movingType||'')===t.toLowerCase()?'selected':''}>${t}</option>`).join('')}
+    </select></div>
+    <div class="fg"><label>Weight (kg)</label><input id="mf-weight" type="number" step="0.01" value="${l?.weight||''}"/></div></div>
+  </div>
+
+  <div id="ql-warehousing-fields" style="display:none">
+    <div class="fg"><label>Company Name</label><input id="mf-company" value="${esc(l?.company||'')}"/></div>
+    <div class="fg"><label>Storage Type</label><input id="mf-storagetype" value="${esc(l?.storageType||'')}"/></div>
+    <div class="fg"><label>Inventory Volume</label><input id="mf-inventoryvolume" value="${esc(l?.inventoryVolume||'')}"/></div>
+  </div>
+
+  <div id="ql-bottom-fields" style="display:none">
+    <div class="fg"><label>Notes</label><textarea id="mf-notes">${esc(l?.notes||'')}</textarea></div>
+  </div>`, async () => {
+    const category = document.getElementById('mf-category').value;
+    if (!category) { toast('Please select a category', 'error'); return; }
+    const body = {
+      category,
+      customerName: document.getElementById('mf-name')?.value || '',
+      phone: document.getElementById('mf-phone')?.value || '',
+      email: document.getElementById('mf-email')?.value || '',
+      notes: document.getElementById('mf-notes')?.value || '',
+    };
+    if (category === 'logistics') {
+      body.origin = document.getElementById('mf-origin')?.value || '';
+      body.destination = document.getElementById('mf-destination')?.value || '';
+      body.shipmentMode = document.getElementById('mf-mode')?.value || null;
+      body.cargoType = document.getElementById('mf-cargo')?.value || '';
+      body.weight = document.getElementById('mf-weight')?.value || '';
+    } else if (category === 'ecommerce') {
+      body.origin = document.getElementById('mf-origin')?.value || '';
+      body.destination = document.getElementById('mf-destination')?.value || '';
+      body.cargoType = document.getElementById('mf-cargo')?.value || '';
+    } else if (category === 'customs') {
+      body.company = document.getElementById('mf-company')?.value || '';
+      body.iecNumber = document.getElementById('mf-iec')?.value || '';
+      body.clearanceType = document.getElementById('mf-clearance')?.value || null;
+      body.portLocation = document.getElementById('mf-port')?.value || '';
+    } else if (category === 'moving') {
+      body.origin = document.getElementById('mf-origin')?.value || '';
+      body.destination = document.getElementById('mf-destination')?.value || '';
+      body.movingType = document.getElementById('mf-movingtype')?.value || null;
+      body.weight = document.getElementById('mf-weight')?.value || '';
+    } else if (category === 'warehousing') {
+      body.company = document.getElementById('mf-company')?.value || '';
+      body.storageType = document.getElementById('mf-storagetype')?.value || '';
+      body.inventoryVolume = document.getElementById('mf-inventoryvolume')?.value || '';
+    }
+    const r = l ? await api('PATCH', `/api/quote-leads/${l.id}`, body) : await api('POST', '/api/quote-leads', body);
+    if (!r?.success) { toast(r?.error || 'Error saving lead', 'error'); return; }
+    toast(l ? 'Quote lead updated!' : 'Quote lead created!', 'success');
+    closeModal(); renderQuoteLeads();
+  });
+  setTimeout(() => updateQuoteLeadFields(), 0);
+}
+
+function updateQuoteLeadFields() {
+  const cat = document.getElementById('mf-category')?.value || '';
+  ['logistics','ecommerce','customs','moving','warehousing'].forEach(c => {
+    const el = document.getElementById('ql-' + c + '-fields');
+    if (el) el.style.display = cat === c ? '' : 'none';
+  });
+  const bottom = document.getElementById('ql-bottom-fields');
+  if (bottom) bottom.style.display = cat ? '' : 'none';
+}
+function editQuoteLead(l) { openQuoteLeadModal(l); }
+async function deleteQuoteLead(id) {
+  if (!confirm('Delete this quote lead?')) return;
+  const r = await api('DELETE', `/api/quote-leads/${id}`);
+  if (r?.success) { toast('Deleted', 'success'); nav('quote-leads'); }
+  else toast(r?.error||'Error','error');
+}
+
+// Shipment Lead Modal
+function openShipmentLeadModal(l) {
+  const parseDim = (s) => { if(!s) return ['','','']; const p=s.split('x'); return [p[0]||'',p[1]||'',p[2]||'']; };
+  const [pl,pw,ph] = parseDim(l?.dimensions);
+  showModal(l ? 'Edit Shipment Lead' : 'New Shipment', `
+  <div class="form-row"><div class="fg"><label>Customer Name *</label><input id="mf-name" value="${esc(l?.customerName||'')}"/></div>
+  <div class="fg"><label>Company</label><input id="mf-company" value="${esc(l?.company||'')}"/></div></div>
+  <div class="form-row"><div class="fg"><label>Email</label><input id="mf-email" type="email" value="${esc(l?.email||'')}"/></div>
+  <div class="fg"><label>Phone</label><input id="mf-phone" value="${esc(l?.phone||'')}"/></div></div>
+
+  <div style="background:var(--brand-bg);border:1.5px solid var(--brand-border);border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📍 Origin</div>
+    <div class="form-row">
+      <div class="fg"><label>Pincode / Zip Code</label><input id="mf-o-pin" placeholder="e.g. 380001" oninput="autoFillLocation(this.value,'o')" value=""/></div>
+      <div class="fg"><label>Locality / Area</label><input id="mf-o-locality" placeholder="Auto-filled" value=""/></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>City</label><input id="mf-o-city" placeholder="Auto-filled" value=""/></div>
+      <div class="fg"><label>State</label><input id="mf-o-state" placeholder="Auto-filled" value=""/></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Country</label><input id="mf-o-country" placeholder="Auto-filled" value=""/></div>
+    </div>
+    <div class="fg"><label>Full Address</label><textarea id="mf-o-address" rows="2" placeholder="House/Flat No., Street, Area..."></textarea></div>
+  </div>
+
+  <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📍 Destination</div>
+    <div class="form-row">
+      <div class="fg"><label>Pincode / Zip Code</label><input id="mf-d-pin" placeholder="e.g. 10001" oninput="autoFillLocation(this.value,'d')" value=""/></div>
+      <div class="fg"><label>Locality / Area</label><input id="mf-d-locality" placeholder="Auto-filled" value=""/></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>City</label><input id="mf-d-city" placeholder="Auto-filled" value=""/></div>
+      <div class="fg"><label>State</label><input id="mf-d-state" placeholder="Auto-filled" value=""/></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Country</label><input id="mf-d-country" placeholder="Auto-filled" value=""/></div>
+    </div>
+    <div class="fg"><label>Full Address</label><textarea id="mf-d-address" rows="2" placeholder="House/Flat No., Street, Area..."></textarea></div>
+  </div>
+
+  <div class="form-row"><div class="fg"><label>Shipment Mode</label><select id="mf-mode">
+    ${['','air','sea','road','courier'].map(m=>`<option value="${m}" ${(l?.shipmentMode||'')===m?'selected':''}>${m?m.toUpperCase():'Select Mode'}</option>`).join('')}
+  </select></div>
+  <div class="fg"><label>Cargo Type</label><input id="mf-cargo" value="${esc(l?.cargoType||'')}"/></div></div>
+  <div class="form-row"><div class="fg"><label>Weight (kg)</label><input id="mf-weight" type="number" step="0.01" value="${l?.weight||''}" oninput="calcDimWeight('s')"/></div></div>
+
+  <div style="background:var(--gray4);border:1.5px solid var(--gray3);border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📦 Dimensions (cm)</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div class="fg" style="flex:1;margin:0"><label>Length</label><input id="mf-len" type="number" step="0.1" placeholder="L" value="${pl}" oninput="calcDimWeight('s')"/></div>
+      <div style="font-size:20px;font-weight:700;color:var(--gray2);margin-top:18px">×</div>
+      <div class="fg" style="flex:1;margin:0"><label>Width</label><input id="mf-wid" type="number" step="0.1" placeholder="W" value="${pw}" oninput="calcDimWeight('s')"/></div>
+      <div style="font-size:20px;font-weight:700;color:var(--gray2);margin-top:18px">×</div>
+      <div class="fg" style="flex:1;margin:0"><label>Height</label><input id="mf-hgt" type="number" step="0.1" placeholder="H" value="${ph}" oninput="calcDimWeight('s')"/></div>
+    </div>
+    <div class="fg" style="margin:0"><label>Dimensional Weight (kg) — Auto calculated</label>
+      <input id="mf-dimweight" type="number" step="0.01" placeholder="Auto" readonly style="background:#f1f5f9;color:var(--gray);cursor:not-allowed"/>
+    </div>
+  </div>
+
+  <div class="form-row"><div class="fg"><label>Declared Value</label><input id="mf-declvalue" type="number" value="${l?.declaredValue||''}"/></div>
+  <div class="fg"><label>Freight Charge</label><input id="mf-freight" type="number" value="${l?.freightCharge||''}"/></div></div>
+  <div class="form-row"><div class="fg"><label>Booking Ref</label><input id="mf-bookingref" value="${esc(l?.bookingRef||'')}"/></div>
+  <div class="fg"><label>AWB / Tracking No.</label><input id="mf-awb" value="${esc(l?.awbNumber||'')}"/></div></div>
+  <div class="form-row"><div class="fg"><label>Expected Pickup</label><input id="mf-pickup" type="date" value="${l?.expectedPickup?l.expectedPickup.slice(0,10):''}"/></div>
+  <div class="fg"><label>Expected Delivery</label><input id="mf-delivery" type="date" value="${l?.expectedDelivery?l.expectedDelivery.slice(0,10):''}"/></div></div>
+  <div class="form-row"><div class="fg"><label>Status</label><select id="mf-status">
+    ${['new_booking','documents_pending','in_transit','out_for_delivery','delivered','cancelled','on_hold'].map(s=>`<option value="${s}" ${(l?.status||'new_booking')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
+  </select></div>
+  <div class="fg"><label>Currency</label><select id="mf-currency">
+    ${['INR','USD','AED','GBP','EUR'].map(c=>`<option value="${c}" ${(l?.currency||'INR')===c?'selected':''}>${c}</option>`).join('')}
+  </select></div></div>
+  <div class="fg"><label>Notes</label><textarea id="mf-notes">${esc(l?.notes||'')}</textarea></div>`, async () => {
+    const L=document.getElementById('mf-len').value;
+    const W=document.getElementById('mf-wid').value;
+    const H=document.getElementById('mf-hgt').value;
+    const dims = (L&&W&&H) ? `${L}x${W}x${H}` : '';
+    const oPin=document.getElementById('mf-o-pin').value, oLocality=document.getElementById('mf-o-locality').value, oCity=document.getElementById('mf-o-city').value, oState=document.getElementById('mf-o-state').value, oCountry=document.getElementById('mf-o-country').value, oAddr=document.getElementById('mf-o-address').value;
+    const dPin=document.getElementById('mf-d-pin').value, dLocality=document.getElementById('mf-d-locality').value, dCity=document.getElementById('mf-d-city').value, dState=document.getElementById('mf-d-state').value, dCountry=document.getElementById('mf-d-country').value, dAddr=document.getElementById('mf-d-address').value;
+    const originStr = [oAddr,oLocality,oCity,oState,oPin,oCountry].filter(Boolean).join(', ');
+    const destStr   = [dAddr,dLocality,dCity,dState,dPin,dCountry].filter(Boolean).join(', ');
+    const body = {
+      customerName: document.getElementById('mf-name').value, company: document.getElementById('mf-company').value,
+      email: document.getElementById('mf-email').value, phone: document.getElementById('mf-phone').value,
+      origin: originStr, destination: destStr,
+      shipmentMode: document.getElementById('mf-mode').value||null, cargoType: document.getElementById('mf-cargo').value,
+      weight: document.getElementById('mf-weight').value, dimensions: dims,
+      declaredValue: document.getElementById('mf-declvalue').value, freightCharge: document.getElementById('mf-freight').value,
+      bookingRef: document.getElementById('mf-bookingref').value, awbNumber: document.getElementById('mf-awb').value,
+      expectedPickup: document.getElementById('mf-pickup').value||null,
+      expectedDelivery: document.getElementById('mf-delivery').value||null,
+      status: document.getElementById('mf-status').value, currency: document.getElementById('mf-currency').value,
+      notes: document.getElementById('mf-notes').value,
+    };
+    const r = l ? await api('PATCH', `/api/shipment-leads/${l.id}`, body) : await api('POST', '/api/shipment-leads', body);
+    if (!r?.success) { toast(r?.error || 'Error saving lead', 'error'); return; }
+    toast(l ? 'Shipment lead updated!' : 'Shipment lead created!', 'success');
+    closeModal(); renderShipmentLeads();
+  });
+}
+function editShipmentLead(l) { openShipmentLeadModal(l); }
+async function deleteShipmentLead(id) {
+  if (!confirm('Delete this shipment lead?')) return;
+  const r = await api('DELETE', `/api/shipment-leads/${id}`);
+  if (r?.success) { toast('Deleted','success'); nav('shipment-leads'); }
+  else toast(r?.error||'Error','error');
+}
+
+// Task Modal
+function openTaskModal(t) {
+  showModal(t ? 'Edit Task' : 'New Task', `
+  <div class="fg"><label>Title *</label><input id="mf-title" value="${esc(t?.title||'')}"/></div>
+  <div class="fg"><label>Description</label><textarea id="mf-desc">${esc(t?.description||'')}</textarea></div>
+  <div class="form-row"><div class="fg"><label>Priority</label><select id="mf-priority">
+    ${['high','medium','low'].map(p=>`<option value="${p}" ${(t?.priority||'medium')===p?'selected':''}>${p.charAt(0).toUpperCase()+p.slice(1)}</option>`).join('')}
+  </select></div>
+  <div class="fg"><label>Status</label><select id="mf-status">
+    ${['pending','in_progress','completed','overdue'].map(s=>`<option value="${s}" ${(t?.status||'pending')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
+  </select></div></div>
+  <div class="fg"><label>Due Date</label><input id="mf-due" type="date" value="${t?.dueDate?t.dueDate.slice(0,10):''}"/></div>`, async () => {
+    const body = {
+      title: document.getElementById('mf-title').value, description: document.getElementById('mf-desc').value,
+      priority: document.getElementById('mf-priority').value, status: document.getElementById('mf-status').value,
+      dueDate: document.getElementById('mf-due').value || null,
+    };
+    const r = t ? await api('PATCH', `/api/tasks/${t.id}`, body) : await api('POST', '/api/tasks', body);
+    if (!r?.success) { toast(r?.error || 'Error saving task', 'error'); return; }
+    toast(t ? 'Task updated!' : 'Task created!', 'success');
+    closeModal(); renderTasks();
+  });
+}
+function editTask(t, e) { e.stopPropagation(); openTaskModal(t); }
+
+// User Modal
+function openUserModal(u) {
+  showModal(u ? 'Edit Team Member' : 'Add Team Member', `
+  <div class="form-row"><div class="fg"><label>Full Name *</label><input id="mf-name" value="${esc(u?.name||'')}"/></div>
+  <div class="fg"><label>Email *</label><input id="mf-email" type="email" value="${esc(u?.email||'')}"/></div></div>
+  ${!u?`<div class="fg"><label>Password (default: Temp@1234)</label><input id="mf-password" type="password" placeholder="Leave blank for default"/></div>`:''}
+  <div class="form-row"><div class="fg"><label>Title</label><input id="mf-title" value="${esc(u?.title||'')}"/></div>
+  <div class="fg"><label>Role</label><select id="mf-role">
+    ${['admin','manager','sales_rep'].map(r=>`<option value="${r}" ${(u?.role||'sales_rep')===r?'selected':''}>${roleLabel(r)}</option>`).join('')}
+  </select></div></div>`, async () => {
+    const body = {
+      name: document.getElementById('mf-name').value, email: document.getElementById('mf-email').value,
+      title: document.getElementById('mf-title').value, role: document.getElementById('mf-role').value,
+    };
+    if (!u) body.password = document.getElementById('mf-password')?.value || 'Temp@1234';
+    const r = u ? await api('PATCH', `/api/users/${u.id}`, body) : await api('POST', '/api/users', body);
+    if (!r?.success) { toast(r?.error || 'Error', 'error'); return; }
+    toast(u ? 'User updated!' : 'User created!', 'success');
+    closeModal(); renderUsers();
+  });
+}
+function editUser(u, e) { e.stopPropagation(); openUserModal(u); }
+async function deactivateUser(id, name, e) {
+  e.stopPropagation();
+  if (!confirm(`Deactivate ${name}?`)) return;
+  const r = await api('DELETE', `/api/users/${id}`);
+  if (r?.success) { toast(r.data.message, 'success'); renderUsers(); }
+  else toast(r?.error||'Error','error');
+}
+
+// ─── PINCODE AUTO-FILL ────────────────────────────────────────────────────────
+const _pinCache = {};
+let _pinTimer = null;
+function autoFillLocation(pin, prefix) {
+  clearTimeout(_pinTimer);
+  pin = pin.trim();
+  if (pin.length < 4) return;
+  if (_pinCache[pin]) { fillLocFields(prefix, _pinCache[pin]); return; }
+  _pinTimer = setTimeout(() => _doFetch(pin, prefix), 700);
+}
+
+async function _doFetch(pin, prefix) {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(pin)}&format=json&limit=5&addressdetails=1`,
+      { headers: { 'Accept-Language': 'en' } }
+    ).catch(() => null);
+    if (!res || !res.ok) return;
+    const results = await res.json();
+    if (!results?.length) return;
+
+    // Pick best result — prefer one with city
+    let best = results[0];
+    for (const r of results) {
+      if (r.address.city || r.address.town) { best = r; break; }
+    }
+    const a = best.address;
+
+    // Locality = most specific area (suburb, neighbourhood, village etc)
+    const locality = a.suburb || a.neighbourhood || a.quarter ||
+                     a.residential || a.hamlet || a.village || '';
+
+    // City = proper city name (never same as locality)
+    const rawCity = a.city || a.town || a.municipality ||
+                    a.city_district || a.county || '';
+    const city = rawCity === locality ? (a.county || a.district || '') : rawCity;
+
+    const state   = a.state || a.state_district || '';
+    const country = a.country || '';
+
+    const loc = { locality, city, state, country };
+    _pinCache[pin] = loc;
+    fillLocFields(prefix, loc);
+  } catch(e) {}
+}
+
+function fillLocFields(prefix, loc) {
+  const map = { locality: loc.locality, city: loc.city, state: loc.state, country: loc.country };
+  Object.entries(map).forEach(([key, val]) => {
+    const el = document.getElementById(`mf-${prefix}-${key}`);
+    if (el && val) { el.value = val; el.style.background = '#f0fdf4'; }
+  });
+}
+
+// ─── DIMENSIONAL WEIGHT ───────────────────────────────────────────────────────
+// Formula: (L × W × H) / 5000  — standard international courier divisor
+function calcDimWeight(type) {
+  const L = parseFloat(document.getElementById('mf-len')?.value) || 0;
+  const W = parseFloat(document.getElementById('mf-wid')?.value) || 0;
+  const H = parseFloat(document.getElementById('mf-hgt')?.value) || 0;
+  const dw = document.getElementById('mf-dimweight');
+  if (!dw) return;
+  if (L > 0 && W > 0 && H > 0) {
+    dw.value = ((L * W * H) / 5000).toFixed(2);
+    dw.style.background = '#fefce8';
+  } else {
+    dw.value = '';
+    dw.style.background = '#f1f5f9';
+  }
+}
+
+function setFilter(key, val) { curFilter[key] = val; curPageNum = 1; renderPage(curPage); }
+function setCategoryFilter(cat) { curCategoryFilter = cat; curPageNum = 1; document.querySelectorAll('.cat-filter').forEach(el => el.classList.toggle('active', el.getAttribute('data-cat') === (cat||''))); renderPage(curPage); }
+function goPage(p) { curPageNum = p; renderPage(curPage); }
+function pgHtml(pg) {
+  if (!pg?.totalPages || pg.totalPages <= 1) return '';
+  const btns = [];
+  for (let i = 1; i <= pg.totalPages; i++) {
+    btns.push(`<button class="page-btn${i===pg.page?' active':''}" onclick="goPage(${i})">${i}</button>`);
+  }
+  return `<div class="pagination"><div>Showing ${((pg.page-1)*pg.limit)+1}–${Math.min(pg.page*pg.limit,pg.total)} of ${pg.total}</div><div class="page-btns">${btns.join('')}</div></div>`;
+}
+
+// ─── HELPERS ───────────────────────────────────────────────────────────────
+function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function badge(s) { return `<span class="badge badge-${s}">${fmtStatus(s)}</span>`; }
+function fmtStatus(s) {
+  const map = {
+    prospect:'Prospect', qualified:'Qualified', hot_lead:'Hot Lead', negotiation:'Negotiation', won:'Won', lost:'Lost', cold:'Cold',
+    new_inquiry:'New Inquiry', quoted:'Quoted', follow_up:'Follow Up', confirmed:'Confirmed', cancelled:'Cancelled', expired:'Expired',
+    new_booking:'New Booking', documents_pending:'Docs Pending', in_transit:'In Transit', out_for_delivery:'Out for Delivery', delivered:'Delivered', on_hold:'On Hold',
+    pending:'Pending', in_progress:'In Progress', completed:'Completed', overdue:'Overdue',
+    high:'High', medium:'Medium', low:'Low',
+    air:'Air', sea:'Sea', road:'Road', courier:'Courier',
+  };
+  return map[s] || s?.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()) || s;
+}
+function roleLabel(r) { return {admin:'Admin',manager:'Manager',sales_rep:'Sales Rep'}[r]||r; }
+function fmtDate(d) { if (!d) return '—'; return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
+function fmtCur(v) { if (!v && v!==0) return '—'; return '₹'+Number(v).toLocaleString('en-IN',{maximumFractionDigits:0}); }
+function emptyState(icon, title, sub) {
+  return `<div class="empty"><div class="empty-icon">${icon}</div><div class="empty-title">${title}</div><div class="empty-sub">${sub}</div></div>`;
+}
+function toast(msg, type='info') {
+  const t = document.getElementById('toast');
+  const el = document.createElement('div');
+  el.className = `toast-item ${type}`;
+  el.textContent = msg;
+  t.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+</script>
+</body>
+</html>
