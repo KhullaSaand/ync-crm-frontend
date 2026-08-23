@@ -251,6 +251,20 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .tab-strip{display:flex;gap:4px;background:var(--gray4);padding:4px;border-radius:10px;margin-bottom:20px;width:fit-content}
 .tab-btn{padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;color:var(--gray);background:none;transition:all .15s}
 .tab-btn.active{background:var(--white);color:var(--brand);box-shadow:var(--shadow)}
+
+/* TRACKING TIMELINE */
+.tracking-tl{position:relative;padding-left:28px;margin:0 0 20px 0}
+.tracking-tl::before{content:'';position:absolute;left:10px;top:0;bottom:0;width:2px;background:var(--gray3)}
+.tracking-tl-item{position:relative;padding:10px 0 10px 0;cursor:default}
+.tracking-tl-item::before{content:'';position:absolute;left:-22px;top:14px;width:10px;height:10px;border-radius:50%;background:var(--gray3);border:2px solid var(--white);z-index:1}
+.tracking-tl-item:last-child::before{background:var(--brand)}
+.tracking-tl-item .tl-status{font-size:14px;font-weight:600;color:var(--black)}
+.tracking-tl-item .tl-loc{font-size:12px;color:var(--gray);margin-top:2px}
+.tracking-tl-item .tl-date{font-size:11px;color:var(--gray2);margin-top:2px}
+.tracking-tl-item .tl-del{position:absolute;right:0;top:10px;background:none;color:var(--gray2);font-size:16px;padding:2px 6px;border-radius:4px}
+.tracking-tl-item .tl-del:hover{color:#dc2626;background:#fee2e2}
+.btn-tracking{padding:7px 16px;background:#059669;color:#fff;border-radius:8px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;transition:background .2s}
+.btn-tracking:hover{background:#047857}
 </style>
 </head>
 <body>
@@ -754,6 +768,7 @@ async function viewQuoteLead(id) {
         <div style="margin-top:8px;display:flex;gap:8px">${l.category?`<span class="badge badge-${l.category}">${fmtStatus(l.category)}</span>`:''}${badge(l.status)}${l.shipmentMode?badge(l.shipmentMode):''}</div>
       </div>
       <div class="dp-actions">
+        ${t ? `<button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(t.timeline||[]).replace(/"/g,'&quot;')})">📦 Manage Tracking</button>` : ''}
         <button class="btn-edit" onclick="editQuoteLead(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏️ Edit</button>
         ${me.role!=='sales_rep'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteQuoteLead('${l.id}')">Delete</button>`:''}
       </div>
@@ -772,6 +787,7 @@ async function viewQuoteLead(id) {
       <div class="dp-field"><label>Created</label><span>${fmtDate(l.createdAt)}</span></div>
     </div>
     ${l.notes?`<div style="margin-top:16px"><div class="dp-field"><label>Notes</label><span>${esc(l.notes)}</span></div></div>`:''}
+    ${t && t.timeline?.length ? `<div style="margin-top:20px"><div class="section-title">Tracking Timeline</div><div class="tracking-tl">${t.timeline.map((s,i)=>`<div class="tracking-tl-item"><div class="tl-status">${esc(s.status||s.status_text||'')}</div>${s.location?`<div class="tl-loc">📍 ${esc(s.location)}</div>`:''}<div class="tl-date">${fmtDate(s.timestamp||s.status_date)}</div></div>`).join('')}</div></div>` : ''}
   </div>
   <div class="table-card" style="margin-top:16px">
     <div class="table-header">
@@ -872,6 +888,7 @@ async function viewShipmentLead(id) {
         <div style="margin-top:8px;display:flex;gap:8px">${badge(l.status)}${l.shipmentMode?badge(l.shipmentMode):''}</div>
       </div>
       <div class="dp-actions">
+        ${t ? `<button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(t.timeline||[]).replace(/"/g,'&quot;')})">📦 Manage Tracking</button>` : ''}
         <button class="btn-edit" onclick="editShipmentLead(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏️ Edit</button>
         ${me.role!=='sales_rep'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteShipmentLead('${l.id}')">Delete</button>`:''}
       </div>
@@ -894,6 +911,7 @@ async function viewShipmentLead(id) {
       <div class="dp-field"><label>Created</label><span>${fmtDate(l.createdAt)}</span></div>
     </div>
     ${l.notes?`<div style="margin-top:16px"><div class="dp-field"><label>Notes</label><span>${esc(l.notes)}</span></div></div>`:''}
+    ${t && t.timeline?.length ? `<div style="margin-top:20px"><div class="section-title">Tracking Timeline</div><div class="tracking-tl">${t.timeline.map((s,i)=>`<div class="tracking-tl-item"><div class="tl-status">${esc(s.status||s.status_text||'')}</div>${s.location?`<div class="tl-loc">📍 ${esc(s.location)}</div>`:''}<div class="tl-date">${fmtDate(s.timestamp||s.status_date)}</div></div>`).join('')}</div></div>` : ''}
   </div>`;
 }
 
@@ -1461,6 +1479,67 @@ function toast(msg, type='info') {
   el.textContent = msg;
   t.appendChild(el);
   setTimeout(() => el.remove(), 3500);
+}
+// Tracking Management Modal
+let _trackId = null;
+let _trackTimeline = [];
+
+function openTrackingModal(trackId, timeline) {
+  _trackId = trackId;
+  _trackTimeline = Array.isArray(timeline) ? [...timeline] : [];
+  renderTrackingModal();
+}
+
+function renderTrackingModal() {
+  const tlHtml = _trackTimeline.length
+    ? _trackTimeline.map((s,i) => `
+      <div class="tracking-tl-item" style="display:flex;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <div class="tl-status">${esc(s.status || s.status_text || '')}</div>
+          ${s.location ? `<div class="tl-loc">📍 ${esc(s.location)}</div>` : ''}
+          <div class="tl-date">${fmtDate(s.timestamp || s.status_date)}</div>
+        </div>
+        <button class="tl-del" onclick="deleteTrackingEntry('${s.id || i}')" title="Delete">✕</button>
+      </div>`).join('')
+    : '<div style="text-align:center;padding:20px;color:var(--gray2);font-size:13px">No tracking entries yet. Add one below.</div>';
+
+  document.getElementById('modal-title').textContent = 'Manage Tracking';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="tracking-tl" style="margin-bottom:20px">${tlHtml}</div>
+    <div style="border-top:1px solid var(--gray3);padding-top:16px">
+      <div style="font-size:13px;font-weight:700;color:var(--gray);margin-bottom:10px">Add Status Entry</div>
+      <div class="fg"><label>Status Text *</label><input id="tl-status-text" placeholder="e.g. Picked Up, In Transit, Out for Delivery, Delivered"/></div>
+      <div class="fg"><label>Location</label><input id="tl-location" placeholder="e.g. Mumbai, Delhi Hub"/></div>
+      <div class="fg"><label>Date & Time</label><input id="tl-date" type="datetime-local"/></div>
+      <button class="btn-save" style="width:100%;margin-top:8px" onclick="addTrackingEntry()">➕ Add Entry</button>
+    </div>`;
+  document.getElementById('modal-foot').innerHTML = '<button class="btn-cancel" onclick="closeModal()">Done</button>';
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+async function addTrackingEntry() {
+  const statusText = document.getElementById('tl-status-text')?.value?.trim();
+  if (!statusText) { toast('Status text is required', 'error'); return; }
+  const location = document.getElementById('tl-location')?.value?.trim() || null;
+  const statusDate = document.getElementById('tl-date')?.value || null;
+
+  const r = await api('POST', `/api/tracking/${_trackId}/statuses`, {
+    status_text: statusText, location, status_date: statusDate ? new Date(statusDate).toISOString() : undefined,
+  });
+  if (!r?.success) { toast(r?.error || 'Error adding status', 'error'); return; }
+
+  _trackTimeline.push({ id: r.data.id, status: statusText, location, timestamp: r.data.timestamp });
+  toast('Status added!', 'success');
+  renderTrackingModal();
+}
+
+async function deleteTrackingEntry(entryId) {
+  if (!confirm('Delete this status entry?')) return;
+  const r = await api('DELETE', `/api/tracking/${_trackId}/statuses/${entryId}`);
+  if (!r?.success) { toast(r?.error || 'Error deleting', 'error'); return; }
+  _trackTimeline = _trackTimeline.filter(s => s.id !== entryId);
+  toast('Status deleted', 'success');
+  renderTrackingModal();
 }
 </script>
 </body>
