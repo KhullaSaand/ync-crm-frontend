@@ -585,9 +585,10 @@ async function renderContacts() {
       </div>
     </div>
     ${items.length ? `<table><thead><tr>
-      <th>Name</th><th>Company</th><th>Status</th><th>Deal Value</th><th>Assigned To</th><th>Created</th>
+      <th>ID</th><th>Name</th><th>Company</th><th>Status</th><th>Deal Value</th><th>Assigned To</th><th>Created</th>
     </tr></thead><tbody>
     ${items.map(c=>`<tr onclick="viewContact('${c.id}')">
+      <td><span style="font-family:monospace;font-size:12px;color:#888">${esc(c.leadId||'—')}</span></td>
       <td><div class="avatar-cell"><div class="av">${c.avatar||c.name?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(c.name)}</div><div class="cell-sub">${esc(c.email||'')}</div></div></div></td>
       <td>${esc(c.company||'—')}</td>
       <td>${badge(c.status)}</td>
@@ -608,7 +609,7 @@ async function viewContact(id) {
   <div class="detail-panel" style="margin-top:16px">
     <div class="dp-header">
       <div>
-        <div class="dp-name">${esc(c.name)}</div>
+        <div class="dp-name">${esc(c.name)} <span style="font-family:monospace;font-size:13px;color:#888">${esc(c.leadId||'')}</span></div>
         <div class="dp-company">${esc(c.company||'')} ${c.jobTitle?'· '+esc(c.jobTitle):''}</div>
         <div style="margin-top:8px">${badge(c.status)}</div>
       </div>
@@ -663,9 +664,10 @@ async function renderQuoteLeads() {
       </div>
     </div>
     ${items.length ? `<table><thead><tr>
-      <th>Customer</th><th>Category</th><th>Route</th><th>Mode</th><th>Cargo</th><th>Weight</th><th>Quoted</th><th>Status</th><th>Assigned</th>
+      <th>ID</th><th>Customer</th><th>Category</th><th>Route</th><th>Mode</th><th>Cargo</th><th>Weight</th><th>Quoted</th><th>Status</th><th>Assigned</th>
     </tr></thead><tbody>
     ${items.map(l=>`<tr onclick="viewQuoteLead('${l.id}')">
+      <td><span style="font-family:monospace;font-size:12px;color:#888">${esc(l.leadId||'—')}</span></td>
       <td><div class="avatar-cell"><div class="av">${l.customerName?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(l.customerName)}</div><div class="cell-sub">${esc(l.company||l.email||'')}</div></div></div></td>
       <td>${l.category?`<span class="badge badge-${l.category}">${fmtStatus(l.category)}</span>`:'—'}</td>
       <td><div class="cell-name">${esc(l.origin||'?')} → ${esc(l.destination||'?')}</div></td>
@@ -689,7 +691,7 @@ async function viewQuoteLead(id) {
   <div class="detail-panel" style="margin-top:16px">
     <div class="dp-header">
       <div>
-        <div class="dp-name">${esc(l.customerName)}</div>
+        <div class="dp-name">${esc(l.customerName)} <span style="font-family:monospace;font-size:13px;color:#888">${esc(l.leadId||'')}</span></div>
         <div class="dp-company">${esc(l.company||'')}${l.email?' · '+esc(l.email):''}</div>
         <div style="margin-top:8px;display:flex;gap:8px">${l.category?`<span class="badge badge-${l.category}">${fmtStatus(l.category)}</span>`:''}${badge(l.status)}${l.shipmentMode?badge(l.shipmentMode):''}</div>
       </div>
@@ -775,9 +777,10 @@ async function renderShipmentLeads() {
       </div>
     </div>
     ${items.length ? `<table><thead><tr>
-      <th>Customer</th><th>Route</th><th>Mode</th><th>Booking Ref</th><th>AWB / Tracking</th><th>Freight</th><th>Status</th><th>Assigned</th>
+      <th>ID</th><th>Customer</th><th>Route</th><th>Mode</th><th>Booking Ref</th><th>AWB / Tracking</th><th>Freight</th><th>Status</th><th>Assigned</th>
     </tr></thead><tbody>
     ${items.map(l=>`<tr onclick="viewShipmentLead('${l.id}')">
+      <td><span style="font-family:monospace;font-size:12px;color:#888">${esc(l.leadId||'—')}</span></td>
       <td><div class="avatar-cell"><div class="av">${l.customerName?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(l.customerName)}</div><div class="cell-sub">${esc(l.company||l.email||'')}</div></div></div></td>
       <td><div class="cell-name">${esc(l.origin||'?')} → ${esc(l.destination||'?')}</div></td>
       <td>${l.shipmentMode?badge(l.shipmentMode):'—'}</td>
@@ -800,7 +803,7 @@ async function viewShipmentLead(id) {
   <div class="detail-panel" style="margin-top:16px">
     <div class="dp-header">
       <div>
-        <div class="dp-name">${esc(l.customerName)}</div>
+        <div class="dp-name">${esc(l.customerName)} <span style="font-family:monospace;font-size:13px;color:#888">${esc(l.leadId||'')}</span></div>
         <div class="dp-company">${esc(l.company||'')}${l.email?' · '+esc(l.email):''}</div>
         <div style="margin-top:8px;display:flex;gap:8px">${badge(l.status)}${l.shipmentMode?badge(l.shipmentMode):''}</div>
       </div>
