@@ -389,13 +389,32 @@ let curFilter = {};
 let curPageNum = 1;
 let curCategoryFilter = '';
 
+// ─── API CACHE ──────────────────────────────────────────────────────────────
+const _apiCache = new Map();
+const CACHE_TTL = 30000; // 30s
+
+function cacheKey(method, path) { return `${method}:${path}`; }
+
+function invalidateCache(pathPrefix) {
+  for (const k of _apiCache.keys()) {
+    if (k.split(':')[1]?.startsWith(pathPrefix)) _apiCache.delete(k);
+  }
+}
+
 // ─── API HELPER ────────────────────────────────────────────────────────────
 async function api(method, path, body) {
+  if (method === 'GET' && !body) {
+    const ck = cacheKey(method, path);
+    const cached = _apiCache.get(ck);
+    if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+  }
   const opts = { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } };
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(API + path, opts);
   const j = await r.json();
   if (!j.success && r.status === 401) { doLogout(); return null; }
+  if (method === 'GET' && j.success) _apiCache.set(cacheKey(method, path), { data: j, ts: Date.now() });
+  if (method !== 'GET' && j.success) { invalidateCache(path.split('?')[0].replace(/\/[^/]*$/, '')); }
   return j;
 }
 
@@ -446,6 +465,7 @@ async function doRegister() {
 async function doLogout() {
   if (token) await fetch(API + '/api/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }).catch(() => {});
   token = ''; me = null;
+  _apiCache.clear();
   localStorage.removeItem('ync_token'); localStorage.removeItem('ync_me');
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').classList.remove('show');
@@ -461,7 +481,7 @@ function initApp() {
   if (me.role === 'admin' || me.role === 'manager') {
     document.getElementById('nav-section-admin').style.display = '';
   }
-  nav('dashboard');
+  nav(localStorage.getItem('ync_page') || 'dashboard');
 }
 
 window.onload = () => {
@@ -491,6 +511,7 @@ const ADD_LABELS = {
 
 function nav(page) {
   curPage = page; curSearch = ''; curPageNum = 1; curFilter = {};
+  localStorage.setItem('ync_page', page);
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   const ni = document.getElementById('nav-' + page);
   if (ni) ni.classList.add('active');
@@ -516,7 +537,8 @@ function onSearch(v) {
 // ─── RENDER ROUTER ────────────────────────────────────────────────────────
 function renderPage(page) {
   const c = document.getElementById('content');
-  c.innerHTML = `<div class="loading"><div class="spinner"></div>Loading...</div>`;
+  const hasCache = [..._apiCache.keys()].some(k => k.includes(page.replace('-', '_')) || k.includes(page));
+  if (!hasCache) c.innerHTML = `<div class="loading"><div class="spinner"></div>Loading...</div>`;
   switch(page) {
     case 'dashboard':     renderDashboard(); break;
     case 'contacts':      renderContacts(); break;
