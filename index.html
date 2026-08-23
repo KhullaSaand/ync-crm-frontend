@@ -738,8 +738,12 @@ async function renderQuoteLeads() {
 
 async function viewQuoteLead(id) {
   _viewingDetail = true;
-  const r = await api('GET', `/api/quote-leads/${id}`);
-  const l = r?.data; if (!l) return;
+  const [leadRes, trackRes] = await Promise.all([
+    api('GET', `/api/quote-leads/${id}`),
+    api('GET', `/api/tracking/${id}`).catch(() => null),
+  ]);
+  const l = leadRes?.data; if (!l) return;
+  const t = trackRes?.data;
   document.getElementById('content').innerHTML = `
   <button class="btn-back" onclick="nav('quote-leads')">← Back</button>
   <div class="detail-panel" style="margin-top:16px">
@@ -755,6 +759,7 @@ async function viewQuoteLead(id) {
       </div>
     </div>
     <div class="dp-fields">
+      ${t ? `<div class="dp-field"><label>Tracking ID</label><span style="font-family:monospace;font-weight:700;color:var(--green)">${esc(t.trackingId)}</span></div>` : ''}
       <div class="dp-field"><label>Phone</label><span>${esc(l.phone||'—')}</span></div>
       <div class="dp-field"><label>Origin → Dest</label><span>${esc(l.origin||'?')} → ${esc(l.destination||'?')}</span></div>
       <div class="dp-field"><label>Cargo Type</label><span>${esc(l.cargoType||'—')}</span></div>
