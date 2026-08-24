@@ -737,7 +737,7 @@ async function renderQuoteLeads() {
       <td><span style="font-family:monospace;font-size:12px;color:#888">${esc(l.leadId||'—')}</span></td>
       <td><div class="avatar-cell"><div class="av">${l.customerName?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(l.customerName)}</div><div class="cell-sub">${esc(l.company||l.email||'')}</div></div></div></td>
       <td>${l.category?`<span class="badge badge-${l.category}">${fmtStatus(l.category)}</span>`:'—'}</td>
-      <td><div class="cell-name">${esc(l.origin||'?')} → ${esc(l.destination||'?')}</div></td>
+      <td><div class="cell-name">${esc(l.origin||'?')}${l.originPincode?' <span style=color:var(--gray2)>('+esc(l.originPincode)+')</span>':''} → ${esc(l.destination||'?')}${l.destinationPincode?' <span style=color:var(--gray2)>('+esc(l.destinationPincode)+')</span>':''}</div></td>
       <td>${l.shipmentMode?badge(l.shipmentMode):'—'}</td>
       <td>${esc(l.cargoType||'—')}</td>
       <td>${l.weight?l.weight+' kg':'—'}</td>
@@ -776,7 +776,7 @@ async function viewQuoteLead(id) {
     <div class="dp-fields">
       ${t ? `<div class="dp-field"><label>Tracking ID</label><span style="font-family:monospace;font-weight:700;color:var(--green)">${esc(t.trackingId)}</span></div>` : ''}
       <div class="dp-field"><label>Phone</label><span>${esc(l.phone||'—')}</span></div>
-      <div class="dp-field"><label>Origin → Dest</label><span>${esc(l.origin||'?')} → ${esc(l.destination||'?')}</span></div>
+      <div class="dp-field"><label>Origin → Dest</label><span>${esc(l.origin||'?')}${l.originPincode?' ('+esc(l.originPincode)+')':''} → ${esc(l.destination||'?')}${l.destinationPincode?' ('+esc(l.destinationPincode)+')':''}</span></div>
       <div class="dp-field"><label>Cargo Type</label><span>${esc(l.cargoType||'—')}</span></div>
       <div class="dp-field"><label>Weight</label><span>${l.weight?l.weight+' kg':'—'}</span></div>
       <div class="dp-field"><label>Dimensions</label><span>${esc(l.dimensions||'—')}</span></div>
@@ -1119,8 +1119,10 @@ async function openQuoteLeadModal(l) {
   </div>
 
   <div id="ql-logistics-fields" style="display:none">
-    <div class="form-row"><div class="fg"><label>Origin</label><input id="mf-origin" value="${esc(l?.origin||'')}"/></div>
-    <div class="fg"><label>Destination</label><input id="mf-destination" value="${esc(l?.destination||'')}"/></div></div>
+    <div class="form-row"><div class="fg"><label>Origin City</label><input id="mf-origin" value="${esc(l?.origin||'')}"/></div>
+    <div class="fg"><label>Origin Pincode</label><input id="mf-origin-pin" value="${esc(l?.originPincode||'')}"/></div></div>
+    <div class="form-row"><div class="fg"><label>Destination City</label><input id="mf-destination" value="${esc(l?.destination||'')}"/></div>
+    <div class="fg"><label>Destination Pincode</label><input id="mf-destination-pin" value="${esc(l?.destinationPincode||'')}"/></div></div>
     <div class="form-row"><div class="fg"><label>Shipment Mode</label><select id="mf-mode">
       <option value="">Select Mode</option>
       ${['Air','Ocean','Road','Rail'].map(m=>`<option value="${m.toLowerCase()}" ${(l?.shipmentMode||'')===m.toLowerCase()?'selected':''}>${m}</option>`).join('')}
@@ -1130,8 +1132,10 @@ async function openQuoteLeadModal(l) {
   </div>
 
   <div id="ql-ecommerce-fields" style="display:none">
-    <div class="form-row"><div class="fg"><label>Origin</label><input id="mf-origin" value="${esc(l?.origin||'')}"/></div>
-    <div class="fg"><label>Destination</label><input id="mf-destination" value="${esc(l?.destination||'')}"/></div></div>
+    <div class="form-row"><div class="fg"><label>Origin City</label><input id="mf-origin" value="${esc(l?.origin||'')}"/></div>
+    <div class="fg"><label>Origin Pincode</label><input id="mf-origin-pin" value="${esc(l?.originPincode||'')}"/></div></div>
+    <div class="form-row"><div class="fg"><label>Destination City</label><input id="mf-destination" value="${esc(l?.destination||'')}"/></div>
+    <div class="fg"><label>Destination Pincode</label><input id="mf-destination-pin" value="${esc(l?.destinationPincode||'')}"/></div></div>
     <div class="fg"><label>Cargo Type</label><input id="mf-cargo" value="${esc(l?.cargoType||'')}"/></div>
   </div>
 
@@ -1146,8 +1150,10 @@ async function openQuoteLeadModal(l) {
   </div>
 
   <div id="ql-moving-fields" style="display:none">
-    <div class="form-row"><div class="fg"><label>Origin</label><input id="mf-origin" value="${esc(l?.origin||'')}"/></div>
-    <div class="fg"><label>Destination</label><input id="mf-destination" value="${esc(l?.destination||'')}"/></div></div>
+    <div class="form-row"><div class="fg"><label>Origin City</label><input id="mf-origin" value="${esc(l?.origin||'')}"/></div>
+    <div class="fg"><label>Origin Pincode</label><input id="mf-origin-pin" value="${esc(l?.originPincode||'')}"/></div></div>
+    <div class="form-row"><div class="fg"><label>Destination City</label><input id="mf-destination" value="${esc(l?.destination||'')}"/></div>
+    <div class="fg"><label>Destination Pincode</label><input id="mf-destination-pin" value="${esc(l?.destinationPincode||'')}"/></div></div>
     <div class="form-row"><div class="fg"><label>Moving Type</label><select id="mf-movingtype">
       <option value="">Select Type</option>
       ${['Household','Office','Vehicle','International'].map(t=>`<option value="${t.toLowerCase()}" ${(l?.movingType||'')===t.toLowerCase()?'selected':''}>${t}</option>`).join('')}
@@ -1177,13 +1183,17 @@ async function openQuoteLeadModal(l) {
     };
     if (category === 'logistics') {
       body.origin = document.getElementById('mf-origin')?.value || '';
+      body.originPincode = document.getElementById('mf-origin-pin')?.value || '';
       body.destination = document.getElementById('mf-destination')?.value || '';
+      body.destinationPincode = document.getElementById('mf-destination-pin')?.value || '';
       body.shipmentMode = document.getElementById('mf-mode')?.value || null;
       body.cargoType = document.getElementById('mf-cargo')?.value || '';
       body.weight = document.getElementById('mf-weight')?.value || '';
     } else if (category === 'ecommerce') {
       body.origin = document.getElementById('mf-origin')?.value || '';
+      body.originPincode = document.getElementById('mf-origin-pin')?.value || '';
       body.destination = document.getElementById('mf-destination')?.value || '';
+      body.destinationPincode = document.getElementById('mf-destination-pin')?.value || '';
       body.cargoType = document.getElementById('mf-cargo')?.value || '';
     } else if (category === 'customs') {
       body.company = document.getElementById('mf-company')?.value || '';
@@ -1192,7 +1202,9 @@ async function openQuoteLeadModal(l) {
       body.portLocation = document.getElementById('mf-port')?.value || '';
     } else if (category === 'moving') {
       body.origin = document.getElementById('mf-origin')?.value || '';
+      body.originPincode = document.getElementById('mf-origin-pin')?.value || '';
       body.destination = document.getElementById('mf-destination')?.value || '';
+      body.destinationPincode = document.getElementById('mf-destination-pin')?.value || '';
       body.movingType = document.getElementById('mf-movingtype')?.value || null;
       body.weight = document.getElementById('mf-weight')?.value || '';
     } else if (category === 'warehousing') {
