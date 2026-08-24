@@ -1081,6 +1081,7 @@ function openAddModal() {
 function showModal(title, bodyHtml, saveCb) {
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = bodyHtml;
+  document.getElementById('modal-foot').innerHTML = '<button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" id="modal-save" onclick="modalSave()">Save</button>';
   document.getElementById('modal-overlay').classList.add('show');
   modalCb = saveCb;
 }
