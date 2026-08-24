@@ -731,7 +731,7 @@ async function renderQuoteLeads() {
       </div>
     </div>
     ${items.length ? `<table><thead><tr>
-      <th>ID</th><th>Customer</th><th>Category</th><th>Route</th><th>Mode</th><th>Cargo</th><th>Weight</th><th>Quoted</th><th>Status</th><th>Assigned</th>
+      <th>ID</th><th>Customer</th><th>Category</th><th>Route</th><th>Mode</th><th>Cargo</th><th>Dimensions</th><th>Weight</th><th>Quoted</th><th>Status</th><th>Assigned</th>
     </tr></thead><tbody>
     ${items.map(l=>`<tr onclick="viewQuoteLead('${l.id}')">
       <td><span style="font-family:monospace;font-size:12px;color:#888">${esc(l.leadId||'—')}</span></td>
@@ -740,6 +740,7 @@ async function renderQuoteLeads() {
       <td><div class="cell-name">${esc(l.origin||'?')}${l.originPincode?' <span style=color:var(--gray2)>('+esc(l.originPincode)+')</span>':''} → ${esc(l.destination||'?')}${l.destinationPincode?' <span style=color:var(--gray2)>('+esc(l.destinationPincode)+')</span>':''}</div></td>
       <td>${l.shipmentMode?badge(l.shipmentMode):'—'}</td>
       <td>${esc(l.cargoType||'—')}</td>
+      <td>${l.dimensions?esc(l.dimensions.replace(/x/g,'×')):'—'}</td>
       <td>${l.weight?l.weight+' kg':'—'}</td>
       <td>${l.quotedAmount?fmtCur(l.quotedAmount):'—'}</td>
       <td>${badge(l.status)}</td>
@@ -778,8 +779,9 @@ async function viewQuoteLead(id) {
       <div class="dp-field"><label>Phone</label><span>${esc(l.phone||'—')}</span></div>
       <div class="dp-field"><label>Origin → Dest</label><span>${esc(l.origin||'?')}${l.originPincode?' ('+esc(l.originPincode)+')':''} → ${esc(l.destination||'?')}${l.destinationPincode?' ('+esc(l.destinationPincode)+')':''}</span></div>
       <div class="dp-field"><label>Cargo Type</label><span>${esc(l.cargoType||'—')}</span></div>
-      <div class="dp-field"><label>Weight</label><span>${l.weight?l.weight+' kg':'—'}</span></div>
-      <div class="dp-field"><label>Dimensions</label><span>${esc(l.dimensions||'—')}</span></div>
+      <div class="dp-field"><label>Dimensions</label><span>${l.dimensions?esc(l.dimensions.replace(/x/g,' × '))+' cm':'—'}</span></div>
+      <div class="dp-field"><label>Actual Weight</label><span>${l.weight?l.weight+' kg':'—'}</span></div>
+      <div class="dp-field"><label>Dim. Weight</label><span>${l.dimensions?(() => {const p=l.dimensions.split('x'); return p.length===3?((parseFloat(p[0])*parseFloat(p[1])*parseFloat(p[2])/5000).toFixed(2)+' kg'):'—';})():'—'}</span></div>
       <div class="dp-field"><label>Est. Cargo Value</label><span>${l.estimatedValue?fmtCur(l.estimatedValue):'—'}</span></div>
       <div class="dp-field"><label>Quoted Amount</label><span>${l.quotedAmount?fmtCur(l.quotedAmount):'—'}</span></div>
       <div class="dp-field"><label>Currency</label><span>${l.currency}</span></div>
@@ -1035,6 +1037,36 @@ function assignDropdown(currentId) {
     ${_usersCache.map(u => `<option value="${u.id}" ${currentId === u.id ? 'selected' : ''}>${esc(u.name)} (${fmtStatus(u.role)})</option>`).join('')}
   </select>`;
 }
+function dimsBlock(l) {
+  const parse = (s) => { if(!s) return ['','','']; const p=s.split('x'); return [p[0]||'',p[1]||'',p[2]||'']; };
+  const [dl,dw,dh] = parse(l?.dimensions);
+  return `
+  <div style="background:var(--gray4);border:1.5px solid var(--gray3);border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📦 Dimensions (cm)</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div class="fg" style="flex:1;margin:0"><label>Length</label><input id="mf-len" type="number" step="0.1" placeholder="L" value="${dl}" oninput="calcDimWeightQ()"/></div>
+      <div style="font-size:20px;font-weight:700;color:var(--gray2);margin-top:18px">×</div>
+      <div class="fg" style="flex:1;margin:0"><label>Width</label><input id="mf-wid" type="number" step="0.1" placeholder="W" value="${dw}" oninput="calcDimWeightQ()"/></div>
+      <div style="font-size:20px;font-weight:700;color:var(--gray2);margin-top:18px">×</div>
+      <div class="fg" style="flex:1;margin:0"><label>Height</label><input id="mf-hgt" type="number" step="0.1" placeholder="H" value="${dh}" oninput="calcDimWeightQ()"/></div>
+    </div>
+    <div class="form-row">
+      <div class="fg" style="margin:0"><label>Actual Weight (kg)</label><input id="mf-weight" type="number" step="0.01" value="${l?.weight||''}"/></div>
+      <div class="fg" style="margin:0"><label>Dim. Weight (kg)</label><input id="mf-dimweight" type="number" step="0.01" placeholder="Auto" readonly style="background:#f1f5f9;color:var(--gray);cursor:not-allowed"/></div>
+    </div>
+  </div>`;
+}
+function calcDimWeightQ() {
+  const L = parseFloat(document.getElementById('mf-len')?.value) || 0;
+  const W = parseFloat(document.getElementById('mf-wid')?.value) || 0;
+  const H = parseFloat(document.getElementById('mf-hgt')?.value) || 0;
+  const dw = document.getElementById('mf-dimweight');
+  if (!dw) return;
+  if (L > 0 && W > 0 && H > 0) {
+    dw.value = ((L * W * H) / 5000).toFixed(2);
+    dw.style.background = '#fefce8';
+  } else { dw.value = ''; dw.style.background = '#f1f5f9'; }
+}
 
 function openAddModal() {
   switch(curPage) {
@@ -1129,7 +1161,7 @@ async function openQuoteLeadModal(l) {
       ${['Air','Ocean','Road','Rail'].map(m=>`<option value="${m.toLowerCase()}" ${(l?.shipmentMode||'')===m.toLowerCase()?'selected':''}>${m}</option>`).join('')}
     </select></div>
     <div class="fg"><label>Cargo Type</label><input id="mf-cargo" value="${esc(l?.cargoType||'')}"/></div></div>
-    <div class="fg"><label>Weight (kg)</label><input id="mf-weight" type="number" step="0.01" value="${l?.weight||''}"/></div>
+    ${dimsBlock(l)}
   </div>
 
   <div id="ql-ecommerce-fields" style="display:none">
@@ -1138,6 +1170,7 @@ async function openQuoteLeadModal(l) {
     <div class="form-row"><div class="fg"><label>Destination City</label><input id="mf-destination" value="${esc(l?.destination||'')}"/></div>
     <div class="fg"><label>Destination Pincode</label><input id="mf-destination-pin" value="${esc(l?.destinationPincode||'')}"/></div></div>
     <div class="fg"><label>Cargo Type</label><input id="mf-cargo" value="${esc(l?.cargoType||'')}"/></div>
+    ${dimsBlock(l)}
   </div>
 
   <div id="ql-customs-fields" style="display:none">
@@ -1160,6 +1193,7 @@ async function openQuoteLeadModal(l) {
       ${['Household','Office','Vehicle','International'].map(t=>`<option value="${t.toLowerCase()}" ${(l?.movingType||'')===t.toLowerCase()?'selected':''}>${t}</option>`).join('')}
     </select></div>
     <div class="fg"><label>Weight (kg)</label><input id="mf-weight" type="number" step="0.01" value="${l?.weight||''}"/></div></div>
+    ${dimsBlock(l)}
   </div>
 
   <div id="ql-warehousing-fields" style="display:none">
@@ -1182,6 +1216,10 @@ async function openQuoteLeadModal(l) {
       assignedToId: document.getElementById('mf-assigned')?.value || null,
       notes: document.getElementById('mf-notes')?.value || '',
     };
+    const L=document.getElementById('mf-len')?.value;
+    const W=document.getElementById('mf-wid')?.value;
+    const H=document.getElementById('mf-hgt')?.value;
+    const dims=(L&&W&&H)?`${L}x${W}x${H}`:'';
     if (category === 'logistics') {
       body.origin = document.getElementById('mf-origin')?.value || '';
       body.originPincode = document.getElementById('mf-origin-pin')?.value || '';
@@ -1190,12 +1228,15 @@ async function openQuoteLeadModal(l) {
       body.shipmentMode = document.getElementById('mf-mode')?.value || null;
       body.cargoType = document.getElementById('mf-cargo')?.value || '';
       body.weight = document.getElementById('mf-weight')?.value || '';
+      body.dimensions = dims;
     } else if (category === 'ecommerce') {
       body.origin = document.getElementById('mf-origin')?.value || '';
       body.originPincode = document.getElementById('mf-origin-pin')?.value || '';
       body.destination = document.getElementById('mf-destination')?.value || '';
       body.destinationPincode = document.getElementById('mf-destination-pin')?.value || '';
       body.cargoType = document.getElementById('mf-cargo')?.value || '';
+      body.weight = document.getElementById('mf-weight')?.value || '';
+      body.dimensions = dims;
     } else if (category === 'customs') {
       body.company = document.getElementById('mf-company')?.value || '';
       body.iecNumber = document.getElementById('mf-iec')?.value || '';
@@ -1208,6 +1249,7 @@ async function openQuoteLeadModal(l) {
       body.destinationPincode = document.getElementById('mf-destination-pin')?.value || '';
       body.movingType = document.getElementById('mf-movingtype')?.value || null;
       body.weight = document.getElementById('mf-weight')?.value || '';
+      body.dimensions = dims;
     } else if (category === 'warehousing') {
       body.company = document.getElementById('mf-company')?.value || '';
       body.storageType = document.getElementById('mf-storagetype')?.value || '';
