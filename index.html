@@ -1960,81 +1960,182 @@ async function showBookShipmentDetail(id) {
   if (!r?.success) { toast('Lead not found', 'error'); return; }
   const l = r.data;
 
+  const _tr = (label, value, opts = {}) => {
+    const bg = opts.bg || '';
+    const labelW = opts.labelW || '180px';
+    const bold = opts.bold ? 'font-weight:700;color:var(--black)' : '';
+    return `<tr${bg ? ` style="background:${bg}"` : ''}><td style="padding:9px 14px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray);width:${labelW};white-space:nowrap;border-bottom:1px solid var(--gray3)">${label}</td><td style="padding:9px 14px;font-size:13.5px;border-bottom:1px solid var(--gray3);${bold}">${value}</td></tr>`;
+  };
+
+  const sectionHeader = (icon, title, color) => `<tr><td colspan="2" style="padding:10px 14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:${color};background:${color}11;border-bottom:2px solid ${color}33">${icon} ${title}</td></tr>`;
+
+  const originAddr = [l.address1, l.address2, l.address3].filter(Boolean).join(', ');
+  const destAddr = [l.destAddress1, l.destAddress2, l.destAddress3].filter(Boolean).join(', ');
+
   document.getElementById('content').innerHTML = `
   <button class="btn-back" onclick="nav('book-shipment')">← Back</button>
-  <div class="detail-panel" style="margin-top:16px">
-    <div class="dp-header">
+
+  <!-- HEADER CARD -->
+  <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);margin-top:16px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div style="display:flex;align-items:center;gap:16px">
+      <div style="width:48px;height:48px;border-radius:50%;background:var(--brand-bg);border:2px solid var(--brand-border);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:var(--brand)">${l.customerName?.slice(0,2).toUpperCase()||'??'}</div>
       <div>
-        <div class="dp-name">${esc(l.customerName)} <span style="font-family:monospace;font-size:13px;color:#888">${esc(l.leadId)}</span></div>
-        <div class="dp-company">${esc(l.company||'')}${l.email?' · '+esc(l.email):''}${l.phone?' · '+esc(l.phone):''}</div>
-        <div style="margin-top:8px;display:flex;gap:8px">${badge(l.status)}</div>
-      </div>
-      <div class="dp-actions">
-        ${!l.delhiveryLr ? `<button class="btn-get-rates" onclick="getBookRates('${l.id}')">💰 Get Rates</button>` : ''}
-        ${!l.delhiveryLr ? `<button class="btn-book" onclick="confirmBookShipment('${l.id}')">🚚 Book Shipment</button>` : ''}
-        ${l.delhiveryLr ? `<button class="btn-label" onclick="downloadLabel('${l.delhiveryLr}')">🏷️ Download Label</button>` : ''}
-        <button class="btn-edit" onclick="editBookShipmentById('${l.id}')">✏️ Edit</button>
-        ${me?.role!=='sales_rep'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteBookShipment('${l.id}')">Delete</button>`:''}
+        <div style="font-size:18px;font-weight:800;color:var(--black)">${esc(l.customerName)} <span style="font-family:monospace;font-size:13px;color:var(--gray2);margin-left:6px">${esc(l.leadId)}</span></div>
+        <div style="font-size:13px;color:var(--gray);margin-top:2px">${esc(l.company||'')}${l.email?' · '+esc(l.email):''}${l.phone?' · '+esc(l.phone):''}</div>
+        <div style="margin-top:6px;display:flex;gap:6px">${badge(l.status)}${l.shipmentMode?badge(l.shipmentMode):''}</div>
       </div>
     </div>
-    <div class="dp-fields">
-      <div class="dp-field"><label>📍 Origin</label><span>${esc(l.origin||'Not set')}</span></div>
-      <div class="dp-field"><label>📍 Destination</label><span>${esc(l.destination||'Not set')}</span></div>
-      <div class="dp-field"><label>Weight</label><span>${l.weight ? l.weight+' kg' : '—'}</span></div>
-      <div class="dp-field"><label>Dimensions</label><span>${esc(l.dimensions||'—')}</span></div>
-      <div class="dp-field"><label>Declared Value</label><span>${l.declaredValue?fmtCur(l.declaredValue, l.currency):'—'}</span></div>
-      <div class="dp-field"><label>Shipment Type</label><span>${esc(l.shipmentType?l.shipmentType.charAt(0).toUpperCase()+l.shipmentType.slice(1):'—')}</span></div>
-      <div class="dp-field"><label>Mode of Transport</label><span>${l.shipmentMode?badge(l.shipmentMode):'—'}</span></div>
-      <div class="dp-field"><label>🚚 Delhivery LR</label><span>${l.delhiveryLr ? `<code style="background:#fef2f2;color:#b91c1c;padding:2px 6px;border-radius:4px">${esc(l.delhiveryLr)}</code>` : 'Not booked yet'}</span></div>
-      <div class="dp-field"><label>AWB</label><span>${esc(l.delhiveryAwb||'—')}</span></div>
-      <div class="dp-field"><label>Delhivery Rate</label><span>${l.delhiveryRate ? fmtCur(l.delhiveryRate, 'INR')+' (30% margin)' : '—'}</span></div>
-      <div class="dp-field"><label>Job ID</label><span style="font-family:monospace">${esc(l.delhiveryJobId||'—')}</span></div>
-      <div class="dp-field"><label>Expected Pickup</label><span>${l.expectedPickup?fmtDate(l.expectedPickup):'—'}</span></div>
-      <div class="dp-field"><label>Assigned To</label><span>${esc(l.assignedTo?.name||'—')}</span></div>
-      <div class="dp-field"><label>Created</label><span>${fmtDate(l.createdAt)}</span></div>
+    <div class="dp-actions" style="flex-wrap:wrap">
+      ${!l.delhiveryLr ? `<button class="btn-get-rates" onclick="getBookRates('${l.id}')">💰 Get Rates</button>` : ''}
+      ${!l.delhiveryLr ? `<button class="btn-book" onclick="confirmBookShipment('${l.id}')">🚚 Book Shipment</button>` : ''}
+      ${l.delhiveryLr ? `<button class="btn-label" onclick="downloadLabel('${l.delhiveryLr}')">🏷️ Download Label</button>` : ''}
+      <button class="btn-edit" onclick="editBookShipmentById('${l.id}')">✏️ Edit</button>
+      ${me?.role!=='sales_rep'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteBookShipment('${l.id}')">Delete</button>`:''}
     </div>
-    ${l.notes?`<div style="margin-top:16px"><div class="dp-field"><label>Notes</label><span>${esc(l.notes)}</span></div></div>`:''}
-    ${Array.isArray(l.packingList)&&l.packingList.length?`
-    <div style="margin-top:20px">
-      <div class="section-title">Packing List</div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:10px">
-          <thead><tr style="background:var(--gray4)">
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Sr.</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Type</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Unit</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">L</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">W</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">H</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Vol.Wt</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Item Description</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Qty</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Declared Values</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Total (₹)</th>
-          </tr></thead>
+  </div>
+
+  <!-- TWO-COLUMN LAYOUT -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+
+    <!-- LEFT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- SENDER DETAILS -->
+      <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
           <tbody>
-            ${l.packingList.map((p,i)=>`<tr style="border-bottom:1px solid var(--gray3)">
-              <td style="padding:8px 10px">${i+1}</td>
-              <td style="padding:8px 10px">${esc(p.type||'—')}</td>
-              <td style="padding:8px 10px">${esc(p.unit||'—')}</td>
-              <td style="padding:8px 10px">${esc(p.length||'—')}</td>
-              <td style="padding:8px 10px">${esc(p.width||'—')}</td>
-              <td style="padding:8px 10px">${esc(p.height||'—')}</td>
-              <td style="padding:8px 10px">${esc(p.volWeight||'—')}</td>
-              <td style="padding:8px 10px">${esc(p.description||'—')}</td>
-              <td style="padding:8px 10px">${p.qty||0}</td>
-              <td style="padding:8px 10px">${esc(p.declaredValues||'—')}</td>
-              <td style="padding:8px 10px;font-weight:600">₹${(p.total||0).toFixed(2)}</td>
-            </tr>`).join('')}
+            ${sectionHeader('📍', 'Sender Details', '#dc2626')}
+            ${_tr('Sender Name', esc(l.customerName || '—'), { bold: true })}
+            ${_tr('Phone', esc(l.phone || '—'))}
+            ${_tr('Email', esc(l.email || '—'))}
+            ${_tr('Pickup Address', originAddr ? esc(originAddr) : '<span style="color:var(--gray2)">—</span>')}
+            ${_tr('City / Pincode', (() => {
+              const m = (l.origin||'').match(/([^,]+),\s*([A-Z][a-z]+\s*)?\b(\d{6})\b/);
+              return m ? `${esc(m[1].trim())} — <code style="background:var(--gray4);padding:1px 5px;border-radius:3px;font-size:12px">${esc(m[3])}</code>` : esc(l.origin || '—');
+            })())}
           </tbody>
-          <tfoot><tr style="background:var(--gray4);font-weight:700">
-            <td colspan="9" style="padding:8px 10px;text-align:right;border-top:2px solid var(--gray3)">Grand Total</td>
-            <td colspan="2" style="padding:8px 10px;border-top:2px solid var(--gray3);font-weight:800">₹${l.packingList.reduce((a,p)=>a+(p.total||0),0).toFixed(2)}</td>
-          </tr></tfoot>
         </table>
       </div>
-    </div>` : ''}
-  </div>`;
+
+      <!-- RECEIVER DETAILS -->
+      <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <tbody>
+            ${sectionHeader('📦', 'Receiver Details', '#2563eb')}
+            ${_tr('Receiver Name', esc(l.receiverName || '—'), { bold: true })}
+            ${_tr('Phone', esc(l.receiverPhone || '—'))}
+            ${_tr('Email', esc(l.receiverEmail || '—'))}
+            ${_tr('Delivery Address', destAddr ? esc(destAddr) : '<span style="color:var(--gray2)">—</span>')}
+            ${_tr('City / Pincode', (() => {
+              const m = (l.destination||'').match(/([^,]+),\s*([A-Z][a-z]+\s*)?\b(\d{6})\b/);
+              return m ? `${esc(m[1].trim())} — <code style="background:var(--gray4);padding:1px 5px;border-radius:3px;font-size:12px">${esc(m[3])}</code>` : esc(l.destination || '—');
+            })())}
+            ${l.deliveryInstructions ? _tr('Instructions', esc(l.deliveryInstructions)) : ''}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- SHIPMENT INFO -->
+      <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <tbody>
+            ${sectionHeader('🚚', 'Shipment Information', '#6d28d9')}
+            ${_tr('Shipment Type', l.shipmentType ? l.shipmentType.charAt(0).toUpperCase()+l.shipmentType.slice(1) : '—')}
+            ${_tr('Mode of Transport', l.shipmentMode ? badge(l.shipmentMode) : '—')}
+            ${_tr('Package Type', l.packageType ? l.packageType.charAt(0).toUpperCase()+l.packageType.slice(1) : '—')}
+            ${l.specifyPackage ? _tr('Specify Package', esc(l.specifyPackage)) : ''}
+            ${_tr('No. of Packages', l.numberOfPackages ? String(l.numberOfPackages) : '—')}
+            ${_tr('Total Weight', l.weight ? `<strong>${l.weight} kg</strong>` : '—', { bold: !!l.weight })}
+            ${_tr('Dimensions', l.dimensions ? esc(l.dimensions) : '—')}
+            ${_tr('Declared Value', l.declaredValue ? `<strong>${fmtCur(l.declaredValue, l.currency)}</strong>` : '—', { bold: !!l.declaredValue })}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- BOOKING & DELHIVERY -->
+      <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <tbody>
+            ${sectionHeader('📋', 'Booking & Tracking', '#059669')}
+            ${_tr('Expected Pickup', l.expectedPickup ? fmtDate(l.expectedPickup) : '—')}
+            ${_tr('Assigned To', esc(l.assignedTo?.name || '—'))}
+            ${_tr('Created', fmtDate(l.createdAt))}
+            ${_tr('Delhivery LR', l.delhiveryLr ? `<code style="background:#fef2f2;color:#b91c1c;padding:2px 8px;border-radius:4px;font-size:13px;font-weight:700">${esc(l.delhiveryLr)}</code>` : '<span style="color:var(--gray2)">Not booked yet</span>')}
+            ${_tr('AWB', esc(l.delhiveryAwb || '—'))}
+            ${_tr('Delhivery Rate', l.delhiveryRate ? `<strong>${fmtCur(l.delhiveryRate, 'INR')}</strong> <span style="font-size:11px;color:var(--gray2)">(30% margin)</span>` : '—')}
+            ${_tr('Job ID', l.delhiveryJobId ? `<code style="font-family:monospace;font-size:12px">${esc(l.delhiveryJobId)}</code>` : '—')}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- NOTES -->
+      ${l.notes ? `
+      <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <tbody>
+            ${sectionHeader('📝', 'Notes', '#ea580c')}
+            <tr><td colspan="2" style="padding:10px 14px;font-size:13px;color:var(--black);line-height:1.5;border-bottom:1px solid var(--gray3)">${esc(l.notes)}</td></tr>
+          </tbody>
+        </table>
+      </div>` : ''}
+    </div>
+  </div>
+
+  <!-- PACKING LIST (full width) -->
+  ${Array.isArray(l.packingList)&&l.packingList.length?`
+  <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);margin-top:16px;overflow:hidden">
+    <div style="padding:14px 20px;border-bottom:1px solid var(--gray3);font-size:14px;font-weight:700;color:var(--black)">📦 Package Details</div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:var(--gray4)">
+          <th style="padding:9px 12px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Sr.</th>
+          <th style="padding:9px 12px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Type</th>
+          <th style="padding:9px 12px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Unit</th>
+          <th style="padding:9px 12px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">L</th>
+          <th style="padding:9px 12px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">W</th>
+          <th style="padding:9px 12px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">H</th>
+          <th style="padding:9px 12px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Vol.Wt</th>
+          <th style="padding:9px 12px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Item Description</th>
+          <th style="padding:9px 12px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Qty</th>
+          <th style="padding:9px 12px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Declared Values</th>
+          <th style="padding:9px 12px;text-align:right;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Total (₹)</th>
+        </tr></thead>
+        <tbody>
+          ${l.packingList.map((p,i)=>`<tr style="border-bottom:1px solid var(--gray3);${i%2===0?'background:var(--gray4)':''}">
+            <td style="padding:9px 12px;color:var(--gray)">${i+1}</td>
+            <td style="padding:9px 12px">${esc(p.type||'—')}</td>
+            <td style="padding:9px 12px">${esc(p.unit||'—')}</td>
+            <td style="padding:9px 12px">${esc(p.length||'—')}</td>
+            <td style="padding:9px 12px">${esc(p.width||'—')}</td>
+            <td style="padding:9px 12px">${esc(p.height||'—')}</td>
+            <td style="padding:9px 12px;font-weight:600;color:var(--blue)">${esc(p.volWeight||'—')}</td>
+            <td style="padding:9px 12px">${esc(p.description||'—')}</td>
+            <td style="padding:9px 12px;text-align:center;font-weight:600">${p.qty||0}</td>
+            <td style="padding:9px 12px">${esc(p.declaredValues||'—')}</td>
+            <td style="padding:9px 12px;text-align:right;font-weight:700;color:var(--black)">₹${(p.total||0).toFixed(2)}</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot><tr style="background:var(--gray4)">
+          <td colspan="9" style="padding:10px 12px;text-align:right;border-top:2px solid var(--gray3);font-weight:800;font-size:13px">Grand Total</td>
+          <td colspan="2" style="padding:10px 12px;text-align:right;border-top:2px solid var(--gray3);font-weight:800;font-size:15px;color:var(--brand)">₹${l.packingList.reduce((a,p)=>a+(p.total||0),0).toFixed(2)}</td>
+        </tr></tfoot>
+      </table>
+    </div>
+  </div>` : ''}
+  `;
+
+  // Responsive: stack columns on narrow screens
+  const grid = document.querySelector('#content > div[style*="grid-template-columns"]');
+  if (grid) {
+    const mq = window.matchMedia('(max-width:900px)');
+    const apply = (e) => { grid.style.gridTemplateColumns = e.matches ? '1fr' : '1fr 1fr'; };
+    apply(mq);
+    mq.addEventListener('change', apply);
+  }
 }
 
 async function getBookRates(id) {
