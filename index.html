@@ -188,6 +188,18 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .btn-save{padding:9px 24px;background:var(--brand);color:#fff;border-radius:8px;font-size:13px;font-weight:700}
 .btn-save:hover{background:var(--brand-dark)}
 .btn-danger{padding:9px 20px;background:#dc2626;color:#fff;border-radius:8px;font-size:13px;font-weight:700}
+.btn-get-rates{padding:8px 16px;background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}
+.btn-get-rates:hover{background:#fde68a}
+.btn-book{padding:8px 16px;background:var(--brand);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}
+.btn-book:hover{background:var(--brand-dark)}
+.btn-label{padding:8px 16px;background:#ede9fe;color:#6d28d9;border:1.5px solid #c4b5fd;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}
+.btn-label:hover{background:#ddd6fe}
+.btn-edit{padding:8px 16px;background:var(--white);color:var(--gray);border:1.5px solid var(--gray3);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+.btn-edit:hover{background:var(--gray4)}
+.btn-delete{padding:8px 16px;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}
+.btn-delete:hover{background:#fee2e2}
+.detail-actions{display:flex;gap:8px;flex-wrap:wrap}
+.detail-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
 
 /* EMPTY STATE */
 .empty{text-align:center;padding:60px 20px;color:var(--gray2)}
@@ -323,6 +335,7 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
           <div class="cat-filter" data-cat="warehousing" onclick="setCategoryFilter('warehousing')">Warehousing</div>
         </div>
         <div class="nav-item" onclick="nav('shipment-leads')" id="nav-shipment-leads"><span class="ni">🚢</span>Shipment</div>
+        <div class="nav-item" onclick="nav('book-shipment')" id="nav-book-shipment"><span class="ni">📦</span>Book A Shipment</div>
         <div class="nav-item" onclick="nav('contacts')" id="nav-contacts"><span class="ni">👥</span>Contacts</div>
       </div>
       <div class="nav-section">
@@ -588,6 +601,7 @@ function renderPage(page) {
     case 'contacts':      renderContacts(); break;
     case 'quote-leads':   renderQuoteLeads(); break;
     case 'shipment-leads':renderShipmentLeads(); break;
+    case 'book-shipment':renderBookShipment(); break;
     case 'tasks':         renderTasks(); break;
     case 'users':         renderUsers(); break;
     case 'reports':       renderReports(); break;
@@ -625,6 +639,7 @@ async function renderDashboard() {
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
         <button onclick="nav('quote-leads');openAddModal()" style="background:var(--brand-bg);border:1.5px solid var(--brand-border);border-radius:10px;padding:12px 16px;text-align:left;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--brand)">💬 New Quote Lead</button>
         <button onclick="nav('shipment-leads');openAddModal()" style="background:var(--blue-bg);border:1.5px solid #bfdbfe;border-radius:10px;padding:12px 16px;text-align:left;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--blue)">🚢 New Shipment Lead</button>
+        <button onclick="nav('book-shipment');openAddModal()" style="background:#ede9fe;border:1.5px solid #c4b5fd;border-radius:10px;padding:12px 16px;text-align:left;cursor:pointer;font-size:13.5px;font-weight:600;color:#6d28d9">📦 Book A Shipment</button>
         <button onclick="nav('contacts');openAddModal()" style="background:var(--green-bg);border:1.5px solid #bbf7d0;border-radius:10px;padding:12px 16px;text-align:left;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--green)">👤 New Contact</button>
         <button onclick="nav('tasks');openAddModal()" style="background:var(--yellow-bg);border:1.5px solid #fde68a;border-radius:10px;padding:12px 16px;text-align:left;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--yellow)">✅ New Task</button>
       </div>
@@ -1073,6 +1088,7 @@ function openAddModal() {
     case 'contacts':       openContactModal(null); break;
     case 'quote-leads':    openQuoteLeadModal(null); break;
     case 'shipment-leads': openShipmentLeadModal(null); break;
+    case 'book-shipment':  openBookShipmentModal(null); break;
     case 'tasks':          openTaskModal(null); break;
     case 'users':          openUserModal(null); break;
   }
@@ -1295,33 +1311,31 @@ async function openShipmentLeadModal(l) {
   <div style="background:var(--brand-bg);border:1.5px solid var(--brand-border);border-radius:10px;padding:14px;margin-bottom:14px">
     <div style="font-size:12px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📍 Origin</div>
     <div class="form-row">
-      <div class="fg"><label>Pincode / Zip Code</label><input id="mf-o-pin" placeholder="e.g. 380001" oninput="autoFillLocation(this.value,'o')" value=""/></div>
-      <div class="fg"><label>Locality / Area</label><input id="mf-o-locality" placeholder="Auto-filled" value=""/></div>
+      <div class="fg"><label>City</label><input id="mf-o-city" value=""/></div>
+      <div class="fg"><label>Pincode</label><input id="mf-o-pin" value=""/></div>
     </div>
     <div class="form-row">
-      <div class="fg"><label>City</label><input id="mf-o-city" placeholder="Auto-filled" value=""/></div>
-      <div class="fg"><label>State</label><input id="mf-o-state" placeholder="Auto-filled" value=""/></div>
+      <div class="fg"><label>State</label><input id="mf-o-state" value=""/></div>
+      <div class="fg"><label>Country</label><input id="mf-o-country" value=""/></div>
     </div>
-    <div class="form-row">
-      <div class="fg"><label>Country</label><input id="mf-o-country" placeholder="Auto-filled" value=""/></div>
-    </div>
-    <div class="fg"><label>Full Address</label><textarea id="mf-o-address" rows="2" placeholder="House/Flat No., Street, Area..."></textarea></div>
+    <div class="fg"><label>Address 1</label><input id="mf-o-address1" placeholder="House/Flat No., Street"/></div>
+    <div class="fg"><label>Address 2</label><input id="mf-o-address2" placeholder="Area, Landmark"/></div>
+    <div class="fg"><label>Address 3</label><input id="mf-o-address3" placeholder="Additional address details"/></div>
   </div>
 
   <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:14px;margin-bottom:14px">
     <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📍 Destination</div>
     <div class="form-row">
-      <div class="fg"><label>Pincode / Zip Code</label><input id="mf-d-pin" placeholder="e.g. 10001" oninput="autoFillLocation(this.value,'d')" value=""/></div>
-      <div class="fg"><label>Locality / Area</label><input id="mf-d-locality" placeholder="Auto-filled" value=""/></div>
+      <div class="fg"><label>City</label><input id="mf-d-city" value=""/></div>
+      <div class="fg"><label>Pincode</label><input id="mf-d-pin" value=""/></div>
     </div>
     <div class="form-row">
-      <div class="fg"><label>City</label><input id="mf-d-city" placeholder="Auto-filled" value=""/></div>
-      <div class="fg"><label>State</label><input id="mf-d-state" placeholder="Auto-filled" value=""/></div>
+      <div class="fg"><label>State</label><input id="mf-d-state" value=""/></div>
+      <div class="fg"><label>Country</label><input id="mf-d-country" value=""/></div>
     </div>
-    <div class="form-row">
-      <div class="fg"><label>Country</label><input id="mf-d-country" placeholder="Auto-filled" value=""/></div>
-    </div>
-    <div class="fg"><label>Full Address</label><textarea id="mf-d-address" rows="2" placeholder="House/Flat No., Street, Area..."></textarea></div>
+    <div class="fg"><label>Address 1</label><input id="mf-d-address1" placeholder="House/Flat No., Street"/></div>
+    <div class="fg"><label>Address 2</label><input id="mf-d-address2" placeholder="Area, Landmark"/></div>
+    <div class="fg"><label>Address 3</label><input id="mf-d-address3" placeholder="Additional address details"/></div>
   </div>
 
   <div class="form-row"><div class="fg"><label>Shipment Mode</label><select id="mf-mode">
@@ -1362,13 +1376,16 @@ async function openShipmentLeadModal(l) {
     const W=document.getElementById('mf-wid').value;
     const H=document.getElementById('mf-hgt').value;
     const dims = (L&&W&&H) ? `${L}x${W}x${H}` : '';
-    const oPin=document.getElementById('mf-o-pin').value, oLocality=document.getElementById('mf-o-locality').value, oCity=document.getElementById('mf-o-city').value, oState=document.getElementById('mf-o-state').value, oCountry=document.getElementById('mf-o-country').value, oAddr=document.getElementById('mf-o-address').value;
-    const dPin=document.getElementById('mf-d-pin').value, dLocality=document.getElementById('mf-d-locality').value, dCity=document.getElementById('mf-d-city').value, dState=document.getElementById('mf-d-state').value, dCountry=document.getElementById('mf-d-country').value, dAddr=document.getElementById('mf-d-address').value;
-    const originStr = [oAddr,oLocality,oCity,oState,oPin,oCountry].filter(Boolean).join(', ');
-    const destStr   = [dAddr,dLocality,dCity,dState,dPin,dCountry].filter(Boolean).join(', ');
+    const oCity=document.getElementById('mf-o-city').value, oPin=document.getElementById('mf-o-pin').value, oState=document.getElementById('mf-o-state').value, oCountry=document.getElementById('mf-o-country').value;
+    const oAddr1=document.getElementById('mf-o-address1').value, oAddr2=document.getElementById('mf-o-address2').value, oAddr3=document.getElementById('mf-o-address3').value;
+    const dCity=document.getElementById('mf-d-city').value, dPin=document.getElementById('mf-d-pin').value, dState=document.getElementById('mf-d-state').value, dCountry=document.getElementById('mf-d-country').value;
+    const dAddr1=document.getElementById('mf-d-address1').value, dAddr2=document.getElementById('mf-d-address2').value, dAddr3=document.getElementById('mf-d-address3').value;
+    const originStr = [oAddr1,oAddr2,oAddr3,oCity,oState,oPin,oCountry].filter(Boolean).join(', ');
+    const destStr   = [dAddr1,dAddr2,dAddr3,dCity,dState,dPin,dCountry].filter(Boolean).join(', ');
     const body = {
       customerName: document.getElementById('mf-name').value, company: document.getElementById('mf-company').value,
       email: document.getElementById('mf-email').value, phone: document.getElementById('mf-phone').value,
+      address1: oAddr1, address2: oAddr2, address3: oAddr3,
       origin: originStr, destination: destStr,
       shipmentMode: document.getElementById('mf-mode').value||null, cargoType: document.getElementById('mf-cargo').value,
       weight: document.getElementById('mf-weight').value, dimensions: dims,
@@ -1447,60 +1464,6 @@ async function deactivateUser(id, name, e) {
   const r = await api('DELETE', `/api/users/${id}`);
   if (r?.success) { toast(r.data.message, 'success'); renderUsers(); }
   else toast(r?.error||'Error','error');
-}
-
-// ─── PINCODE AUTO-FILL ────────────────────────────────────────────────────────
-const _pinCache = {};
-let _pinTimer = null;
-function autoFillLocation(pin, prefix) {
-  clearTimeout(_pinTimer);
-  pin = pin.trim();
-  if (pin.length < 4) return;
-  if (_pinCache[pin]) { fillLocFields(prefix, _pinCache[pin]); return; }
-  _pinTimer = setTimeout(() => _doFetch(pin, prefix), 700);
-}
-
-async function _doFetch(pin, prefix) {
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(pin)}&format=json&limit=5&addressdetails=1`,
-      { headers: { 'Accept-Language': 'en' } }
-    ).catch(() => null);
-    if (!res || !res.ok) return;
-    const results = await res.json();
-    if (!results?.length) return;
-
-    // Pick best result — prefer one with city
-    let best = results[0];
-    for (const r of results) {
-      if (r.address.city || r.address.town) { best = r; break; }
-    }
-    const a = best.address;
-
-    // Locality = most specific area (suburb, neighbourhood, village etc)
-    const locality = a.suburb || a.neighbourhood || a.quarter ||
-                     a.residential || a.hamlet || a.village || '';
-
-    // City = proper city name (never same as locality)
-    const rawCity = a.city || a.town || a.municipality ||
-                    a.city_district || a.county || '';
-    const city = rawCity === locality ? (a.county || a.district || '') : rawCity;
-
-    const state   = a.state || a.state_district || '';
-    const country = a.country || '';
-
-    const loc = { locality, city, state, country };
-    _pinCache[pin] = loc;
-    fillLocFields(prefix, loc);
-  } catch(e) {}
-}
-
-function fillLocFields(prefix, loc) {
-  const map = { locality: loc.locality, city: loc.city, state: loc.state, country: loc.country };
-  Object.entries(map).forEach(([key, val]) => {
-    const el = document.getElementById(`mf-${prefix}-${key}`);
-    if (el && val) { el.value = val; el.style.background = '#f0fdf4'; }
-  });
 }
 
 // ─── DIMENSIONAL WEIGHT ───────────────────────────────────────────────────────
@@ -1635,6 +1598,458 @@ async function deleteTrackingEntry(entryId) {
   _trackTimeline = _trackTimeline.filter(s => s.id !== entryId);
   toast('Status deleted', 'success');
   renderTrackingModal();
+}
+
+// ─── BOOK A SHIPMENT ─────────────────────────────────────────────────────────
+let bookShipmentPage = 1;
+let bookShipmentTotal = 0;
+const BOOK_SHIP_PAGE_SIZE = 15;
+
+function _invalidateBookCache() { _apiCache.delete(cacheKey('GET', `/api/shipment-leads?source=booking&page=1&limit=${BOOK_SHIP_PAGE_SIZE}`)); }
+
+function _parseAddress(s) {
+  if (!s) return { city:'', state:'', pin:'', country:'', addr:'' };
+  const pinM = s.match(/\b(\d{6})\b/);
+  const pin = pinM ? pinM[1] : '';
+  const parts = s.split(',').map(p => p.trim()).filter(Boolean);
+  let city = '', state = '', country = '', addr = '';
+  for (const p of parts) {
+    if (/^\d{6}$/.test(p)) continue;
+    if (/^(india|uae|usa|uk|singapore|german|france|australia|canada|japan|china)$/i.test(p)) { country = p; continue; }
+    if (/^(gujarat|maharashtra|delhi|karnataka|tamil|rajasthan|uttar|madhya|west bengal|andhra|telangana|kerala|punjab|haryana|odisha|assam|jharkhand|chhattisgarh|goa|himachal|jammu|meghalaya|manipur|nagaland|tripura|mizoram|arunachal|sikkim|manipur|ukharakhand)$/i.test(p)) { state = p; continue; }
+  }
+  if (parts.length >= 2) { city = parts[parts.length > 3 ? 3 : 0] || ''; }
+  if (!city && parts.length > 0) city = parts[0] || '';
+  if (!state) { for (const p of parts) { if (p.length > 3 && !/^\d/.test(p) && !/^(india|air|sea|road|courier)/i.test(p)) { state = p; break; } } }
+  addr = parts.filter(p => p !== city && p !== state && p !== country && !/^\d{6}$/.test(p)).slice(0, 2).join(', ');
+  return { city: city || '', state: state || '', pin, country: country || 'India', addr };
+}
+
+async function renderBookShipment() {
+  const r = await api('GET', `/api/shipment-leads?page=${bookShipmentPage}&limit=${BOOK_SHIP_PAGE_SIZE}&source=booking`);
+  const leads = r?.data || [];
+  bookShipmentTotal = r?.pagination?.total || 0;
+  const totalPages = Math.ceil(bookShipmentTotal / BOOK_SHIP_PAGE_SIZE);
+
+  document.getElementById('content').innerHTML = `
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">📦 Book A Shipment (${bookShipmentTotal})</div>
+        <button class="btn-primary" onclick="openBookShipmentModal(null)">+ New Booking</button>
+      </div>
+      ${leads.length === 0 ? `
+        <div class="empty"><div class="empty-icon">📦</div><div class="empty-title">No Bookings Yet</div><div class="empty-sub">Click "+ New Booking" to create a shipment</div></div>
+      ` : `
+        <table><thead><tr>
+          <th>Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Delhivery LR</th><th>Status</th><th>Amount</th><th>Created</th>
+        </tr></thead><tbody>
+          ${leads.map(l => `<tr onclick="showBookShipmentDetail('${l.id}')" style="cursor:pointer">
+            <td><code style="font-size:12px;background:var(--blue-bg);color:var(--blue);padding:2px 7px;border-radius:5px">${esc(l.leadId)}</code></td>
+            <td><strong>${esc(l.customerName)}</strong><br><span class="sub">${esc(l.company||'')}</span></td>
+            <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.origin||'-')}</td>
+            <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.destination||'-')}</td>
+            <td>${l.delhiveryLr ? `<code style="font-size:12px;background:#fef2f2;color:#b91c1c;padding:2px 7px;border-radius:5px">${esc(l.delhiveryLr)}</code>` : '<span class="sub">-</span>'}</td>
+            <td>${badge(l.status)}</td>
+            <td>${l.freightCharge ? fmtCur(l.freightCharge, l.currency) : '-'}</td>
+            <td><span class="sub">${fmtDate(l.createdAt)}</span></td>
+          </tr>`).join('')}
+        </tbody></table>
+      `}
+      ${totalPages > 1 ? `<div class="pagination"><span>Showing ${(bookShipmentPage-1)*BOOK_SHIP_PAGE_SIZE+1}-${Math.min(bookShipmentPage*BOOK_SHIP_PAGE_SIZE, bookShipmentTotal)} of ${bookShipmentTotal}</span><div class="page-btns"><button class="page-btn" onclick="bookShipmentPage--;renderBookShipment()" ${bookShipmentPage===1?'disabled':''}>← Prev</button><span style="padding:6px 12px;font-size:13px;color:var(--gray)">Page ${bookShipmentPage} of ${totalPages}</span><button class="page-btn" onclick="bookShipmentPage++;renderBookShipment()" ${bookShipmentPage>=totalPages?'disabled':''}>Next →</button></div></div>` : ''}
+    </div>`;
+}
+
+async function openBookShipmentModal(l) {
+  await getUsersForAssign();
+  const parseDim = (s) => { if(!s) return ['','','']; const p=s.split('x'); return [p[0]||'',p[1]||'',p[2]||'']; };
+  const [pl,pw,ph] = parseDim(l?.dimensions);
+  const oAddr = _parseAddress(l?.origin);
+  const dAddr = _parseAddress(l?.destination);
+  showModal(l ? 'Edit Booking' : 'New Booking', `
+  <div class="fg" style="background:var(--blue-bg);border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 14px;margin-bottom:14px">
+    <label style="color:var(--blue)">Lead ID Lookup</label>
+    <div style="display:flex;gap:8px">
+      <input id="mf-lookup" placeholder="Enter YNC-S-XXXXX, YNC-C-XXXXX, or YNC-Q-XXXXX" style="flex:1"/>
+      <button type="button" class="btn-save" style="background:var(--blue);padding:8px 14px;font-size:12px" onclick="lookupLead()">Lookup</button>
+    </div>
+    <div id="lookup-result" style="margin-top:6px;font-size:12px;color:var(--gray)"></div>
+  </div>
+
+  <div class="form-row"><div class="fg"><label>Customer Name *</label><input id="mf-name" value="${esc(l?.customerName||'')}"/></div>
+  <div class="fg"><label>Company</label><input id="mf-company" value="${esc(l?.company||'')}"/></div></div>
+  <div class="form-row"><div class="fg"><label>Email</label><input id="mf-email" type="email" value="${esc(l?.email||'')}"/></div>
+  <div class="fg"><label>Phone</label><input id="mf-phone" value="${esc(l?.phone||'')}"/></div></div>
+
+  <div style="background:var(--brand-bg);border:1.5px solid var(--brand-border);border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📍 Origin</div>
+    <div class="form-row">
+      <div class="fg"><label>City</label><input id="mf-o-city" value="${esc(oAddr.city)}"/></div>
+      <div class="fg"><label>Pincode *</label><input id="mf-o-pin" value="${esc(oAddr.pin)}" required/></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>State</label><input id="mf-o-state" value="${esc(oAddr.state)}"/></div>
+      <div class="fg"><label>Country</label><input id="mf-o-country" value="${esc(oAddr.country||'India')}"/></div>
+    </div>
+    <div class="fg"><label>Address 1</label><input id="mf-o-address1" placeholder="House/Flat No., Street" value="${esc(l?.address1||'')}"/></div>
+    <div class="fg"><label>Address 2</label><input id="mf-o-address2" placeholder="Area, Landmark" value="${esc(l?.address2||'')}"/></div>
+    <div class="fg"><label>Address 3</label><input id="mf-o-address3" placeholder="Additional address details" value="${esc(l?.address3||'')}"/></div>
+  </div>
+
+  <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📍 Destination</div>
+    <div class="form-row">
+      <div class="fg"><label>City</label><input id="mf-d-city" value="${esc(dAddr.city)}"/></div>
+      <div class="fg"><label>Pincode *</label><input id="mf-d-pin" value="${esc(dAddr.pin)}" required/></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>State</label><input id="mf-d-state" value="${esc(dAddr.state)}"/></div>
+      <div class="fg"><label>Country</label><input id="mf-d-country" value="${esc(dAddr.country||'India')}"/></div>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="fg"><label>Weight (kg) *</label><input id="mf-weight" type="number" step="0.01" value="${l?.weight||''}" oninput="calcDimWeight('b')"/></div>
+    <div class="fg"><label>Declared Value (₹) *</label><input id="mf-declvalue" type="number" value="${l?.declaredValue||''}"/></div>
+  </div>
+
+  <div style="background:var(--gray4);border:1.5px solid var(--gray3);border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📦 Dimensions (cm)</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div class="fg" style="flex:1;margin:0"><label>Length</label><input id="mf-len" type="number" step="0.1" placeholder="L" value="${pl}" oninput="calcDimWeight('b')"/></div>
+      <div style="font-size:20px;font-weight:700;color:var(--gray2);margin-top:18px">×</div>
+      <div class="fg" style="flex:1;margin:0"><label>Width</label><input id="mf-wid" type="number" step="0.1" placeholder="W" value="${pw}" oninput="calcDimWeight('b')"/></div>
+      <div style="font-size:20px;font-weight:700;color:var(--gray2);margin-top:18px">×</div>
+      <div class="fg" style="flex:1;margin:0"><label>Height</label><input id="mf-hgt" type="number" step="0.1" placeholder="H" value="${ph}" oninput="calcDimWeight('b')"/></div>
+    </div>
+    <div class="fg" style="margin:0"><label>Dimensional Weight (kg)</label>
+      <input id="mf-dimweight" type="number" step="0.01" placeholder="Auto" readonly style="background:#f1f5f9;color:var(--gray);cursor:not-allowed"/>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="fg"><label>Payment Mode</label><select id="mf-paymode">
+      ${['prepaid','cod'].map(m=>`<option value="${m}" ${(l?.paymentMode||'prepaid')===m?'selected':''}>${m.toUpperCase()}</option>`).join('')}
+    </select></div>
+    <div class="fg"><label>Currency</label><select id="mf-currency">
+      ${['INR','USD','AED','GBP','EUR'].map(c=>`<option value="${c}" ${(l?.currency||'INR')===c?'selected':''}>${c}</option>`).join('')}
+    </select></div>
+  </div>
+  <div class="form-row">
+    <div class="fg"><label>Expected Pickup</label><input id="mf-pickup" type="date" value="${l?.expectedPickup?l.expectedPickup.slice(0,10):''}"/></div>
+    <div class="fg"><label>Notes</label><input id="mf-notes" value="${esc(l?.notes||'')}"/></div>
+  </div>
+  ${me?.role !== 'sales_rep' ? `<div class="fg"><label>Assigned To</label>${assignDropdown(l?.assignedToId||'')}</div>` : ''}
+  `, async () => {
+    const L=document.getElementById('mf-len').value;
+    const W=document.getElementById('mf-wid').value;
+    const H=document.getElementById('mf-hgt').value;
+    const dims = (L&&W&&H) ? `${L}x${W}x${H}` : '';
+    const oCity=document.getElementById('mf-o-city').value, oPin=document.getElementById('mf-o-pin').value, oState=document.getElementById('mf-o-state').value, oCountry=document.getElementById('mf-o-country').value;
+    const oAddr1=document.getElementById('mf-o-address1').value, oAddr2=document.getElementById('mf-o-address2').value, oAddr3=document.getElementById('mf-o-address3').value;
+    const dCity=document.getElementById('mf-d-city').value, dPin=document.getElementById('mf-d-pin').value, dState=document.getElementById('mf-d-state').value, dCountry=document.getElementById('mf-d-country').value;
+    const originStr = [oAddr1,oAddr2,oAddr3,oCity,oState,oPin,oCountry].filter(Boolean).join(', ');
+    const destStr   = [dCity,dState,dPin,dCountry].filter(Boolean).join(', ');
+    const body = {
+      source: 'booking',
+      customerName: document.getElementById('mf-name').value, company: document.getElementById('mf-company').value,
+      email: document.getElementById('mf-email').value, phone: document.getElementById('mf-phone').value,
+      address1: oAddr1, address2: oAddr2, address3: oAddr3,
+      origin: originStr, destination: destStr,
+      weight: document.getElementById('mf-weight').value, dimensions: dims,
+      declaredValue: document.getElementById('mf-declvalue').value,
+      paymentMode: document.getElementById('mf-paymode').value,
+      expectedPickup: document.getElementById('mf-pickup').value||null,
+      currency: document.getElementById('mf-currency').value,
+      assignedToId: document.getElementById('mf-assigned')?.value || null,
+      notes: document.getElementById('mf-notes').value,
+    };
+    const r = l ? await api('PATCH', `/api/shipment-leads/${l.id}`, body) : await api('POST', '/api/shipment-leads', body);
+    if (!r?.success) { toast(r?.error || 'Error saving booking', 'error'); return; }
+    _invalidateBookCache();
+    toast(l ? 'Booking updated!' : 'Booking created!', 'success');
+    closeModal(); renderBookShipment();
+  });
+}
+function editBookShipment(l) { openBookShipmentModal(l); }
+async function editBookShipmentById(id) {
+  const r = await api('GET', `/api/shipment-leads/${id}`);
+  if (!r?.success) { toast('Lead not found', 'error'); return; }
+  openBookShipmentModal(r.data);
+}
+
+async function lookupLead() {
+  const val = document.getElementById('mf-lookup').value.trim();
+  const el = document.getElementById('lookup-result');
+  if (!val) { el.innerHTML = '<span style="color:var(--red)">Please enter a Lead ID</span>'; return; }
+  el.innerHTML = '<span style="color:var(--gray)">Looking up...</span>';
+
+  let data = null;
+  for (const type of ['shipment-leads', 'quote-leads', 'contacts']) {
+    const r = await api('GET', `/api/${type}?search=${encodeURIComponent(val)}&limit=5`);
+    const items = Array.isArray(r?.data) ? r.data : [];
+    if (items.length > 0) { data = items[0]; break; }
+  }
+
+  if (!data) { el.innerHTML = '<span style="color:var(--red)">Lead not found</span>'; return; }
+
+  const setVal = (id, v) => { const e = document.getElementById(id); if (e) e.value = v || ''; };
+  setVal('mf-name', data.customerName || data.name);
+  setVal('mf-company', data.company);
+  setVal('mf-email', data.email);
+  setVal('mf-phone', data.phone);
+  setVal('mf-weight', data.weight);
+  setVal('mf-declvalue', data.declaredValue || data.estimatedValue);
+
+  const oAddr = _parseAddress(data.origin);
+  setVal('mf-o-city', oAddr.city);
+  setVal('mf-o-pin', oAddr.pin);
+  setVal('mf-o-state', oAddr.state);
+  setVal('mf-o-country', oAddr.country);
+  setVal('mf-o-address1', data.address1);
+
+  const dAddr = _parseAddress(data.destination);
+  setVal('mf-d-city', dAddr.city);
+  setVal('mf-d-pin', dAddr.pin);
+  setVal('mf-d-state', dAddr.state);
+  setVal('mf-d-country', dAddr.country);
+
+  if (data.dimensions) {
+    const p = data.dimensions.split('x');
+    setVal('mf-len', p[0]); setVal('mf-wid', p[1]); setVal('mf-hgt', p[2]);
+    calcDimWeight('b');
+  }
+  el.innerHTML = `<span style="color:var(--green)">✓ Loaded from <strong>${esc(data.leadId)}</strong> (${esc(data.customerName || data.name)})</span>`;
+}
+
+async function showBookShipmentDetail(id) {
+  const r = await api('GET', `/api/shipment-leads/${id}`);
+  if (!r?.success) { toast('Lead not found', 'error'); return; }
+  const l = r.data;
+
+  document.getElementById('content').innerHTML = `
+  <button class="btn-back" onclick="nav('book-shipment')">← Back</button>
+  <div class="detail-panel" style="margin-top:16px">
+    <div class="dp-header">
+      <div>
+        <div class="dp-name">${esc(l.customerName)} <span style="font-family:monospace;font-size:13px;color:#888">${esc(l.leadId)}</span></div>
+        <div class="dp-company">${esc(l.company||'')}${l.email?' · '+esc(l.email):''}${l.phone?' · '+esc(l.phone):''}</div>
+        <div style="margin-top:8px;display:flex;gap:8px">${badge(l.status)}</div>
+      </div>
+      <div class="dp-actions">
+        ${!l.delhiveryLr ? `<button class="btn-get-rates" onclick="getBookRates('${l.id}')">💰 Get Rates</button>` : ''}
+        ${!l.delhiveryLr ? `<button class="btn-book" onclick="confirmBookShipment('${l.id}')">🚚 Book Shipment</button>` : ''}
+        ${l.delhiveryLr ? `<button class="btn-label" onclick="downloadLabel('${l.delhiveryLr}')">🏷️ Download Label</button>` : ''}
+        <button class="btn-edit" onclick="editBookShipmentById('${l.id}')">✏️ Edit</button>
+        ${me?.role!=='sales_rep'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteBookShipment('${l.id}')">Delete</button>`:''}
+      </div>
+    </div>
+    <div class="dp-fields">
+      <div class="dp-field"><label>📍 Origin</label><span>${esc(l.origin||'Not set')}</span></div>
+      <div class="dp-field"><label>📍 Destination</label><span>${esc(l.destination||'Not set')}</span></div>
+      <div class="dp-field"><label>Weight</label><span>${l.weight ? l.weight+' kg' : '—'}</span></div>
+      <div class="dp-field"><label>Dimensions</label><span>${esc(l.dimensions||'—')}</span></div>
+      <div class="dp-field"><label>Declared Value</label><span>${l.declaredValue?fmtCur(l.declaredValue, l.currency):'—'}</span></div>
+      <div class="dp-field"><label>Cargo Type</label><span>${esc(l.cargoType||'—')}</span></div>
+      <div class="dp-field"><label>🚚 Delhivery LR</label><span>${l.delhiveryLr ? `<code style="background:#fef2f2;color:#b91c1c;padding:2px 6px;border-radius:4px">${esc(l.delhiveryLr)}</code>` : 'Not booked yet'}</span></div>
+      <div class="dp-field"><label>AWB</label><span>${esc(l.delhiveryAwb||'—')}</span></div>
+      <div class="dp-field"><label>Delhivery Rate</label><span>${l.delhiveryRate ? fmtCur(l.delhiveryRate, 'INR')+' (30% margin)' : '—'}</span></div>
+      <div class="dp-field"><label>Job ID</label><span style="font-family:monospace">${esc(l.delhiveryJobId||'—')}</span></div>
+      <div class="dp-field"><label>Expected Pickup</label><span>${l.expectedPickup?fmtDate(l.expectedPickup):'—'}</span></div>
+      <div class="dp-field"><label>Assigned To</label><span>${esc(l.assignedTo?.name||'—')}</span></div>
+      <div class="dp-field"><label>Created</label><span>${fmtDate(l.createdAt)}</span></div>
+    </div>
+    ${l.notes?`<div style="margin-top:16px"><div class="dp-field"><label>Notes</label><span>${esc(l.notes)}</span></div></div>`:''}
+  </div>`;
+}
+
+async function getBookRates(id) {
+  const r = await api('GET', `/api/shipment-leads/${id}`);
+  if (!r?.success) { toast('Lead not found', 'error'); return; }
+  const l = r.data;
+
+  if (!l.origin || !l.destination || !l.weight || !l.declaredValue) {
+    toast('Please fill origin, destination, weight, and declared value first', 'error');
+    return;
+  }
+
+  const extractPin = (s) => { const m = (s||'').match(/\b(\d{6})\b/); return m ? m[1] : null; };
+  const sourcePin = extractPin(l.origin);
+  const destPin = extractPin(l.destination);
+
+  if (!sourcePin || !destPin) {
+    toast('Could not extract 6-digit pincode from origin/destination. Please include pincode in the address.', 'error');
+    return;
+  }
+
+  const weightG = Math.round(l.weight * 1000);
+  const parseDimArr = (s) => { if(!s) return [50,40,30]; const p=s.split('x').map(Number); return [p[0]||50,p[1]||40,p[2]||30]; };
+  const [dL,dW,dH] = parseDimArr(l.dimensions);
+
+  toast('Fetching rates from Delhivery...', 'info');
+  const rateR = await api('POST', '/api/delhivery/rate', {
+    source_pin: sourcePin,
+    consignee_pin: destPin,
+    weight_g: weightG,
+    inv_amount: l.declaredValue,
+    length_cm: dL, width_cm: dW, height_cm: dH,
+    payment_mode: 'prepaid',
+  });
+
+  if (!rateR?.success) { toast(rateR?.error || 'Failed to get rates', 'error'); return; }
+
+  const rateData = rateR.data;
+  await api('PATCH', `/api/shipment-leads/${id}`, { delhiveryRate: rateData.finalRate });
+
+  showModal('Rate Card', `
+    <div style="text-align:center;padding:10px 0 20px">
+      <div style="font-size:13px;color:var(--gray);margin-bottom:4px">Delhivery Rate (incl. GST)</div>
+      <div style="font-size:32px;font-weight:800;color:var(--brand)">₹${rateData.delhiveryRate.toLocaleString()}</div>
+    </div>
+    <div style="background:var(--brand-bg);border:1.5px solid var(--brand-border);border-radius:10px;padding:16px;text-align:center">
+      <div style="font-size:12px;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Your Rate (30% margin)</div>
+      <div style="font-size:28px;font-weight:800;color:var(--brand-dark)">₹${rateData.finalRate.toLocaleString()}</div>
+    </div>
+    <div style="margin-top:14px;font-size:12px;color:var(--gray2)">
+      Charged Weight: ${rateData.chargedWeight ? (rateData.chargedWeight/1000).toFixed(1)+'kg' : '-'}
+    </div>
+  `, () => { closeModal(); });
+}
+
+function confirmBookShipment(id) {
+  showModal('Confirm Booking', `
+    <div style="text-align:center;padding:20px 0">
+      <div style="font-size:40px;margin-bottom:12px">🚚</div>
+      <div style="font-size:16px;font-weight:700;color:var(--black);margin-bottom:6px">Are you sure you want to book a shipment?</div>
+      <div style="font-size:13px;color:var(--gray)">This will create a manifest with Delhivery and generate an LR/AWB number.</div>
+    </div>
+  `, async () => {
+    closeModal();
+    await executeBookShipment(id);
+  });
+}
+
+async function executeBookShipment(id) {
+  const r = await api('GET', `/api/shipment-leads/${id}`);
+  if (!r?.success) { toast('Lead not found', 'error'); return; }
+  const l = r.data;
+
+  if (!l.origin || !l.destination || !l.weight || !l.declaredValue) {
+    toast('Please fill origin, destination, weight, and declared value', 'error');
+    return;
+  }
+
+  const extractPin = (s) => { const m = (s||'').match(/\b(\d{6})\b/); return m ? m[1] : null; };
+  const sourcePin = extractPin(l.origin);
+  const destPin = extractPin(l.destination);
+
+  if (!sourcePin || !destPin) {
+    toast('Could not extract 6-digit pincode from origin/destination', 'error');
+    return;
+  }
+
+  const dAddr = _parseAddress(l.destination);
+  const parseDimArr = (s) => { if(!s) return [50,40,30]; const p=s.split('x').map(Number); return [p[0]||50,p[1]||40,p[2]||30]; };
+  const [dL,dW,dH] = parseDimArr(l.dimensions);
+
+  toast('Creating manifest with Delhivery...', 'info');
+
+  const manifestR = await api('POST', '/api/delhivery/manifest', {
+    payment_mode: 'prepaid',
+    weight: Math.round(l.weight * 1000),
+    dropoff_location: {
+      consignee_name: l.customerName || '',
+      address: l.address1 || '',
+      address_1: l.address2 || '',
+      address_2: l.address3 || '',
+      city: dAddr.city,
+      state: dAddr.state,
+      pin: destPin,
+      phone: l.phone || '',
+    },
+    shipment_details: [{
+      desc: l.cargoType || 'General goods',
+      qty: 1,
+      value: l.declaredValue,
+    }],
+    dimensions: [{ length_cm: dL, width_cm: dW, height_cm: dH, box_count: 1 }],
+    inv_amount: l.declaredValue,
+    rov_insurance: false,
+    freight_mode: 'fop',
+    fm_pickup: true,
+  });
+
+  if (!manifestR?.success) { toast(manifestR?.error || 'Failed to create manifest', 'error'); return; }
+
+  const jobId = manifestR.data?.job_id;
+  if (!jobId) { toast('No job_id received from Delhivery', 'error'); return; }
+
+  await api('PATCH', `/api/shipment-leads/${id}`, { delhiveryJobId: jobId });
+  _invalidateBookCache();
+  toast('Manifest created. Polling for LR/AWB...', 'info');
+
+  let lr = null, awb = null;
+  for (let i = 0; i < 15; i++) {
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    const statusR = await api('GET', `/api/delhivery/status?job_id=${jobId}`);
+    if (statusR?.success) {
+      const entries = statusR.data?.entries || statusR.data?.manifest_entry || [];
+      if (Array.isArray(entries)) {
+        for (const e of entries) {
+          if (e.lr_no || e.lrn) { lr = e.lr_no || e.lrn; awb = e.awb || e.tracking_id; break; }
+        }
+      }
+      if (lr) break;
+      if (statusR.data?.lr_no || statusR.data?.lrn) { lr = statusR.data.lr_no || statusR.data.lrn; awb = statusR.data.awb || statusR.data.tracking_id; break; }
+    }
+  }
+
+  if (lr) {
+    await api('PATCH', `/api/shipment-leads/${id}`, {
+      delhiveryLr: lr, delhiveryAwb: awb, status: 'shipment_booked',
+    });
+    _invalidateBookCache();
+    toast(`Shipment booked! LR: ${lr}`, 'success');
+    showBookShipmentDetail(id);
+  } else {
+    toast('Manifest submitted but LR/AWB not yet available. Check back in a few minutes.', 'info');
+    showBookShipmentDetail(id);
+  }
+}
+
+async function downloadLabel(lrn) {
+  if (!lrn) { toast('No LR number available', 'error'); return; }
+  toast('Generating label...', 'info');
+  const r = await api('GET', `/api/delhivery/label?lrn=${encodeURIComponent(lrn)}&size=a4`);
+  if (!r?.success) { toast(r?.error || 'Failed to get label', 'error'); return; }
+
+  const urls = r.data?.urls || r.data;
+  let labelHtml = '';
+  if (Array.isArray(urls)) {
+    for (const url of urls) {
+      if (url.base64) {
+        labelHtml += `<div style="text-align:center;margin:10px 0"><img src="data:image/png;base64,${url.base64}" style="max-width:100%;border:1px solid var(--gray3);border-radius:8px"/></div>`;
+      } else if (url.url) {
+        labelHtml += `<div style="text-align:center;margin:10px 0"><img src="${url.url}" style="max-width:100%;border:1px solid var(--gray3);border-radius:8px"/></div>`;
+      }
+    }
+  } else if (urls?.base64) {
+    labelHtml = `<div style="text-align:center"><img src="data:image/png;base64,${urls.base64}" style="max-width:100%;border:1px solid var(--gray3);border-radius:8px"/></div>`;
+  } else if (urls?.url) {
+    labelHtml = `<div style="text-align:center"><img src="${urls.url}" style="max-width:100%;border:1px solid var(--gray3);border-radius:8px"/></div>`;
+  }
+
+  if (!labelHtml) { toast('No label data received', 'error'); return; }
+
+  showModal(`Label — ${lrn}`, `
+    <div style="max-height:70vh;overflow-y:auto">${labelHtml}</div>
+  `, () => { closeModal(); });
+}
+
+async function deleteBookShipment(id) {
+  if (!confirm('Delete this booking?')) return;
+  const r = await api('DELETE', `/api/shipment-leads/${id}`);
+  if (r?.success) { toast('Deleted', 'success'); _invalidateBookCache(); renderBookShipment(); }
+  else toast(r?.error || 'Error', 'error');
 }
 </script>
 </body>
