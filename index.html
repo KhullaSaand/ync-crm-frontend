@@ -1774,7 +1774,7 @@ async function openBookShipmentModal(l) {
         <tbody id="mf-packing-body"></tbody>
         <tfoot><tr style="background:var(--gray4);font-weight:700">
           <td colspan="9" style="padding:6px 4px;text-align:right;border-top:1px solid var(--gray3)">Grand Total</td>
-          <td style="padding:6px 4px;border-top:1px solid var(--gray3)"><span id="mf-packing-grand">0</span></td>
+          <td style="padding:6px 4px;border-top:1px solid var(--gray3)">₹<span id="mf-packing-grand">0</span></td>
           <td colspan="2" style="border-top:1px solid var(--gray3)"></td>
         </tr></tfoot>
       </table>
@@ -1850,9 +1850,9 @@ function addPackingRow(data) {
   const typeOpts = ['box','suitcase','envelope','pallet','container','bag','other'].map(t=>'<option value="'+t+'" '+(data?.type===t?'selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>').join('');
   tr.innerHTML = '<td style="padding:4px">'+_packingRowIdx+'</td>'
     + '<td style="padding:4px;min-width:90px"><select data-col="type" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px"><option value="">Select</option>'+typeOpts+'</select></td>'
-    + '<td style="padding:4px;min-width:80px"><select data-col="unit" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px"><option value="">-</option>'
-    + ['pc','box','carton','crate','bag','pallet','roll','drum','bundle','set'].map(u=>'<option value="'+u+'" '+(data?.unit===u?'selected':'')+'>'+u+'</option>').join('')
-    + '<option value="other" '+(data?.unit && !['pc','box','carton','crate','bag','pallet','roll','drum','bundle','set'].includes(data?.unit)?'selected':'')+'>Other</option></select></td>'
+    + '<td style="padding:4px;min-width:80px"><select data-col="unit" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px">'
+    + ['cm','m','mm','inch','ft'].map(u=>'<option value="'+u+'" '+(data?.unit===u||(data?.unit===undefined&&u==='cm')?'selected':'')+'>'+u.toUpperCase()+'</option>').join('')
+    + '<option value="other" '+(data?.unit && !['cm','m','mm','inch','ft'].includes(data?.unit)?'selected':'')+'>Other</option></select></td>'
     + '<td style="padding:4px;min-width:50px"><input data-col="length" type="number" step="0.1" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px" value="'+(data?.length||'')+'" oninput="calcPackingVol(this)"/></td>'
     + '<td style="padding:4px;min-width:50px"><input data-col="width" type="number" step="0.1" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px" value="'+(data?.width||'')+'" oninput="calcPackingVol(this)"/></td>'
     + '<td style="padding:4px;min-width:50px"><input data-col="height" type="number" step="0.1" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px" value="'+(data?.height||'')+'" oninput="calcPackingVol(this)"/></td>'
@@ -1860,7 +1860,7 @@ function addPackingRow(data) {
     + '<td style="padding:4px;min-width:120px"><input data-col="description" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px" placeholder="Item name" value="'+(data?.description||'')+'"/></td>'
     + '<td style="padding:4px;min-width:50px"><input data-col="qty" type="number" min="1" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px" value="'+(data?.qty||'')+'" oninput="calcPackingTotal(this)"/></td>'
     + '<td style="padding:4px;min-width:100px"><input data-col="value" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px" placeholder="e.g. 1000, 2000" value="'+(data?.declaredValues||'')+'" oninput="calcPackingTotal(this)"/></td>'
-    + '<td style="padding:4px;min-width:60px"><input data-col="total" type="number" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px;color:var(--gray);background:#f8fafc" readonly value="'+(data?.total||'')+'"/></td>'
+    + '<td style="padding:4px;min-width:60px">₹<input data-col="total" type="number" style="width:90%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px;color:var(--gray);background:#f8fafc" readonly value="'+(data?.total||'')+'"/></td>'
     + '<td style="padding:4px"><button type="button" onclick="removePackingRow(this)" style="background:none;color:var(--gray2);font-size:14px;padding:2px 4px;border-radius:4px" onmouseover="this.style.color=\'#dc2626\';this.style.background=\'#fee2e2\'" onmouseout="this.style.color=\'var(--gray2)\';this.style.background=\'none\'">&times;</button></td>';
   tbody.appendChild(tr);
   calcPackingGrand();
