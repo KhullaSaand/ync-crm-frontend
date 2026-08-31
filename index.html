@@ -1850,7 +1850,7 @@ function addPackingRow(data) {
   const typeOpts = ['box','suitcase','envelope','pallet','container','bag','other'].map(t=>'<option value="'+t+'" '+(data?.type===t?'selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>').join('');
   tr.innerHTML = '<td style="padding:4px">'+_packingRowIdx+'</td>'
     + '<td style="padding:4px;min-width:90px"><select data-col="type" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px"><option value="">Select</option>'+typeOpts+'</select></td>'
-    + '<td style="padding:4px;min-width:80px"><select data-col="unit" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px">'
+    + '<td style="padding:4px;min-width:80px"><select data-col="unit" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px" onchange="calcPackingVol(this)">'
     + ['cm','m','mm','inch','ft'].map(u=>'<option value="'+u+'" '+(data?.unit===u||(data?.unit===undefined&&u==='cm')?'selected':'')+'>'+u.toUpperCase()+'</option>').join('')
     + '<option value="other" '+(data?.unit && !['cm','m','mm','inch','ft'].includes(data?.unit)?'selected':'')+'>Other</option></select></td>'
     + '<td style="padding:4px;min-width:50px"><input data-col="length" type="number" step="0.1" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px" value="'+(data?.length||'')+'" oninput="calcPackingVol(this)"/></td>'
@@ -1874,7 +1874,17 @@ function calcPackingVol(input) {
   const l=parseFloat(tr.querySelector('[data-col="length"]').value)||0;
   const w=parseFloat(tr.querySelector('[data-col="width"]').value)||0;
   const h=parseFloat(tr.querySelector('[data-col="height"]').value)||0;
-  tr.querySelector('[data-col="volweight"]').value = (l&&w&&h) ? (l*w*h/5000).toFixed(2) : '';
+  const unit=(tr.querySelector('[data-col="unit"]').value||'cm').toLowerCase();
+  if(l&&w&&h){
+    let lcm=l, wcm=h, hcm=h;
+    if(unit==='inch'){lcm=l*2.54;wcm=w*2.54;hcm=h*2.54;}
+    else if(unit==='mm'){lcm=l/10;wcm=w/10;hcm=h/10;}
+    else if(unit==='m'){lcm=l*100;wcm=w*100;hcm=h*100;}
+    else if(unit==='ft'){lcm=l*30.48;wcm=w*30.48;hcm=h*30.48;}
+    tr.querySelector('[data-col="volweight"]').value=(lcm*wcm*hcm/5000).toFixed(2);
+  } else {
+    tr.querySelector('[data-col="volweight"]').value='';
+  }
   calcPackingTotal(input);
 }
 function calcPackingTotal(input) {
