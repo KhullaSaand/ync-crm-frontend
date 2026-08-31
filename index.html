@@ -1665,6 +1665,8 @@ async function openBookShipmentModal(l) {
   const [pl,pw,ph] = parseDim(l?.dimensions);
   const oAddr = _parseAddress(l?.origin);
   const dAddr = _parseAddress(l?.destination);
+  const packing = Array.isArray(l?.packingList) ? l.packingList : [];
+  _packingRowIdx = 0;
   showModal(l ? 'Edit Booking' : 'New Booking', `
   <div class="fg" style="background:var(--blue-bg);border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 14px;margin-bottom:14px">
     <label style="color:var(--blue)">Lead ID Lookup</label>
@@ -1675,53 +1677,91 @@ async function openBookShipmentModal(l) {
     <div id="lookup-result" style="margin-top:6px;font-size:12px;color:var(--gray)"></div>
   </div>
 
-  <div class="form-row"><div class="fg"><label>Customer Name *</label><input id="mf-name" value="${esc(l?.customerName||'')}"/></div>
-  <div class="fg"><label>Company</label><input id="mf-company" value="${esc(l?.company||'')}"/></div></div>
-  <div class="form-row"><div class="fg"><label>Email</label><input id="mf-email" type="email" value="${esc(l?.email||'')}"/></div>
-  <div class="fg"><label>Phone</label><input id="mf-phone" value="${esc(l?.phone||'')}"/></div></div>
+  <div style="background:var(--brand-bg);border:1.5px solid var(--brand-border);border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Sender Details</div>
+    <div class="fg"><label>Sender Name *</label><input id="mf-name" value="${esc(l?.customerName||'')}"/></div>
+    <div class="form-row"><div class="fg"><label>Sender Phone *</label><input id="mf-phone" value="${esc(l?.phone||'')}"/></div>
+    <div class="fg"><label>Sender Email *</label><input id="mf-email" type="email" value="${esc(l?.email||'')}"/></div></div>
+  </div>
 
   <div style="background:var(--brand-bg);border:1.5px solid var(--brand-border);border-radius:10px;padding:14px;margin-bottom:14px">
-    <div style="font-size:12px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📍 Origin</div>
+    <div style="font-size:12px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Pickup Address *</div>
+    <div class="fg"><label>Address Line 1 *</label><input id="mf-o-address1" placeholder="House/Flat No., Street" value="${esc(l?.address1||'')}"/></div>
+    <div class="fg"><label>Address Line 2 *</label><input id="mf-o-address2" placeholder="Area, Landmark" value="${esc(l?.address2||'')}"/></div>
+    <div class="fg"><label>Address Line 3</label><input id="mf-o-address3" placeholder="Additional address details" value="${esc(l?.address3||'')}"/></div>
     <div class="form-row">
-      <div class="fg"><label>City</label><input id="mf-o-city" value="${esc(oAddr.city)}"/></div>
-      <div class="fg"><label>Pincode *</label><input id="mf-o-pin" value="${esc(oAddr.pin)}" required/></div>
+      <div class="fg"><label>City *</label><input id="mf-o-city" value="${esc(oAddr.city)}"/></div>
+      <div class="fg"><label>Pin/Zipcode *</label><input id="mf-o-pin" value="${esc(oAddr.pin)}" required/></div>
     </div>
     <div class="form-row">
-      <div class="fg"><label>State</label><input id="mf-o-state" value="${esc(oAddr.state)}"/></div>
-      <div class="fg"><label>Country</label><input id="mf-o-country" value="${esc(oAddr.country||'India')}"/></div>
+      <div class="fg"><label>State *</label><input id="mf-o-state" value="${esc(oAddr.state)}"/></div>
+      <div class="fg"><label>Country *</label><input id="mf-o-country" value="${esc(oAddr.country||'India')}"/></div>
     </div>
-    <div class="fg"><label>Address 1</label><input id="mf-o-address1" placeholder="House/Flat No., Street" value="${esc(l?.address1||'')}"/></div>
-    <div class="fg"><label>Address 2</label><input id="mf-o-address2" placeholder="Area, Landmark" value="${esc(l?.address2||'')}"/></div>
-    <div class="fg"><label>Address 3</label><input id="mf-o-address3" placeholder="Additional address details" value="${esc(l?.address3||'')}"/></div>
   </div>
 
   <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:14px;margin-bottom:14px">
-    <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📍 Destination</div>
-    <div class="form-row">
-      <div class="fg"><label>City</label><input id="mf-d-city" value="${esc(dAddr.city)}"/></div>
-      <div class="fg"><label>Pincode *</label><input id="mf-d-pin" value="${esc(dAddr.pin)}" required/></div>
-    </div>
-    <div class="form-row">
-      <div class="fg"><label>State</label><input id="mf-d-state" value="${esc(dAddr.state)}"/></div>
-      <div class="fg"><label>Country</label><input id="mf-d-country" value="${esc(dAddr.country||'India')}"/></div>
-    </div>
-    <div class="fg"><label>Address 1</label><input id="mf-d-address1" placeholder="House/Flat No., Street" value="${esc(l?.destAddress1||'')}"/></div>
-    <div class="fg"><label>Address 2</label><input id="mf-d-address2" placeholder="Area, Landmark" value="${esc(l?.destAddress2||'')}"/></div>
-    <div class="fg"><label>Address 3</label><input id="mf-d-address3" placeholder="Additional address details" value="${esc(l?.destAddress3||'')}"/></div>
+    <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Receiver Details</div>
+    <div class="fg"><label>Receiver Name *</label><input id="mf-receiver-name" value="${esc(l?.receiverName||'')}"/></div>
+    <div class="form-row"><div class="fg"><label>Receiver Phone *</label><input id="mf-receiver-phone" value="${esc(l?.receiverPhone||'')}"/></div>
+    <div class="fg"><label>Receiver Email</label><input id="mf-receiver-email" type="email" value="${esc(l?.receiverEmail||'')}"/></div></div>
   </div>
 
-  <div class="form-row">
-    <div class="fg"><label>Weight (kg) *</label><input id="mf-weight" type="number" step="0.01" value="${l?.weight||''}" oninput="calcDimWeight('b')"/></div>
-    <div class="fg"><label>Declared Value (₹) *</label><input id="mf-declvalue" type="number" value="${l?.declaredValue||''}"/></div>
+  <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Delivery Address *</div>
+    <div class="fg"><label>Address Line 1 *</label><input id="mf-d-address1" placeholder="House/Flat No., Street" value="${esc(l?.destAddress1||'')}"/></div>
+    <div class="fg"><label>Address Line 2 *</label><input id="mf-d-address2" placeholder="Area, Landmark" value="${esc(l?.destAddress2||'')}"/></div>
+    <div class="fg"><label>Address Line 3</label><input id="mf-d-address3" placeholder="Additional address details" value="${esc(l?.destAddress3||'')}"/></div>
+    <div class="form-row">
+      <div class="fg"><label>City *</label><input id="mf-d-city" value="${esc(dAddr.city)}"/></div>
+      <div class="fg"><label>Pin/Zipcode *</label><input id="mf-d-pin" value="${esc(dAddr.pin)}" required/></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>State *</label><input id="mf-d-state" value="${esc(dAddr.state)}"/></div>
+      <div class="fg"><label>Country *</label><input id="mf-d-country" value="${esc(dAddr.country||'India')}"/></div>
+    </div>
+    <div class="fg"><label>Delivery Instructions</label><textarea id="mf-delivery-instructions" placeholder="Gate code, special instructions...">${esc(l?.deliveryInstructions||'')}</textarea></div>
   </div>
 
   <div style="background:var(--gray4);border:1.5px solid var(--gray3);border-radius:10px;padding:14px;margin-bottom:14px">
-    <div style="font-size:12px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📦 Dimensions (cm)</div>
+    <div style="font-size:12px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Shipment Details</div>
+    <div class="form-row">
+      <div class="fg"><label>Shipment Type *</label><select id="mf-shipment-type" onchange="onShipmentTypeChange()">
+        <option value="">Select type</option>
+        <option value="international" ${(l?.shipmentType||'')==='international'?'selected':''}>International</option>
+        <option value="domestic" ${(l?.shipmentType||'')==='domestic'?'selected':''}>Domestic</option>
+      </select></div>
+      <div class="fg"><label>Mode of Transport *</label><select id="mf-shipment-mode">
+        <option value="">Select Shipment Type first</option>
+      </select></div>
+    </div>
+    <div class="fg"><label>Pickup Date *</label><input id="mf-pickup" type="date" value="${l?.expectedPickup?l.expectedPickup.slice(0,10):''}"/></div>
+  </div>
+
+  <div style="background:var(--gray4);border:1.5px solid var(--gray3);border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Package Details</div>
+    <div class="form-row">
+      <div class="fg"><label>Package Type *</label><select id="mf-package-type">
+        ${['','box','suitcase','envelope','pallet','container','bag','other'].map(t=>`<option value="${t}" ${(l?.packageType||'')===t?'selected':''}>${t?t.charAt(0).toUpperCase()+t.slice(1):'Select Package Type'}</option>`).join('')}
+      </select></div>
+      <div class="fg"><label>Specify Package *</label><input id="mf-specify-package" placeholder="e.g. Carton, Wooden Crate" value="${esc(l?.specifyPackage||'')}"/></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Number of Packages *</label><input id="mf-num-packages" type="number" min="1" value="${l?.numberOfPackages||''}"/></div>
+      <div class="fg"><label>Company</label><input id="mf-company" value="${esc(l?.company||'')}"/></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Total Weight (kg) *</label><input id="mf-weight" type="number" step="0.01" value="${l?.weight||''}"/></div>
+      <div class="fg"><label>Declared Value (₹) *</label><input id="mf-declvalue" type="number" value="${l?.declaredValue||''}"/></div>
+    </div>
+  </div>
+
+  <div style="background:var(--gray4);border:1.5px solid var(--gray3);border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Dimensions (cm)</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
       <div class="fg" style="flex:1;margin:0"><label>Length</label><input id="mf-len" type="number" step="0.1" placeholder="L" value="${pl}" oninput="calcDimWeight('b')"/></div>
-      <div style="font-size:20px;font-weight:700;color:var(--gray2);margin-top:18px">×</div>
+      <div style="font-size:20px;font-weight:700;color:var(--gray2);margin-top:18px">&times;</div>
       <div class="fg" style="flex:1;margin:0"><label>Width</label><input id="mf-wid" type="number" step="0.1" placeholder="W" value="${pw}" oninput="calcDimWeight('b')"/></div>
-      <div style="font-size:20px;font-weight:700;color:var(--gray2);margin-top:18px">×</div>
+      <div style="font-size:20px;font-weight:700;color:var(--gray2);margin-top:18px">&times;</div>
       <div class="fg" style="flex:1;margin:0"><label>Height</label><input id="mf-hgt" type="number" step="0.1" placeholder="H" value="${ph}" oninput="calcDimWeight('b')"/></div>
     </div>
     <div class="fg" style="margin:0"><label>Dimensional Weight (kg)</label>
@@ -1729,42 +1769,78 @@ async function openBookShipmentModal(l) {
     </div>
   </div>
 
-  <div class="form-row">
-    <div class="fg"><label>Payment Mode</label><select id="mf-paymode">
-      ${['prepaid','cod'].map(m=>`<option value="${m}" ${(l?.paymentMode||'prepaid')===m?'selected':''}>${m.toUpperCase()}</option>`).join('')}
-    </select></div>
-    <div class="fg"><label>Currency</label><select id="mf-currency">
-      ${['INR','USD','AED','GBP','EUR'].map(c=>`<option value="${c}" ${(l?.currency||'INR')===c?'selected':''}>${c}</option>`).join('')}
-    </select></div>
+  <div style="background:var(--white);border:1.5px solid var(--gray3);border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Packing List</div>
+    <div style="overflow-x:auto">
+      <table id="mf-packing-table" style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:var(--gray4)">
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Sr.</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Type</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Unit</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">L</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">W</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">H</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Vol.Wt</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Item Description</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Qty</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Value</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Total</th>
+          <th style="padding:6px 4px;border-bottom:1px solid var(--gray3)"></th>
+        </tr></thead>
+        <tbody id="mf-packing-body"></tbody>
+        <tfoot><tr style="background:var(--gray4);font-weight:700">
+          <td colspan="9" style="padding:6px 4px;text-align:right;border-top:1px solid var(--gray3)">Grand Total</td>
+          <td style="padding:6px 4px;border-top:1px solid var(--gray3)"><span id="mf-packing-grand">0</span></td>
+          <td style="border-top:1px solid var(--gray3)"></td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <button type="button" onclick="addPackingRow()" style="margin-top:8px;background:var(--brand-bg);border:1.5px solid var(--brand-border);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--brand);cursor:pointer">+ Add More</button>
   </div>
-  <div class="form-row">
-    <div class="fg"><label>Expected Pickup</label><input id="mf-pickup" type="date" value="${l?.expectedPickup?l.expectedPickup.slice(0,10):''}"/></div>
-    <div class="fg"><label>Notes</label><input id="mf-notes" value="${esc(l?.notes||'')}"/></div>
-  </div>
+
+  <div class="fg"><label>Additional Notes</label><textarea id="mf-notes" placeholder="Any additional notes...">${esc(l?.notes||'')}</textarea></div>
   ${me?.role !== 'sales_rep' ? `<div class="fg"><label>Assigned To</label>${assignDropdown(l?.assignedToId||'')}</div>` : ''}
   `, async () => {
     const L=document.getElementById('mf-len').value;
     const W=document.getElementById('mf-wid').value;
     const H=document.getElementById('mf-hgt').value;
     const dims = (L&&W&&H) ? `${L}x${W}x${H}` : '';
-    const oCity=document.getElementById('mf-o-city').value, oPin=document.getElementById('mf-o-pin').value, oState=document.getElementById('mf-o-state').value, oCountry=document.getElementById('mf-o-country').value;
     const oAddr1=document.getElementById('mf-o-address1').value, oAddr2=document.getElementById('mf-o-address2').value, oAddr3=document.getElementById('mf-o-address3').value;
-    const dCity=document.getElementById('mf-d-city').value, dPin=document.getElementById('mf-d-pin').value, dState=document.getElementById('mf-d-state').value, dCountry=document.getElementById('mf-d-country').value;
+    const oCity=document.getElementById('mf-o-city').value, oPin=document.getElementById('mf-o-pin').value, oState=document.getElementById('mf-o-state').value, oCountry=document.getElementById('mf-o-country').value;
     const dAddr1=document.getElementById('mf-d-address1').value, dAddr2=document.getElementById('mf-d-address2').value, dAddr3=document.getElementById('mf-d-address3').value;
+    const dCity=document.getElementById('mf-d-city').value, dPin=document.getElementById('mf-d-pin').value, dState=document.getElementById('mf-d-state').value, dCountry=document.getElementById('mf-d-country').value;
     const originStr = [oAddr1,oAddr2,oAddr3,oCity,oState,oPin,oCountry].filter(Boolean).join(', ');
     const destStr   = [dAddr1,dAddr2,dAddr3,dCity,dState,dPin,dCountry].filter(Boolean).join(', ');
+    const packingRows = [];
+    document.querySelectorAll('#mf-packing-body tr').forEach((row) => {
+      const gv = (col) => { const e=row.querySelector('[data-col="'+col+'"]'); return e?e.value:''; };
+      const qty = parseFloat(gv('qty'))||0, val = parseFloat(gv('value'))||0;
+      packingRows.push({ type:gv('type'), unit:gv('unit'), length:gv('length'), width:gv('width'), height:gv('height'), volWeight:gv('volweight'), description:gv('description'), qty, declaredValue:val, total:qty*val });
+    });
     const body = {
       source: 'booking',
-      customerName: document.getElementById('mf-name').value, company: document.getElementById('mf-company').value,
-      email: document.getElementById('mf-email').value, phone: document.getElementById('mf-phone').value,
+      customerName: document.getElementById('mf-name').value,
+      company: document.getElementById('mf-company').value,
+      email: document.getElementById('mf-email').value,
+      phone: document.getElementById('mf-phone').value,
       address1: oAddr1, address2: oAddr2, address3: oAddr3,
       destAddress1: dAddr1, destAddress2: dAddr2, destAddress3: dAddr3,
+      receiverName: document.getElementById('mf-receiver-name').value,
+      receiverPhone: document.getElementById('mf-receiver-phone').value,
+      receiverEmail: document.getElementById('mf-receiver-email').value,
+      deliveryInstructions: document.getElementById('mf-delivery-instructions').value,
       origin: originStr, destination: destStr,
-      weight: document.getElementById('mf-weight').value, dimensions: dims,
+      shipmentType: document.getElementById('mf-shipment-type').value || null,
+      shipmentMode: document.getElementById('mf-shipment-mode').value || null,
+      weight: document.getElementById('mf-weight').value,
+      dimensions: dims,
       declaredValue: document.getElementById('mf-declvalue').value,
-      paymentMode: document.getElementById('mf-paymode').value,
+      packageType: document.getElementById('mf-package-type').value || null,
+      specifyPackage: document.getElementById('mf-specify-package').value,
+      numberOfPackages: document.getElementById('mf-num-packages').value,
+      packingList: packingRows.length ? packingRows : null,
       expectedPickup: document.getElementById('mf-pickup').value||null,
-      currency: document.getElementById('mf-currency').value,
+      currency: 'INR',
       assignedToId: document.getElementById('mf-assigned')?.value || null,
       notes: document.getElementById('mf-notes').value,
     };
@@ -1774,6 +1850,64 @@ async function openBookShipmentModal(l) {
     toast(l ? 'Booking updated!' : 'Booking created!', 'success');
     closeModal(); renderBookShipment();
   });
+  if (packing.length) { packing.forEach(row => addPackingRow(row)); } else { addPackingRow(); }
+  if (l?.shipmentType) { document.getElementById('mf-shipment-type').value = l.shipmentType; onShipmentTypeChange(); setTimeout(()=>{ if(l?.shipmentMode) document.getElementById('mf-shipment-mode').value=l.shipmentMode; },50); }
+}
+const _shipmentModes = { international:['air','sea'], domestic:['road','air','rail','courier'] };
+function onShipmentTypeChange() {
+  const type = document.getElementById('mf-shipment-type').value;
+  const sel = document.getElementById('mf-shipment-mode');
+  sel.innerHTML = '<option value="">Select mode</option>' + (_shipmentModes[type]||[]).map(m=>`<option value="${m}">${m.charAt(0).toUpperCase()+m.slice(1)}</option>`).join('');
+}
+let _packingRowIdx = 0;
+function addPackingRow(data) {
+  const tbody = document.getElementById('mf-packing-body');
+  if (!tbody) return;
+  _packingRowIdx++;
+  const tr = document.createElement('tr');
+  tr.style.borderBottom = '1px solid var(--gray3)';
+  tr.innerHTML = '<td style="padding:4px">'+_packingRowIdx+'</td>'
+    + '<td style="padding:4px"><select data-col="type" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px"><option value="">-</option>'
+    + ['box','suitcase','envelope','pallet','container','bag','other'].map(t=>'<option value="'+t+'" '+(data?.type===t?'selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>').join('')+'</select></td>'
+    + '<td style="padding:4px"><input data-col="unit" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" placeholder="pc/box" value="'+(data?.unit||'')+'"/></td>'
+    + '<td style="padding:4px"><input data-col="length" type="number" step="0.1" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" value="'+(data?.length||'')+'" oninput="calcPackingVol(this)"/></td>'
+    + '<td style="padding:4px"><input data-col="width" type="number" step="0.1" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" value="'+(data?.width||'')+'" oninput="calcPackingVol(this)"/></td>'
+    + '<td style="padding:4px"><input data-col="height" type="number" step="0.1" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" value="'+(data?.height||'')+'" oninput="calcPackingVol(this)"/></td>'
+    + '<td style="padding:4px"><input data-col="volweight" type="number" step="0.01" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px;color:var(--gray);background:#f8fafc" readonly value="'+(data?.volWeight||'')+'"/></td>'
+    + '<td style="padding:4px"><input data-col="description" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" placeholder="Item name" value="'+(data?.description||'')+'"/></td>'
+    + '<td style="padding:4px"><input data-col="qty" type="number" min="1" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" value="'+(data?.qty||'')+'" oninput="calcPackingTotal(this)"/></td>'
+    + '<td style="padding:4px"><input data-col="value" type="number" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" value="'+(data?.declaredValue||'')+'" oninput="calcPackingTotal(this)"/></td>'
+    + '<td style="padding:4px"><input data-col="total" type="number" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px;color:var(--gray);background:#f8fafc" readonly value="'+(data?.total||'')+'"/></td>'
+    + '<td style="padding:4px"><button type="button" onclick="removePackingRow(this)" style="background:none;color:var(--gray2);font-size:14px;padding:2px 4px;border-radius:4px" onmouseover="this.style.color=\'#dc2626\';this.style.background=\'#fee2e2\'" onmouseout="this.style.color=\'var(--gray2)\';this.style.background=\'none\'">&times;</button></td>';
+  tbody.appendChild(tr);
+  calcPackingGrand();
+}
+function removePackingRow(btn) {
+  const tr = btn.closest('tr');
+  if (tr) { tr.remove(); calcPackingGrand(); }
+}
+function calcPackingVol(input) {
+  const tr = input.closest('tr');
+  const l=parseFloat(tr.querySelector('[data-col="length"]').value)||0;
+  const w=parseFloat(tr.querySelector('[data-col="width"]').value)||0;
+  const h=parseFloat(tr.querySelector('[data-col="height"]').value)||0;
+  tr.querySelector('[data-col="volweight"]').value = (l&&w&&h) ? (l*w*h/5000).toFixed(2) : '';
+  calcPackingTotal(input);
+}
+function calcPackingTotal(input) {
+  const tr = input.closest('tr');
+  const qty=parseFloat(tr.querySelector('[data-col="qty"]').value)||0;
+  const val=parseFloat(tr.querySelector('[data-col="value"]').value)||0;
+  tr.querySelector('[data-col="total"]').value = (qty*val).toFixed(2);
+  calcPackingGrand();
+}
+function calcPackingGrand() {
+  let total=0;
+  document.querySelectorAll('#mf-packing-body tr').forEach(tr=>{
+    total += parseFloat(tr.querySelector('[data-col="total"]')?.value)||0;
+  });
+  const el = document.getElementById('mf-packing-grand');
+  if (el) el.textContent = total.toFixed(2);
 }
 function editBookShipment(l) { openBookShipmentModal(l); }
 async function editBookShipmentById(id) {
