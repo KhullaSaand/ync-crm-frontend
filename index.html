@@ -1641,14 +1641,15 @@ async function renderBookShipment() {
         <div class="empty"><div class="empty-icon">📦</div><div class="empty-title">No Bookings Yet</div><div class="empty-sub">Click "+ New Booking" to create a shipment</div></div>
       ` : `
         <table><thead><tr>
-          <th>Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Delhivery LR</th><th>Status</th><th>Amount</th><th>Created</th>
+          <th>Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Shipment Type</th><th>Mode</th><th>Status</th><th>Amount</th><th>Created</th>
         </tr></thead><tbody>
           ${leads.map(l => `<tr onclick="showBookShipmentDetail('${l.id}')" style="cursor:pointer">
             <td><code style="font-size:12px;background:var(--blue-bg);color:var(--blue);padding:2px 7px;border-radius:5px">${esc(l.leadId)}</code></td>
             <td><strong>${esc(l.customerName)}</strong><br><span class="sub">${esc(l.company||'')}</span></td>
             <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.origin||'-')}</td>
             <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.destination||'-')}</td>
-            <td>${l.delhiveryLr ? `<code style="font-size:12px;background:#fef2f2;color:#b91c1c;padding:2px 7px;border-radius:5px">${esc(l.delhiveryLr)}</code>` : '<span class="sub">-</span>'}</td>
+            <td>${l.shipmentType?l.shipmentType.charAt(0).toUpperCase()+l.shipmentType.slice(1):'-'}</td>
+            <td>${l.shipmentMode?badge(l.shipmentMode):'-'}</td>
             <td>${badge(l.status)}</td>
             <td>${l.freightCharge ? fmtCur(l.freightCharge, l.currency) : '-'}</td>
             <td><span class="sub">${fmtDate(l.createdAt)}</span></td>
@@ -1982,7 +1983,8 @@ async function showBookShipmentDetail(id) {
       <div class="dp-field"><label>Weight</label><span>${l.weight ? l.weight+' kg' : '—'}</span></div>
       <div class="dp-field"><label>Dimensions</label><span>${esc(l.dimensions||'—')}</span></div>
       <div class="dp-field"><label>Declared Value</label><span>${l.declaredValue?fmtCur(l.declaredValue, l.currency):'—'}</span></div>
-      <div class="dp-field"><label>Cargo Type</label><span>${esc(l.cargoType||'—')}</span></div>
+      <div class="dp-field"><label>Shipment Type</label><span>${esc(l.shipmentType?l.shipmentType.charAt(0).toUpperCase()+l.shipmentType.slice(1):'—')}</span></div>
+      <div class="dp-field"><label>Mode of Transport</label><span>${l.shipmentMode?badge(l.shipmentMode):'—'}</span></div>
       <div class="dp-field"><label>🚚 Delhivery LR</label><span>${l.delhiveryLr ? `<code style="background:#fef2f2;color:#b91c1c;padding:2px 6px;border-radius:4px">${esc(l.delhiveryLr)}</code>` : 'Not booked yet'}</span></div>
       <div class="dp-field"><label>AWB</label><span>${esc(l.delhiveryAwb||'—')}</span></div>
       <div class="dp-field"><label>Delhivery Rate</label><span>${l.delhiveryRate ? fmtCur(l.delhiveryRate, 'INR')+' (30% margin)' : '—'}</span></div>
