@@ -1761,6 +1761,10 @@ async function openBookShipmentModal(l) {
           <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Sr.</th>
           <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Type</th>
           <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Unit</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">L</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">W</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">H</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Vol.Wt</th>
           <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Item Description</th>
           <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Qty</th>
           <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Declared Values</th>
@@ -1769,7 +1773,7 @@ async function openBookShipmentModal(l) {
         </tr></thead>
         <tbody id="mf-packing-body"></tbody>
         <tfoot><tr style="background:var(--gray4);font-weight:700">
-          <td colspan="5" style="padding:6px 4px;text-align:right;border-top:1px solid var(--gray3)">Grand Total</td>
+          <td colspan="9" style="padding:6px 4px;text-align:right;border-top:1px solid var(--gray3)">Grand Total</td>
           <td style="padding:6px 4px;border-top:1px solid var(--gray3)"><span id="mf-packing-grand">0</span></td>
           <td colspan="2" style="border-top:1px solid var(--gray3)"></td>
         </tr></tfoot>
@@ -1793,7 +1797,7 @@ async function openBookShipmentModal(l) {
       const qty = parseFloat(gv('qty'))||0;
       const valStr = gv('value')||'';
       const val = valStr.split(',').map(s=>parseFloat(s.trim())||0).reduce((a,b)=>a+b,0);
-      packingRows.push({ type:gv('type'), unit:gv('unit'), description:gv('description'), qty, declaredValues:valStr, total:qty*val });
+      packingRows.push({ type:gv('type'), unit:gv('unit'), length:gv('length'), width:gv('width'), height:gv('height'), volWeight:gv('volweight'), description:gv('description'), qty, declaredValues:valStr, total:qty*val });
     });
     const body = {
       source: 'booking',
@@ -1847,6 +1851,10 @@ function addPackingRow(data) {
   tr.innerHTML = '<td style="padding:4px">'+_packingRowIdx+'</td>'
     + '<td style="padding:4px"><select data-col="type" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px"><option value="">-</option>'+typeOpts+'</select></td>'
     + '<td style="padding:4px"><input data-col="unit" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" placeholder="pc/box" value="'+(data?.unit||'')+'"/></td>'
+    + '<td style="padding:4px"><input data-col="length" type="number" step="0.1" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" value="'+(data?.length||'')+'" oninput="calcPackingVol(this)"/></td>'
+    + '<td style="padding:4px"><input data-col="width" type="number" step="0.1" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" value="'+(data?.width||'')+'" oninput="calcPackingVol(this)"/></td>'
+    + '<td style="padding:4px"><input data-col="height" type="number" step="0.1" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" value="'+(data?.height||'')+'" oninput="calcPackingVol(this)"/></td>'
+    + '<td style="padding:4px"><input data-col="volweight" type="number" step="0.01" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px;color:var(--gray);background:#f8fafc" readonly value="'+(data?.volWeight||'')+'"/></td>'
     + '<td style="padding:4px"><input data-col="description" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" placeholder="Item name" value="'+(data?.description||'')+'"/></td>'
     + '<td style="padding:4px"><input data-col="qty" type="number" min="1" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" value="'+(data?.qty||'')+'" oninput="calcPackingTotal(this)"/></td>'
     + '<td style="padding:4px"><input data-col="value" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" placeholder="e.g. 1000, 2000" value="'+(data?.declaredValues||'')+'" oninput="calcPackingTotal(this)"/></td>'
@@ -1858,6 +1866,14 @@ function addPackingRow(data) {
 function removePackingRow(btn) {
   const tr = btn.closest('tr');
   if (tr) { tr.remove(); calcPackingGrand(); }
+}
+function calcPackingVol(input) {
+  const tr = input.closest('tr');
+  const l=parseFloat(tr.querySelector('[data-col="length"]').value)||0;
+  const w=parseFloat(tr.querySelector('[data-col="width"]').value)||0;
+  const h=parseFloat(tr.querySelector('[data-col="height"]').value)||0;
+  tr.querySelector('[data-col="volweight"]').value = (l&&w&&h) ? (l*w*h/5000).toFixed(2) : '';
+  calcPackingTotal(input);
 }
 function calcPackingTotal(input) {
   const tr = input.closest('tr');
