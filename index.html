@@ -2034,6 +2034,17 @@ async function showBookShipmentDetail(id) {
           </tbody>
         </table>
       </div>
+
+      <!-- NOTES (moved to left to balance columns) -->
+      ${l.notes ? `
+      <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <tbody>
+            ${sectionHeader('📝', 'Notes', '#ea580c')}
+            <tr><td colspan="2" style="padding:10px 14px;font-size:13px;color:var(--black);line-height:1.5;border-bottom:1px solid var(--gray3)">${esc(l.notes)}</td></tr>
+          </tbody>
+        </table>
+      </div>` : ''}
     </div>
 
     <!-- RIGHT COLUMN -->
@@ -2071,17 +2082,6 @@ async function showBookShipmentDetail(id) {
           </tbody>
         </table>
       </div>
-
-      <!-- NOTES -->
-      ${l.notes ? `
-      <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
-        <table style="width:100%;border-collapse:collapse">
-          <tbody>
-            ${sectionHeader('📝', 'Notes', '#ea580c')}
-            <tr><td colspan="2" style="padding:10px 14px;font-size:13px;color:var(--black);line-height:1.5;border-bottom:1px solid var(--gray3)">${esc(l.notes)}</td></tr>
-          </tbody>
-        </table>
-      </div>` : ''}
     </div>
   </div>
 
