@@ -1994,6 +1994,46 @@ async function showBookShipmentDetail(id) {
       <div class="dp-field"><label>Created</label><span>${fmtDate(l.createdAt)}</span></div>
     </div>
     ${l.notes?`<div style="margin-top:16px"><div class="dp-field"><label>Notes</label><span>${esc(l.notes)}</span></div></div>`:''}
+    ${Array.isArray(l.packingList)&&l.packingList.length?`
+    <div style="margin-top:20px">
+      <div class="section-title">Packing List</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:10px">
+          <thead><tr style="background:var(--gray4)">
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Sr.</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Type</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Unit</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">L</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">W</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">H</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Vol.Wt</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Item Description</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Qty</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Declared Values</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray3);font-size:11px;font-weight:700;text-transform:uppercase">Total (₹)</th>
+          </tr></thead>
+          <tbody>
+            ${l.packingList.map((p,i)=>`<tr style="border-bottom:1px solid var(--gray3)">
+              <td style="padding:8px 10px">${i+1}</td>
+              <td style="padding:8px 10px">${esc(p.type||'—')}</td>
+              <td style="padding:8px 10px">${esc(p.unit||'—')}</td>
+              <td style="padding:8px 10px">${esc(p.length||'—')}</td>
+              <td style="padding:8px 10px">${esc(p.width||'—')}</td>
+              <td style="padding:8px 10px">${esc(p.height||'—')}</td>
+              <td style="padding:8px 10px">${esc(p.volWeight||'—')}</td>
+              <td style="padding:8px 10px">${esc(p.description||'—')}</td>
+              <td style="padding:8px 10px">${p.qty||0}</td>
+              <td style="padding:8px 10px">${esc(p.declaredValues||'—')}</td>
+              <td style="padding:8px 10px;font-weight:600">₹${(p.total||0).toFixed(2)}</td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot><tr style="background:var(--gray4);font-weight:700">
+            <td colspan="9" style="padding:8px 10px;text-align:right;border-top:2px solid var(--gray3)">Grand Total</td>
+            <td colspan="2" style="padding:8px 10px;border-top:2px solid var(--gray3);font-weight:800">₹${l.packingList.reduce((a,p)=>a+(p.total||0),0).toFixed(2)}</td>
+          </tr></tfoot>
+        </table>
+      </div>
+    </div>` : ''}
   </div>`;
 }
 
