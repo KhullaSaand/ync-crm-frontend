@@ -169,7 +169,7 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
 .modal-overlay.show{display:flex}
 .modal{background:var(--white);border-radius:16px;width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)}
-.modal.wide{max-width:720px}
+.modal.wide{max-width:900px}
 .modal-head{padding:20px 24px 16px;border-bottom:1px solid var(--gray3);display:flex;align-items:center;justify-content:space-between}
 .modal-head h2{font-size:17px;font-weight:700}
 .modal-close{background:none;font-size:22px;color:var(--gray);padding:4px;border-radius:6px;line-height:1}
@@ -1661,8 +1661,6 @@ async function renderBookShipment() {
 
 async function openBookShipmentModal(l) {
   await getUsersForAssign();
-  const parseDim = (s) => { if(!s) return ['','','']; const p=s.split('x'); return [p[0]||'',p[1]||'',p[2]||'']; };
-  const [pl,pw,ph] = parseDim(l?.dimensions);
   const oAddr = _parseAddress(l?.origin);
   const dAddr = _parseAddress(l?.destination);
   const packing = Array.isArray(l?.packingList) ? l.packingList : [];
@@ -1755,20 +1753,6 @@ async function openBookShipmentModal(l) {
     </div>
   </div>
 
-  <div style="background:var(--gray4);border:1.5px solid var(--gray3);border-radius:10px;padding:14px;margin-bottom:14px">
-    <div style="font-size:12px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Dimensions (cm)</div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-      <div class="fg" style="flex:1;margin:0"><label>Length</label><input id="mf-len" type="number" step="0.1" placeholder="L" value="${pl}" oninput="calcDimWeight('b')"/></div>
-      <div style="font-size:20px;font-weight:700;color:var(--gray2);margin-top:18px">&times;</div>
-      <div class="fg" style="flex:1;margin:0"><label>Width</label><input id="mf-wid" type="number" step="0.1" placeholder="W" value="${pw}" oninput="calcDimWeight('b')"/></div>
-      <div style="font-size:20px;font-weight:700;color:var(--gray2);margin-top:18px">&times;</div>
-      <div class="fg" style="flex:1;margin:0"><label>Height</label><input id="mf-hgt" type="number" step="0.1" placeholder="H" value="${ph}" oninput="calcDimWeight('b')"/></div>
-    </div>
-    <div class="fg" style="margin:0"><label>Dimensional Weight (kg)</label>
-      <input id="mf-dimweight" type="number" step="0.01" placeholder="Auto" readonly style="background:#f1f5f9;color:var(--gray);cursor:not-allowed"/>
-    </div>
-  </div>
-
   <div style="background:var(--white);border:1.5px solid var(--gray3);border-radius:10px;padding:14px;margin-bottom:14px">
     <div style="font-size:12px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Packing List</div>
     <div style="overflow-x:auto">
@@ -1777,21 +1761,17 @@ async function openBookShipmentModal(l) {
           <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Sr.</th>
           <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Type</th>
           <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Unit</th>
-          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">L</th>
-          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">W</th>
-          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">H</th>
-          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Vol.Wt</th>
           <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Item Description</th>
           <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Qty</th>
-          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Value</th>
+          <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Declared Values</th>
           <th style="padding:6px 4px;text-align:left;border-bottom:1px solid var(--gray3)">Total</th>
           <th style="padding:6px 4px;border-bottom:1px solid var(--gray3)"></th>
         </tr></thead>
         <tbody id="mf-packing-body"></tbody>
         <tfoot><tr style="background:var(--gray4);font-weight:700">
-          <td colspan="9" style="padding:6px 4px;text-align:right;border-top:1px solid var(--gray3)">Grand Total</td>
+          <td colspan="5" style="padding:6px 4px;text-align:right;border-top:1px solid var(--gray3)">Grand Total</td>
           <td style="padding:6px 4px;border-top:1px solid var(--gray3)"><span id="mf-packing-grand">0</span></td>
-          <td style="border-top:1px solid var(--gray3)"></td>
+          <td colspan="2" style="border-top:1px solid var(--gray3)"></td>
         </tr></tfoot>
       </table>
     </div>
@@ -1801,10 +1781,6 @@ async function openBookShipmentModal(l) {
   <div class="fg"><label>Additional Notes</label><textarea id="mf-notes" placeholder="Any additional notes...">${esc(l?.notes||'')}</textarea></div>
   ${me?.role !== 'sales_rep' ? `<div class="fg"><label>Assigned To</label>${assignDropdown(l?.assignedToId||'')}</div>` : ''}
   `, async () => {
-    const L=document.getElementById('mf-len').value;
-    const W=document.getElementById('mf-wid').value;
-    const H=document.getElementById('mf-hgt').value;
-    const dims = (L&&W&&H) ? `${L}x${W}x${H}` : '';
     const oAddr1=document.getElementById('mf-o-address1').value, oAddr2=document.getElementById('mf-o-address2').value, oAddr3=document.getElementById('mf-o-address3').value;
     const oCity=document.getElementById('mf-o-city').value, oPin=document.getElementById('mf-o-pin').value, oState=document.getElementById('mf-o-state').value, oCountry=document.getElementById('mf-o-country').value;
     const dAddr1=document.getElementById('mf-d-address1').value, dAddr2=document.getElementById('mf-d-address2').value, dAddr3=document.getElementById('mf-d-address3').value;
@@ -1814,8 +1790,10 @@ async function openBookShipmentModal(l) {
     const packingRows = [];
     document.querySelectorAll('#mf-packing-body tr').forEach((row) => {
       const gv = (col) => { const e=row.querySelector('[data-col="'+col+'"]'); return e?e.value:''; };
-      const qty = parseFloat(gv('qty'))||0, val = parseFloat(gv('value'))||0;
-      packingRows.push({ type:gv('type'), unit:gv('unit'), length:gv('length'), width:gv('width'), height:gv('height'), volWeight:gv('volweight'), description:gv('description'), qty, declaredValue:val, total:qty*val });
+      const qty = parseFloat(gv('qty'))||0;
+      const valStr = gv('value')||'';
+      const val = valStr.split(',').map(s=>parseFloat(s.trim())||0).reduce((a,b)=>a+b,0);
+      packingRows.push({ type:gv('type'), unit:gv('unit'), description:gv('description'), qty, declaredValues:valStr, total:qty*val });
     });
     const body = {
       source: 'booking',
@@ -1833,7 +1811,6 @@ async function openBookShipmentModal(l) {
       shipmentType: document.getElementById('mf-shipment-type').value || null,
       shipmentMode: document.getElementById('mf-shipment-mode').value || null,
       weight: document.getElementById('mf-weight').value,
-      dimensions: dims,
       declaredValue: document.getElementById('mf-declvalue').value,
       packageType: document.getElementById('mf-package-type').value || null,
       specifyPackage: document.getElementById('mf-specify-package').value,
@@ -1866,17 +1843,13 @@ function addPackingRow(data) {
   _packingRowIdx++;
   const tr = document.createElement('tr');
   tr.style.borderBottom = '1px solid var(--gray3)';
+  const typeOpts = ['box','suitcase','envelope','pallet','container','bag','other'].map(t=>'<option value="'+t+'" '+(data?.type===t?'selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>').join('');
   tr.innerHTML = '<td style="padding:4px">'+_packingRowIdx+'</td>'
-    + '<td style="padding:4px"><select data-col="type" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px"><option value="">-</option>'
-    + ['box','suitcase','envelope','pallet','container','bag','other'].map(t=>'<option value="'+t+'" '+(data?.type===t?'selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>').join('')+'</select></td>'
+    + '<td style="padding:4px"><select data-col="type" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px"><option value="">-</option>'+typeOpts+'</select></td>'
     + '<td style="padding:4px"><input data-col="unit" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" placeholder="pc/box" value="'+(data?.unit||'')+'"/></td>'
-    + '<td style="padding:4px"><input data-col="length" type="number" step="0.1" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" value="'+(data?.length||'')+'" oninput="calcPackingVol(this)"/></td>'
-    + '<td style="padding:4px"><input data-col="width" type="number" step="0.1" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" value="'+(data?.width||'')+'" oninput="calcPackingVol(this)"/></td>'
-    + '<td style="padding:4px"><input data-col="height" type="number" step="0.1" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" value="'+(data?.height||'')+'" oninput="calcPackingVol(this)"/></td>'
-    + '<td style="padding:4px"><input data-col="volweight" type="number" step="0.01" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px;color:var(--gray);background:#f8fafc" readonly value="'+(data?.volWeight||'')+'"/></td>'
     + '<td style="padding:4px"><input data-col="description" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" placeholder="Item name" value="'+(data?.description||'')+'"/></td>'
     + '<td style="padding:4px"><input data-col="qty" type="number" min="1" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" value="'+(data?.qty||'')+'" oninput="calcPackingTotal(this)"/></td>'
-    + '<td style="padding:4px"><input data-col="value" type="number" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" value="'+(data?.declaredValue||'')+'" oninput="calcPackingTotal(this)"/></td>'
+    + '<td style="padding:4px"><input data-col="value" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px" placeholder="e.g. 1000, 2000" value="'+(data?.declaredValues||'')+'" oninput="calcPackingTotal(this)"/></td>'
     + '<td style="padding:4px"><input data-col="total" type="number" style="width:100%;padding:4px;border:1px solid var(--gray3);border-radius:4px;font-size:11px;color:var(--gray);background:#f8fafc" readonly value="'+(data?.total||'')+'"/></td>'
     + '<td style="padding:4px"><button type="button" onclick="removePackingRow(this)" style="background:none;color:var(--gray2);font-size:14px;padding:2px 4px;border-radius:4px" onmouseover="this.style.color=\'#dc2626\';this.style.background=\'#fee2e2\'" onmouseout="this.style.color=\'var(--gray2)\';this.style.background=\'none\'">&times;</button></td>';
   tbody.appendChild(tr);
@@ -1886,18 +1859,11 @@ function removePackingRow(btn) {
   const tr = btn.closest('tr');
   if (tr) { tr.remove(); calcPackingGrand(); }
 }
-function calcPackingVol(input) {
-  const tr = input.closest('tr');
-  const l=parseFloat(tr.querySelector('[data-col="length"]').value)||0;
-  const w=parseFloat(tr.querySelector('[data-col="width"]').value)||0;
-  const h=parseFloat(tr.querySelector('[data-col="height"]').value)||0;
-  tr.querySelector('[data-col="volweight"]').value = (l&&w&&h) ? (l*w*h/5000).toFixed(2) : '';
-  calcPackingTotal(input);
-}
 function calcPackingTotal(input) {
   const tr = input.closest('tr');
   const qty=parseFloat(tr.querySelector('[data-col="qty"]').value)||0;
-  const val=parseFloat(tr.querySelector('[data-col="value"]').value)||0;
+  const valStr=tr.querySelector('[data-col="value"]').value||'';
+  const val=valStr.split(',').map(s=>parseFloat(s.trim())||0).reduce((a,b)=>a+b,0);
   tr.querySelector('[data-col="total"]').value = (qty*val).toFixed(2);
   calcPackingGrand();
 }
