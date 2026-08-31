@@ -1705,6 +1705,9 @@ async function openBookShipmentModal(l) {
       <div class="fg"><label>State</label><input id="mf-d-state" value="${esc(dAddr.state)}"/></div>
       <div class="fg"><label>Country</label><input id="mf-d-country" value="${esc(dAddr.country||'India')}"/></div>
     </div>
+    <div class="fg"><label>Address 1</label><input id="mf-d-address1" placeholder="House/Flat No., Street" value="${esc(l?.destAddress1||'')}"/></div>
+    <div class="fg"><label>Address 2</label><input id="mf-d-address2" placeholder="Area, Landmark" value="${esc(l?.destAddress2||'')}"/></div>
+    <div class="fg"><label>Address 3</label><input id="mf-d-address3" placeholder="Additional address details" value="${esc(l?.destAddress3||'')}"/></div>
   </div>
 
   <div class="form-row">
@@ -1747,13 +1750,15 @@ async function openBookShipmentModal(l) {
     const oCity=document.getElementById('mf-o-city').value, oPin=document.getElementById('mf-o-pin').value, oState=document.getElementById('mf-o-state').value, oCountry=document.getElementById('mf-o-country').value;
     const oAddr1=document.getElementById('mf-o-address1').value, oAddr2=document.getElementById('mf-o-address2').value, oAddr3=document.getElementById('mf-o-address3').value;
     const dCity=document.getElementById('mf-d-city').value, dPin=document.getElementById('mf-d-pin').value, dState=document.getElementById('mf-d-state').value, dCountry=document.getElementById('mf-d-country').value;
+    const dAddr1=document.getElementById('mf-d-address1').value, dAddr2=document.getElementById('mf-d-address2').value, dAddr3=document.getElementById('mf-d-address3').value;
     const originStr = [oAddr1,oAddr2,oAddr3,oCity,oState,oPin,oCountry].filter(Boolean).join(', ');
-    const destStr   = [dCity,dState,dPin,dCountry].filter(Boolean).join(', ');
+    const destStr   = [dAddr1,dAddr2,dAddr3,dCity,dState,dPin,dCountry].filter(Boolean).join(', ');
     const body = {
       source: 'booking',
       customerName: document.getElementById('mf-name').value, company: document.getElementById('mf-company').value,
       email: document.getElementById('mf-email').value, phone: document.getElementById('mf-phone').value,
       address1: oAddr1, address2: oAddr2, address3: oAddr3,
+      destAddress1: dAddr1, destAddress2: dAddr2, destAddress3: dAddr3,
       origin: originStr, destination: destStr,
       weight: document.getElementById('mf-weight').value, dimensions: dims,
       declaredValue: document.getElementById('mf-declvalue').value,
