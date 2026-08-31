@@ -1779,7 +1779,7 @@ async function openBookShipmentModal(l) {
         </tr></tfoot>
       </table>
     </div>
-    <button type="button" onclick="addPackingRow()" style="margin-top:8px;background:var(--brand-bg);border:1.5px solid var(--brand-border);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--brand);cursor:pointer">+ Add More</button>
+    <button type="button" onclick="addPackingRow()" style="margin-top:8px;background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--brand);cursor:pointer">+ Add More</button>
   </div>
 
   <div class="fg"><label>Additional Notes</label><textarea id="mf-notes" placeholder="Any additional notes...">${esc(l?.notes||'')}</textarea></div>
@@ -1860,7 +1860,7 @@ function addPackingRow(data) {
     + '<td style="padding:4px;min-width:120px"><input data-col="description" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px" placeholder="Item name" value="'+(data?.description||'')+'"/></td>'
     + '<td style="padding:4px;min-width:50px"><input data-col="qty" type="number" min="1" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px" value="'+(data?.qty||'')+'" oninput="calcPackingTotal(this)"/></td>'
     + '<td style="padding:4px;min-width:100px"><input data-col="value" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px" placeholder="e.g. 1000, 2000" value="'+(data?.declaredValues||'')+'" oninput="calcPackingTotal(this)"/></td>'
-    + '<td style="padding:4px;min-width:80px"><div style="display:flex;align-items:center;gap:1px"><span style="font-size:12px;color:var(--gray)">₹</span><input data-col="total" type="number" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px;color:var(--gray);background:#f8fafc" readonly value="'+(data?.total||'')+'"/></div></td>'
+    + '<td style="padding:4px;min-width:80px"><div style="display:flex;align-items:center;gap:0"><span style="font-size:12px;color:var(--gray);white-space:nowrap">₹</span><input data-col="total" type="number" style="width:100%;padding:5px;border:1px solid var(--gray3);border-radius:4px;font-size:12px;color:var(--gray);background:#f8fafc;border-left:none" readonly value="'+(data?.total||'')+'"/></div></td>'
     + '<td style="padding:4px"><button type="button" onclick="removePackingRow(this)" style="background:none;color:var(--gray2);font-size:14px;padding:2px 4px;border-radius:4px" onmouseover="this.style.color=\'#dc2626\';this.style.background=\'#fee2e2\'" onmouseout="this.style.color=\'var(--gray2)\';this.style.background=\'none\'">&times;</button></td>';
   tbody.appendChild(tr);
   calcPackingGrand();
