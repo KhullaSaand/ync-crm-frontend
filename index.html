@@ -1995,7 +1995,7 @@ async function showBookShipmentDetail(id) {
   </div>
 
   <!-- TWO-COLUMN LAYOUT -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;align-items:start">
 
     <!-- LEFT COLUMN -->
     <div style="display:flex;flex-direction:column;gap:16px">
@@ -2132,7 +2132,7 @@ async function showBookShipmentDetail(id) {
   const grid = document.querySelector('#content > div[style*="grid-template-columns"]');
   if (grid) {
     const mq = window.matchMedia('(max-width:900px)');
-    const apply = (e) => { grid.style.gridTemplateColumns = e.matches ? '1fr' : '1fr 1fr'; };
+    const apply = (e) => { grid.style.gridTemplateColumns = e.matches ? '1fr' : '1fr 1fr'; grid.style.alignItems = 'start'; };
     apply(mq);
     mq.addEventListener('change', apply);
   }
