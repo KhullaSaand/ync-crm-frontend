@@ -2243,20 +2243,22 @@ async function executeBookShipment(id) {
   const parseDimArr = (s) => { if(!s) return [50,40,30]; const p=s.split('x').map(Number); return [p[0]||50,p[1]||40,p[2]||30]; };
   const [dL,dW,dH] = parseDimArr(l.dimensions);
 
+  const cleanPhone = (p) => { if(!p) return ''; const d = p.replace(/\D/g,''); if(d.length===10) return d; if(d.length===12 && d.startsWith('91')) return d.slice(2); if(d.length===13 && d.startsWith('091')) return d.slice(3); return d.slice(-10); };
+
   toast('Creating manifest with Delhivery...', 'info');
 
   const manifestR = await api('POST', '/api/delhivery/manifest', {
     payment_mode: 'prepaid',
     weight: Math.round(l.weight * 1000),
     dropoff_location: {
-      consignee_name: l.customerName || '',
-      address: l.address1 || '',
-      address_1: l.address2 || '',
-      address_2: l.address3 || '',
+      consignee_name: l.receiverName || l.customerName || '',
+      address: l.destAddress1 || l.address1 || '',
+      address_1: l.destAddress2 || l.address2 || '',
+      address_2: l.destAddress3 || l.address3 || '',
       city: dAddr.city,
       state: dAddr.state,
       pin: destPin,
-      phone: l.phone || '',
+      phone: cleanPhone(l.receiverPhone || l.phone || ''),
     },
     shipment_details: [{
       desc: l.cargoType || 'General goods',
