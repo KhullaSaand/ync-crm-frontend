@@ -2143,8 +2143,13 @@ async function getBookRates(id) {
   if (!r?.success) { toast('Lead not found', 'error'); return; }
   const l = r.data;
 
-  if (!l.origin || !l.destination || !l.weight || !l.declaredValue) {
-    toast('Please fill origin, destination, weight, and declared value first', 'error');
+  const missing = [];
+  if (!l.origin) missing.push('origin address');
+  if (!l.destination) missing.push('destination address');
+  if (!l.weight) missing.push('weight');
+  if (!l.declaredValue) missing.push('declared value');
+  if (missing.length) {
+    toast(`Please fill ${missing.join(', ')} first`, 'error');
     return;
   }
 
@@ -2152,8 +2157,12 @@ async function getBookRates(id) {
   const sourcePin = extractPin(l.origin);
   const destPin = extractPin(l.destination);
 
-  if (!sourcePin || !destPin) {
-    toast('Could not extract 6-digit pincode from origin/destination. Please include pincode in the address.', 'error');
+  if (!sourcePin) {
+    toast('Could not find 6-digit pincode in origin address. Please add pincode (e.g. Ahmedabad, Gujarat 380054).', 'error');
+    return;
+  }
+  if (!destPin) {
+    toast('Could not find 6-digit pincode in destination address. Please add pincode (e.g. Mumbai, Maharashtra 400001).', 'error');
     return;
   }
 
@@ -2171,7 +2180,14 @@ async function getBookRates(id) {
     payment_mode: 'prepaid',
   });
 
-  if (!rateR?.success) { toast(rateR?.error || 'Failed to get rates', 'error'); return; }
+  if (!rateR) {
+    toast('Session expired. Please log in again.', 'error');
+    return;
+  }
+  if (!rateR.success) {
+    toast(rateR.error || 'Failed to get rates from Delhivery', 'error');
+    return;
+  }
 
   const rateData = rateR.data;
   await api('PATCH', `/api/shipment-leads/${id}`, { delhiveryRate: rateData.finalRate });
@@ -2186,7 +2202,7 @@ async function getBookRates(id) {
       <div style="font-size:28px;font-weight:800;color:var(--brand-dark)">₹${rateData.finalRate.toLocaleString()}</div>
     </div>
     <div style="margin-top:14px;font-size:12px;color:var(--gray2)">
-      Charged Weight: ${rateData.chargedWeight ? (rateData.chargedWeight/1000).toFixed(1)+'kg' : '-'}
+      Charged Weight: ${rateData.chargedWeight ? rateData.chargedWeight+'kg' : '-'}
     </div>
   `, () => { closeModal(); });
 }
@@ -2254,7 +2270,8 @@ async function executeBookShipment(id) {
     fm_pickup: true,
   });
 
-  if (!manifestR?.success) { toast(manifestR?.error || 'Failed to create manifest', 'error'); return; }
+  if (!manifestR) { toast('Session expired. Please log in again.', 'error'); return; }
+  if (!manifestR.success) { toast(manifestR.error || 'Failed to create manifest with Delhivery', 'error'); return; }
 
   const jobId = manifestR.data?.job_id;
   if (!jobId) { toast('No job_id received from Delhivery', 'error'); return; }
