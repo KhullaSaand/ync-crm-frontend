@@ -2077,11 +2077,32 @@ async function showBookShipmentDetail(id) {
             ${_tr('Created', fmtDate(l.createdAt))}
             ${_tr('Delhivery LR', l.delhiveryLr ? `<code style="background:#fef2f2;color:#b91c1c;padding:2px 8px;border-radius:4px;font-size:13px;font-weight:700">${esc(l.delhiveryLr)}</code>` : '<span style="color:var(--gray2)">Not booked yet</span>')}
             ${_tr('AWB', esc(l.delhiveryAwb || '—'))}
-            ${_tr('Delhivery Rate', l.delhiveryRate ? `<strong>${fmtCur(l.delhiveryRate, 'INR')}</strong> <span style="font-size:11px;color:var(--gray2)">(30% margin)</span>` : '—')}
             ${_tr('Job ID', l.delhiveryJobId ? `<code style="font-family:monospace;font-size:12px">${esc(l.delhiveryJobId)}</code>` : '—')}
           </tbody>
         </table>
       </div>
+
+      <!-- RATE BREAKDOWN TABLE -->
+      ${l.delhiveryRate ? `
+      <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <tbody>
+            ${sectionHeader('💰', 'Rate Breakdown', '#ea580c')}
+            ${(() => {
+              const baseRate = Math.round(l.delhiveryRate / 1.30);
+              const margin = l.delhiveryRate - baseRate;
+              return `
+              ${_tr('Delhivery Base Rate', `<span style="font-weight:600">${fmtCur(baseRate, 'INR')}</span>`)}
+              ${_tr('YNC Margin (30%)', `<span style="color:var(--green);font-weight:600">+${fmtCur(margin, 'INR')}</span>`)}
+              ${_tr('Final Rate', `<span style="font-size:16px;font-weight:800;color:var(--brand)">${fmtCur(l.delhiveryRate, 'INR')}</span>`, { bold: true })}
+              ${l.declaredValue ? _tr('Declared Value', fmtCur(l.declaredValue, l.currency)) : ''}
+              ${l.weight ? _tr('Charged Weight', `<strong>${l.weight} kg</strong>`) : ''}
+              `;
+            })()}
+          </tbody>
+        </table>
+      </div>
+      ` : ''}
     </div>
   </div>
 
@@ -2192,17 +2213,26 @@ async function getBookRates(id) {
   const rateData = rateR.data;
   await api('PATCH', `/api/shipment-leads/${id}`, { delhiveryRate: rateData.finalRate });
 
+  const priceBreakupRows = rateData.priceBreakup ? Object.entries(rateData.priceBreakup).map(([k,v]) =>
+    `<tr><td style="padding:7px 12px;font-size:12px;color:var(--gray);text-transform:capitalize;border-bottom:1px solid var(--gray3)">${k.replace(/_/g,' ')}</td><td style="padding:7px 12px;font-size:13px;text-align:right;border-bottom:1px solid var(--gray3)">₹${Number(v).toLocaleString()}</td></tr>`
+  ).join('') : '';
+
   showModal('Rate Card', `
-    <div style="text-align:center;padding:10px 0 20px">
-      <div style="font-size:13px;color:var(--gray);margin-bottom:4px">Delhivery Rate (incl. GST)</div>
-      <div style="font-size:32px;font-weight:800;color:var(--brand)">₹${rateData.delhiveryRate.toLocaleString()}</div>
+    <div style="background:var(--white);border-radius:10px;overflow:hidden;border:1px solid var(--gray3)">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--gray4)">
+          <th style="padding:9px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Item</th>
+          <th style="padding:9px 14px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Amount</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:8px 14px;font-size:13px;border-bottom:1px solid var(--gray3)">Delhivery Base Rate</td><td style="padding:8px 14px;font-size:13px;text-align:right;border-bottom:1px solid var(--gray3);font-weight:600">₹${rateData.delhiveryRate.toLocaleString()}</td></tr>
+          ${priceBreakupRows}
+          <tr style="background:var(--brand-bg)"><td style="padding:9px 14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--brand);border-bottom:2px solid var(--brand-border)">Your Final Rate (30% margin)</td><td style="padding:9px 14px;font-size:18px;text-align:right;border-bottom:2px solid var(--brand-border);font-weight:800;color:var(--brand-dark)">₹${rateData.finalRate.toLocaleString()}</td></tr>
+        </tbody>
+      </table>
     </div>
-    <div style="background:var(--brand-bg);border:1.5px solid var(--brand-border);border-radius:10px;padding:16px;text-align:center">
-      <div style="font-size:12px;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Your Rate (30% margin)</div>
-      <div style="font-size:28px;font-weight:800;color:var(--brand-dark)">₹${rateData.finalRate.toLocaleString()}</div>
-    </div>
-    <div style="margin-top:14px;font-size:12px;color:var(--gray2)">
-      Charged Weight: ${rateData.chargedWeight ? rateData.chargedWeight+'kg' : '-'}
+    <div style="margin-top:12px;font-size:12px;color:var(--gray2);display:flex;gap:16px">
+      <span>Charged Weight: <strong>${rateData.chargedWeight ? rateData.chargedWeight+'kg' : '—'}</strong></span>
     </div>
   `, () => { closeModal(); });
 }
