@@ -2096,7 +2096,7 @@ async function showBookShipmentDetail(id) {
               ${_tr('YNC Margin (30%)', `<span style="color:var(--green);font-weight:600">+${fmtCur(margin, 'INR')}</span>`)}
               ${_tr('Final Rate', `<span style="font-size:16px;font-weight:800;color:var(--brand)">${fmtCur(l.delhiveryRate, 'INR')}</span>`, { bold: true })}
               ${l.declaredValue ? _tr('Declared Value', fmtCur(l.declaredValue, l.currency)) : ''}
-              ${l.weight ? _tr('Charged Weight', `<strong>${l.weight} kg</strong>`) : ''}
+              ${l.chargedWeight ? _tr('Charged Weight', `<strong>${l.chargedWeight} kg</strong>`) : (l.weight ? _tr('Charged Weight', `<strong>${l.weight} kg</strong>`) : '')}
               `;
             })()}
           </tbody>
@@ -2227,7 +2227,7 @@ async function getBookRates(id) {
   }
 
   const rateData = rateR.data;
-  await api('PATCH', `/api/shipment-leads/${id}`, { delhiveryRate: rateData.finalRate });
+  await api('PATCH', `/api/shipment-leads/${id}`, { delhiveryRate: rateData.finalRate, chargedWeight: rateData.chargedWeight });
 
   const priceBreakupRows = rateData.priceBreakup ? Object.entries(rateData.priceBreakup).map(([k,v]) =>
     `<tr><td style="padding:7px 12px;font-size:12px;color:var(--gray);text-transform:capitalize;border-bottom:1px solid var(--gray3)">${k.replace(/_/g,' ')}</td><td style="padding:7px 12px;font-size:13px;text-align:right;border-bottom:1px solid var(--gray3)">₹${Number(v).toLocaleString()}</td></tr>`
