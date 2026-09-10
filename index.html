@@ -2188,8 +2188,33 @@ async function getBookRates(id) {
   }
 
   const weightG = Math.round(l.weight * 1000);
-  const parseDimArr = (s) => { if(!s) return [50,40,30]; const p=s.split('x').map(Number); return [p[0]||50,p[1]||40,p[2]||30]; };
-  const [dL,dW,dH] = parseDimArr(l.dimensions);
+
+  // Build dimensions from packing list (multiple boxes)
+  const packing = Array.isArray(l.packingList) ? l.packingList : [];
+  let dimensions = [];
+  if (packing.length > 0) {
+    // Group by unique LxWxH, sum qty for each group
+    const dimMap = {};
+    packing.forEach(p => {
+      const pL = parseFloat(p.length) || 50;
+      const pW = parseFloat(p.width) || 40;
+      const pH = parseFloat(p.height) || 30;
+      const q = parseInt(p.qty) || 1;
+      const key = `${pL}x${pW}x${pH}`;
+      if (dimMap[key]) {
+        dimMap[key].box_count += q;
+      } else {
+        dimMap[key] = { length_cm: pL, width_cm: pW, height_cm: pH, box_count: q };
+      }
+    });
+    dimensions = Object.values(dimMap);
+  }
+  // Fallback to lead-level dimensions if no packing list
+  if (dimensions.length === 0) {
+    const parseDimArr = (s) => { if(!s) return [50,40,30]; const p=s.split('x').map(Number); return [p[0]||50,p[1]||40,p[2]||30]; };
+    const [dL,dW,dH] = parseDimArr(l.dimensions);
+    dimensions = [{ length_cm: dL, width_cm: dW, height_cm: dH, box_count: 1 }];
+  }
 
   toast('Fetching rates from Delhivery...', 'info');
   const rateR = await api('POST', '/api/delhivery/rate', {
@@ -2197,7 +2222,7 @@ async function getBookRates(id) {
     consignee_pin: destPin,
     weight_g: weightG,
     inv_amount: l.declaredValue,
-    length_cm: dL, width_cm: dW, height_cm: dH,
+    dimensions: dimensions,
     payment_mode: 'prepaid',
   });
 
@@ -2217,6 +2242,24 @@ async function getBookRates(id) {
     `<tr><td style="padding:7px 12px;font-size:12px;color:var(--gray);text-transform:capitalize;border-bottom:1px solid var(--gray3)">${k.replace(/_/g,' ')}</td><td style="padding:7px 12px;font-size:13px;text-align:right;border-bottom:1px solid var(--gray3)">₹${Number(v).toLocaleString()}</td></tr>`
   ).join('') : '';
 
+  // Calculate volumetric weight breakdown from packing list
+  const packing = Array.isArray(l.packingList) ? l.packingList : [];
+  let volWeightRows = '';
+  let totalVolWt = 0;
+  if (packing.length > 0) {
+    packing.forEach((p, i) => {
+      const len = parseFloat(p.length) || 0;
+      const wid = parseFloat(p.width) || 0;
+      const hgt = parseFloat(p.height) || 0;
+      const qty = parseInt(p.qty) || 1;
+      const unit = (p.unit || 'cm').toLowerCase();
+      const divisor = unit === 'in' ? 139 : 5000;
+      const volWt = ((len * wid * hgt) / divisor) * qty;
+      totalVolWt += volWt;
+      volWeightRows += `<tr><td style="padding:6px 12px;font-size:12px;color:var(--gray);border-bottom:1px solid var(--gray3)">Box ${i+1} (${len}×${wid}×${hgt}${unit} × ${qty})</td><td style="padding:6px 12px;font-size:12px;text-align:right;border-bottom:1px solid var(--gray3)">${volWt.toFixed(2)} kg</td></tr>`;
+    });
+  }
+
   showModal('Rate Card', `
     <div style="background:var(--white);border-radius:10px;overflow:hidden;border:1px solid var(--gray3)">
       <table style="width:100%;border-collapse:collapse">
@@ -2231,9 +2274,25 @@ async function getBookRates(id) {
         </tbody>
       </table>
     </div>
-    <div style="margin-top:12px;font-size:12px;color:var(--gray2);display:flex;gap:16px">
-      <span>Charged Weight: <strong>${rateData.chargedWeight ? rateData.chargedWeight+'kg' : '—'}</strong></span>
+    <div style="margin-top:12px;font-size:12px;color:var(--gray2);display:flex;gap:16px;flex-wrap:wrap">
+      <span>Physical Weight: <strong>${l.weight || '—'} kg</strong></span>
+      <span>Chargeable Weight: <strong>${rateData.chargedWeight ? rateData.chargedWeight+'kg' : '—'}</strong></span>
+      ${totalVolWt > 0 ? `<span>Total Volumetric Weight: <strong>${totalVolWt.toFixed(2)} kg</strong></span>` : ''}
     </div>
+    ${volWeightRows ? `
+    <div style="margin-top:10px;background:var(--gray4);border-radius:8px;padding:8px 0">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid var(--gray3)">
+          <th style="padding:6px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--gray);text-align:left">Box</th>
+          <th style="padding:6px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--gray);text-align:right">Vol. Weight</th>
+        </tr></thead>
+        <tbody>${volWeightRows}</tbody>
+        <tfoot><tr style="font-weight:700;border-top:1px solid var(--gray3)">
+          <td style="padding:6px 12px;font-size:12px;text-align:right">Total Volumetric</td>
+          <td style="padding:6px 12px;font-size:12px;text-align:right">${totalVolWt.toFixed(2)} kg</td>
+        </tr></tfoot>
+      </table>
+    </div>` : ''}
   `, () => { closeModal(); });
 }
 
@@ -2270,8 +2329,48 @@ async function executeBookShipment(id) {
   }
 
   const dAddr = _parseAddress(l.destination);
-  const parseDimArr = (s) => { if(!s) return [50,40,30]; const p=s.split('x').map(Number); return [p[0]||50,p[1]||40,p[2]||30]; };
-  const [dL,dW,dH] = parseDimArr(l.dimensions);
+
+  // Build dimensions from packing list (multiple boxes)
+  const packing = Array.isArray(l.packingList) ? l.packingList : [];
+  let manifestDimensions = [];
+  let totalQty = 0;
+  if (packing.length > 0) {
+    const dimMap = {};
+    packing.forEach(p => {
+      const pL = parseFloat(p.length) || 50;
+      const pW = parseFloat(p.width) || 40;
+      const pH = parseFloat(p.height) || 30;
+      const q = parseInt(p.qty) || 1;
+      totalQty += q;
+      const key = `${pL}x${pW}x${pH}`;
+      if (dimMap[key]) {
+        dimMap[key].box_count += q;
+      } else {
+        dimMap[key] = { length_cm: pL, width_cm: pW, height_cm: pH, box_count: q };
+      }
+    });
+    manifestDimensions = Object.values(dimMap);
+  }
+  if (manifestDimensions.length === 0) {
+    const parseDimArr = (s) => { if(!s) return [50,40,30]; const p=s.split('x').map(Number); return [p[0]||50,p[1]||40,p[2]||30]; };
+    const [dL,dW,dH] = parseDimArr(l.dimensions);
+    manifestDimensions = [{ length_cm: dL, width_cm: dW, height_cm: dH, box_count: 1 }];
+    totalQty = l.numberOfPackages || 1;
+  }
+
+  // Build shipment_details from packing list
+  let shipmentDetails = [];
+  if (packing.length > 0) {
+    packing.forEach(p => {
+      shipmentDetails.push({
+        desc: p.description || 'General goods',
+        qty: parseInt(p.qty) || 1,
+        value: parseFloat(p.total) || 0,
+      });
+    });
+  } else {
+    shipmentDetails = [{ desc: l.cargoType || 'General goods', qty: totalQty, value: l.declaredValue }];
+  }
 
   const cleanPhone = (p) => { if(!p) return ''; const d = p.replace(/\D/g,''); if(d.length===10) return d; if(d.length===12 && d.startsWith('91')) return d.slice(2); if(d.length===13 && d.startsWith('091')) return d.slice(3); return d.slice(-10); };
 
@@ -2290,12 +2389,8 @@ async function executeBookShipment(id) {
       pin: destPin,
       phone: cleanPhone(l.receiverPhone || l.phone || ''),
     },
-    shipment_details: [{
-      desc: l.cargoType || 'General goods',
-      qty: 1,
-      value: l.declaredValue,
-    }],
-    dimensions: [{ length_cm: dL, width_cm: dW, height_cm: dH, box_count: 1 }],
+    shipment_details: shipmentDetails,
+    dimensions: manifestDimensions,
     inv_amount: l.declaredValue,
     rov_insurance: false,
     freight_mode: 'fop',
