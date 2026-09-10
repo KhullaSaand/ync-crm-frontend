@@ -2243,7 +2243,6 @@ async function getBookRates(id) {
   ).join('') : '';
 
   // Calculate volumetric weight breakdown from packing list
-  const packing = Array.isArray(l.packingList) ? l.packingList : [];
   let volWeightRows = '';
   let totalVolWt = 0;
   if (packing.length > 0) {
