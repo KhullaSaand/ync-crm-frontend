@@ -2189,25 +2189,16 @@ async function getBookRates(id) {
 
   const weightG = Math.round(l.weight * 1000);
 
-  // Build dimensions from packing list (multiple boxes)
+  // Build dimensions from packing list (each row = 1 box)
   const packing = Array.isArray(l.packingList) ? l.packingList : [];
   let dimensions = [];
   if (packing.length > 0) {
-    // Group by unique LxWxH, sum qty for each group
-    const dimMap = {};
     packing.forEach(p => {
       const pL = parseFloat(p.length) || 50;
       const pW = parseFloat(p.width) || 40;
       const pH = parseFloat(p.height) || 30;
-      const q = parseInt(p.qty) || 1;
-      const key = `${pL}x${pW}x${pH}`;
-      if (dimMap[key]) {
-        dimMap[key].box_count += q;
-      } else {
-        dimMap[key] = { length_cm: pL, width_cm: pW, height_cm: pH, box_count: q };
-      }
+      dimensions.push({ length_cm: pL, width_cm: pW, height_cm: pH, box_count: 1 });
     });
-    dimensions = Object.values(dimMap);
   }
   // Fallback to lead-level dimensions if no packing list
   if (dimensions.length === 0) {
@@ -2250,13 +2241,11 @@ async function getBookRates(id) {
       const len = parseFloat(p.length) || 0;
       const wid = parseFloat(p.width) || 0;
       const hgt = parseFloat(p.height) || 0;
-      const qty = parseInt(p.qty) || 1;
       const unit = (p.unit || 'cm').toLowerCase();
       const divisor = unit === 'in' ? 139 : 5000;
-      const perBoxVolWt = (len * wid * hgt) / divisor;
-      const rowVolWt = perBoxVolWt * qty;
-      totalVolWt += rowVolWt;
-      volWeightRows += `<tr><td style="padding:6px 12px;font-size:12px;color:var(--gray);border-bottom:1px solid var(--gray3)">${i+1}. ${len}×${wid}×${hgt}${unit}</td><td style="padding:6px 12px;font-size:12px;text-align:center;border-bottom:1px solid var(--gray3)">${qty}</td><td style="padding:6px 12px;font-size:12px;text-align:right;border-bottom:1px solid var(--gray3)">${perBoxVolWt.toFixed(2)} × ${qty} = <strong>${rowVolWt.toFixed(2)} kg</strong></td></tr>`;
+      const volWt = (len * wid * hgt) / divisor;
+      totalVolWt += volWt;
+      volWeightRows += `<tr><td style="padding:6px 12px;font-size:12px;color:var(--gray);border-bottom:1px solid var(--gray3)">${i+1}. ${len}×${wid}×${hgt}${unit}</td><td style="padding:6px 12px;font-size:12px;text-align:right;border-bottom:1px solid var(--gray3)">${volWt.toFixed(2)} kg</td></tr>`;
     });
   }
 
@@ -2284,12 +2273,11 @@ async function getBookRates(id) {
       <table style="width:100%;border-collapse:collapse">
         <thead><tr style="border-bottom:1px solid var(--gray3)">
           <th style="padding:6px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--gray);text-align:left">Dimensions</th>
-          <th style="padding:6px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--gray);text-align:center">Qty</th>
           <th style="padding:6px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--gray);text-align:right">Vol. Weight</th>
         </tr></thead>
         <tbody>${volWeightRows}</tbody>
         <tfoot><tr style="font-weight:700;border-top:1px solid var(--gray3)">
-          <td colspan="2" style="padding:6px 12px;font-size:12px;text-align:right">Total Volumetric</td>
+          <td style="padding:6px 12px;font-size:12px;text-align:right">Total Volumetric</td>
           <td style="padding:6px 12px;font-size:12px;text-align:right">${totalVolWt.toFixed(2)} kg</td>
         </tr></tfoot>
       </table>
@@ -2331,26 +2319,19 @@ async function executeBookShipment(id) {
 
   const dAddr = _parseAddress(l.destination);
 
-  // Build dimensions from packing list (multiple boxes)
+  // Build dimensions from packing list (each row = 1 box)
   const packing = Array.isArray(l.packingList) ? l.packingList : [];
   let manifestDimensions = [];
   let totalQty = 0;
   if (packing.length > 0) {
-    const dimMap = {};
     packing.forEach(p => {
       const pL = parseFloat(p.length) || 50;
       const pW = parseFloat(p.width) || 40;
       const pH = parseFloat(p.height) || 30;
       const q = parseInt(p.qty) || 1;
       totalQty += q;
-      const key = `${pL}x${pW}x${pH}`;
-      if (dimMap[key]) {
-        dimMap[key].box_count += q;
-      } else {
-        dimMap[key] = { length_cm: pL, width_cm: pW, height_cm: pH, box_count: q };
-      }
+      manifestDimensions.push({ length_cm: pL, width_cm: pW, height_cm: pH, box_count: 1 });
     });
-    manifestDimensions = Object.values(dimMap);
   }
   if (manifestDimensions.length === 0) {
     const parseDimArr = (s) => { if(!s) return [50,40,30]; const p=s.split('x').map(Number); return [p[0]||50,p[1]||40,p[2]||30]; };
