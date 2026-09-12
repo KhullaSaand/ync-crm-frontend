@@ -1064,7 +1064,8 @@ async function fetchGetRate() {
         <span style="color:var(--gray)">Chargeable<br><strong style="color:var(--black);font-size:15px">${d.chargedWeight || '—'} kg</strong></span>
       </div>
     </div>
-    <!-- Breakup -->
+    ${me?.role === 'admin' ? `
+    <!-- Admin: full breakup with prices -->
     <div style="padding:14px 20px">
       <div style="background:var(--gray4);border-radius:10px;padding:14px 16px">
         ${breakup.map(item => `
@@ -1073,17 +1074,31 @@ async function fetchGetRate() {
           <span style="color:var(--black);font-weight:500">₹${item.amount.toLocaleString()}</span>
         </div>`).join('')}
         <div style="display:flex;justify-content:space-between;padding:8px 0 4px;font-size:14px;font-weight:700;border-top:2px solid var(--gray3);margin-top:4px">
-          <span>Total (Delhivery)</span>
+          <span>Total</span>
           <span>₹${d.delhiveryRate.toLocaleString()}</span>
         </div>
       </div>
     </div>
+    ` : `
+    <!-- Manager/Sales Rep: names only, no prices, in dropdown -->
+    <div style="padding:12px 20px">
+      <details style="background:var(--gray4);border-radius:10px;overflow:hidden">
+        <summary style="padding:10px 16px;font-size:12px;font-weight:700;color:var(--gray);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px">
+          <span style="font-size:10px">▼</span> Price Break Down
+        </summary>
+        <div style="padding:0 16px 12px">
+          ${breakup.map(item => `
+          <div style="padding:4px 0;font-size:12px;color:var(--gray);border-bottom:1px solid var(--gray3)">${item.label}</div>`).join('')}
+        </div>
+      </details>
+    </div>
+    `}
     <!-- YNC Final Rate -->
     <div style="padding:0 20px 16px">
       <div style="background:var(--brand-bg);border:2px solid var(--brand-border);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
         <div>
-          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--brand)">YNC Rate (30% margin)</div>
-          <div style="font-size:10px;color:var(--gray);margin-top:2px">Delhivery cost + YNC margin</div>
+          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--brand)">YNC Rate</div>
+          <div style="font-size:10px;color:var(--gray);margin-top:2px">Inclusive of all charges</div>
         </div>
         <div style="font-size:24px;font-weight:800;color:var(--brand-dark)">₹${d.finalRate.toLocaleString()}</div>
       </div>
@@ -2269,18 +2284,22 @@ async function showBookShipmentDetail(id) {
       <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
         <table style="width:100%;border-collapse:collapse">
           <tbody>
-            ${sectionHeader('💰', 'Rate Breakdown', '#ea580c')}
-            ${(() => {
-              const baseRate = Math.round(l.delhiveryRate / 1.30);
-              const margin = l.delhiveryRate - baseRate;
-              return `
-              ${_tr('Delhivery Base Rate', `<span style="font-weight:600">${fmtCur(baseRate, 'INR')}</span>`)}
-              ${_tr('YNC Margin (30%)', `<span style="color:var(--green);font-weight:600">+${fmtCur(margin, 'INR')}</span>`)}
-              ${_tr('Final Rate', `<span style="font-size:16px;font-weight:800;color:var(--brand)">${fmtCur(l.delhiveryRate, 'INR')}</span>`, { bold: true })}
-              ${l.declaredValue ? _tr('Declared Value', fmtCur(l.declaredValue, l.currency)) : ''}
-              ${l.chargedWeight ? _tr('Charged Weight', `<strong>${l.chargedWeight} kg</strong>`) : (l.weight ? _tr('Charged Weight', `<strong>${l.weight} kg</strong>`) : '')}
-              `;
-            })()}
+            ${sectionHeader('💰', me?.role === 'admin' ? 'Rate Breakdown' : 'Shipping Rate', '#ea580c')}
+            ${me?.role === 'admin' ? `
+              ${(() => {
+                const baseRate = Math.round(l.delhiveryRate / 1.30);
+                const margin = l.delhiveryRate - baseRate;
+                return `
+                ${_tr('Delhivery Base Rate', `<span style="font-weight:600">${fmtCur(baseRate, 'INR')}</span>`)}
+                ${_tr('YNC Margin (30%)', `<span style="color:var(--green);font-weight:600">+${fmtCur(margin, 'INR')}</span>`)}
+                ${_tr('Final Rate', `<span style="font-size:16px;font-weight:800;color:var(--brand)">${fmtCur(l.delhiveryRate, 'INR')}</span>`, { bold: true })}
+                `;
+              })()}
+            ` : `
+              ${_tr('Shipping Rate', `<span style="font-size:16px;font-weight:800;color:var(--brand)">${fmtCur(l.delhiveryRate, 'INR')}</span>`, { bold: true })}
+            `}
+            ${l.declaredValue ? _tr('Declared Value', fmtCur(l.declaredValue, l.currency)) : ''}
+            ${l.chargedWeight ? _tr('Charged Weight', `<strong>${l.chargedWeight} kg</strong>`) : (l.weight ? _tr('Charged Weight', `<strong>${l.weight} kg</strong>`) : '')}
           </tbody>
         </table>
       </div>
@@ -2436,7 +2455,8 @@ async function getBookRates(id) {
 
   showModal('Rate Card', `
     <div style="background:var(--white);border-radius:10px;overflow:hidden;border:1px solid var(--gray3)">
-      <!-- Delhivery breakup -->
+      ${me?.role === 'admin' ? `
+      <!-- Admin: full breakup with prices -->
       <div style="padding:14px 16px">
         <div style="background:var(--gray4);border-radius:10px;padding:14px 16px">
           ${breakup.map(item => `
@@ -2445,17 +2465,31 @@ async function getBookRates(id) {
             <span style="color:var(--black);font-weight:500">₹${item.amount.toLocaleString()}</span>
           </div>`).join('')}
           <div style="display:flex;justify-content:space-between;padding:8px 0 4px;font-size:14px;font-weight:700;border-top:2px solid var(--gray3);margin-top:4px">
-            <span>Total (Delhivery)</span>
+            <span>Total</span>
             <span>₹${rateData.delhiveryRate.toLocaleString()}</span>
           </div>
         </div>
       </div>
+      ` : `
+      <!-- Manager/Sales Rep: names only, no prices, in dropdown -->
+      <div style="padding:12px 16px">
+        <details style="background:var(--gray4);border-radius:10px;overflow:hidden">
+          <summary style="padding:10px 16px;font-size:12px;font-weight:700;color:var(--gray);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px">
+            <span style="font-size:10px">▼</span> Price Break Down
+          </summary>
+          <div style="padding:0 16px 12px">
+            ${breakup.map(item => `
+            <div style="padding:4px 0;font-size:12px;color:var(--gray);border-bottom:1px solid var(--gray3)">${item.label}</div>`).join('')}
+          </div>
+        </details>
+      </div>
+      `}
       <!-- YNC Final Rate -->
       <div style="padding:0 16px 14px">
         <div style="background:var(--brand-bg);border:2px solid var(--brand-border);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
           <div>
-            <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--brand)">YNC Rate (30% margin)</div>
-            <div style="font-size:10px;color:var(--gray);margin-top:2px">Delhivery cost + YNC margin</div>
+            <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--brand)">YNC Rate</div>
+            <div style="font-size:10px;color:var(--gray);margin-top:2px">Inclusive of all charges</div>
           </div>
           <div style="font-size:22px;font-weight:800;color:var(--brand-dark)">₹${rateData.finalRate.toLocaleString()}</div>
         </div>
