@@ -1014,7 +1014,10 @@ async function fetchGetRate() {
     }
   }
 
-  if (dimensions.length === 0) { toast('Add at least one box with L, W, H dimensions', 'error'); return; }
+  // Default to 1x1x1 if no dimensions (Delhivery allows this)
+  if (dimensions.length === 0) {
+    dimensions = [{ length_cm: 1, width_cm: 1, height_cm: 1, box_count: 1 }];
+  }
 
   const btn = document.getElementById('gr-fetch-btn');
   btn.disabled = true; btn.textContent = 'Fetching...';
@@ -1042,15 +1045,18 @@ async function fetchGetRate() {
     .filter(([k,v]) => !SKIP.includes(k) && v != null && !isNaN(Number(v)) && Number(v) > 0)
     .map(([k,v]) => ({ label: LABELS[k] || k.replace(/_/g,' '), amount: Number(v) })) : [];
 
-  // Calculate vol weight per box
+  // Calculate vol weight per box (skip if default 1x1x1)
   let volRows = '';
   let totalVolWt = 0;
-  dimensions.forEach((dim, i) => {
-    const divisor = 4500;
-    const volWt = (dim.length_cm * dim.width_cm * dim.height_cm) / divisor;
-    totalVolWt += volWt;
-    volRows += `<tr><td style="padding:5px 14px;font-size:12px;color:var(--gray);border-bottom:1px solid var(--gray3)">${i+1}. ${dim.length_cm}×${dim.width_cm}×${dim.height_cm}cm</td><td style="padding:5px 14px;font-size:12px;text-align:center;border-bottom:1px solid var(--gray3)">${dim.box_count}</td><td style="padding:5px 14px;font-size:12px;text-align:right;border-bottom:1px solid var(--gray3)">${volWt.toFixed(2)} kg</td></tr>`;
-  });
+  const isDefaultDim = dimensions.length === 1 && dimensions[0].length_cm === 1 && dimensions[0].width_cm === 1 && dimensions[0].height_cm === 1;
+  if (!isDefaultDim) {
+    dimensions.forEach((dim, i) => {
+      const divisor = 4500;
+      const volWt = (dim.length_cm * dim.width_cm * dim.height_cm) / divisor;
+      totalVolWt += volWt;
+      volRows += `<tr><td style="padding:5px 14px;font-size:12px;color:var(--gray);border-bottom:1px solid var(--gray3)">${i+1}. ${dim.length_cm}×${dim.width_cm}×${dim.height_cm}cm</td><td style="padding:5px 14px;font-size:12px;text-align:center;border-bottom:1px solid var(--gray3)">${dim.box_count}</td><td style="padding:5px 14px;font-size:12px;text-align:right;border-bottom:1px solid var(--gray3)">${volWt.toFixed(2)} kg</td></tr>`;
+    });
+  }
 
   document.getElementById('gr-result').innerHTML = `
   <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
