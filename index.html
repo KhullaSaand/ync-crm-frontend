@@ -336,6 +336,7 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
         </div>
         <div class="nav-item" onclick="nav('shipment-leads')" id="nav-shipment-leads"><span class="ni">🚢</span>Shipment</div>
         <div class="nav-item" onclick="nav('book-shipment')" id="nav-book-shipment"><span class="ni">📦</span>Book A Shipment</div>
+        <div class="nav-item" onclick="nav('get-rate')" id="nav-get-rate"><span class="ni">💰</span>Get Rate</div>
         <div class="nav-item" onclick="nav('contacts')" id="nav-contacts"><span class="ni">👥</span>Contacts</div>
       </div>
       <div class="nav-section">
@@ -561,7 +562,8 @@ window.onload = () => {
 const PAGE_TITLES = {
   dashboard: 'Dashboard', contacts: 'Contacts',
   'quote-leads': 'Leads', 'shipment-leads': 'Shipment',
-  tasks: 'Tasks', users: 'Team Management', reports: 'Reports'
+  tasks: 'Tasks', users: 'Team Management', reports: 'Reports',
+  'get-rate': 'Get Rate'
 };
 const ADD_LABELS = {
   contacts: '+ Contact', 'quote-leads': '+ Quote Lead',
@@ -605,6 +607,7 @@ function renderPage(page) {
     case 'tasks':         renderTasks(); break;
     case 'users':         renderUsers(); break;
     case 'reports':       renderReports(); break;
+    case 'get-rate':      renderGetRate(); break;
   }
 }
 
@@ -929,6 +932,162 @@ async function viewShipmentLead(id) {
     </div>
     ${l.notes?`<div style="margin-top:16px"><div class="dp-field"><label>Notes</label><span>${esc(l.notes)}</span></div></div>`:''}
     ${t && t.timeline?.length ? `<div style="margin-top:20px"><div class="section-title">Tracking Timeline</div><div class="tracking-tl">${t.timeline.map((s,i)=>`<div class="tracking-tl-item"><div class="tl-status">${esc(s.status||s.status_text||'')}</div>${s.location?`<div class="tl-loc">📍 ${esc(s.location)}</div>`:''}<div class="tl-date">${fmtDate(s.timestamp||s.status_date)}</div></div>`).join('')}</div></div>` : ''}
+  </div>`;
+}
+
+// ─── GET RATE ─────────────────────────────────────────────────────────────
+function renderGetRate() {
+  document.getElementById('content').innerHTML = `
+  <div style="max-width:700px;margin:0 auto">
+    <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
+      <div style="padding:20px 24px;border-bottom:1px solid var(--gray3)">
+        <div style="font-size:16px;font-weight:700;color:var(--black)">💰 Rate Calculator</div>
+        <div style="font-size:12px;color:var(--gray);margin-top:4px">Check Delhivery shipping rates pincode to pincode</div>
+      </div>
+      <div style="padding:20px 24px">
+        <div class="form-row">
+          <div class="fg"><label>Origin Pincode *</label><input id="gr-origin" placeholder="e.g. 380054" maxlength="6"/></div>
+          <div class="fg"><label>Destination Pincode *</label><input id="gr-dest" placeholder="e.g. 400001" maxlength="6"/></div>
+        </div>
+        <div class="form-row">
+          <div class="fg"><label>Weight (kg) *</label><input id="gr-weight" type="number" step="0.01" min="0.1" placeholder="e.g. 10"/></div>
+          <div class="fg"><label>Declared Value (₹) *</label><input id="gr-value" type="number" min="1" placeholder="e.g. 5000"/></div>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">Package Dimensions (cm)</div>
+        <div id="gr-dimensions">
+          <div class="form-row" style="align-items:end">
+            <div class="fg"><label>Length</label><input class="gr-len" type="number" step="0.1" min="1" placeholder="L"/></div>
+            <div class="fg"><label>Width</label><input class="gr-wid" type="number" step="0.1" min="1" placeholder="W"/></div>
+            <div class="fg"><label>Height</label><input class="gr-hgt" type="number" step="0.1" min="1" placeholder="H"/></div>
+            <div class="fg" style="max-width:80px"><label>Qty</label><input class="gr-qty" type="number" min="1" value="1"/></div>
+          </div>
+        </div>
+        <button onclick="addGetRateDimRow()" style="margin-top:6px;background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--brand);cursor:pointer">+ Add Box</button>
+        <div style="margin-top:16px;display:flex;gap:10px">
+          <button class="btn-primary" onclick="fetchGetRate()" id="gr-fetch-btn" style="flex:1">Get Rate</button>
+        </div>
+      </div>
+    </div>
+    <div id="gr-result" style="margin-top:16px"></div>
+  </div>`;
+}
+
+function addGetRateDimRow() {
+  const container = document.getElementById('gr-dimensions');
+  const row = document.createElement('div');
+  row.className = 'form-row';
+  row.style.alignItems = 'end';
+  row.innerHTML = `
+    <div class="fg"><label>Length</label><input class="gr-len" type="number" step="0.1" min="1" placeholder="L"/></div>
+    <div class="fg"><label>Width</label><input class="gr-wid" type="number" step="0.1" min="1" placeholder="W"/></div>
+    <div class="fg"><label>Height</label><input class="gr-hgt" type="number" step="0.1" min="1" placeholder="H"/></div>
+    <div class="fg" style="max-width:80px"><label>Qty</label><input class="gr-qty" type="number" min="1" value="1"/></div>
+    <div class="fg" style="max-width:40px"><button onclick="this.closest('.form-row').remove()" style="background:var(--red-bg);border:1px solid #fecaca;border-radius:6px;padding:5px 8px;font-size:14px;color:var(--red);cursor:pointer">×</button></div>
+  `;
+  container.appendChild(row);
+}
+
+async function fetchGetRate() {
+  const origin = document.getElementById('gr-origin').value.trim();
+  const dest = document.getElementById('gr-dest').value.trim();
+  const weight = parseFloat(document.getElementById('gr-weight').value);
+  const value = parseFloat(document.getElementById('gr-value').value);
+
+  if (!origin || !/^\d{6}$/.test(origin)) { toast('Enter valid 6-digit origin pincode', 'error'); return; }
+  if (!dest || !/^\d{6}$/.test(dest)) { toast('Enter valid 6-digit destination pincode', 'error'); return; }
+  if (!weight || weight <= 0) { toast('Enter valid weight', 'error'); return; }
+  if (!value || value <= 0) { toast('Enter declared value', 'error'); return; }
+
+  const lens = document.querySelectorAll('.gr-len');
+  const wids = document.querySelectorAll('.gr-wid');
+  const hgts = document.querySelectorAll('.gr-hgt');
+  const qtys = document.querySelectorAll('.gr-qty');
+
+  const dimensions = [];
+  for (let i = 0; i < lens.length; i++) {
+    const l = parseFloat(lens[i].value);
+    const w = parseFloat(wids[i].value);
+    const h = parseFloat(hgts[i].value);
+    const q = parseInt(qtys[i].value) || 1;
+    if (l && w && h) {
+      dimensions.push({ length_cm: l, width_cm: w, height_cm: h, box_count: q });
+    }
+  }
+
+  if (dimensions.length === 0) { toast('Add at least one box with L, W, H dimensions', 'error'); return; }
+
+  const btn = document.getElementById('gr-fetch-btn');
+  btn.disabled = true; btn.textContent = 'Fetching...';
+
+  const result = await api('POST', '/api/delhivery/rate', {
+    source_pin: origin,
+    consignee_pin: dest,
+    weight_g: Math.round(weight * 1000),
+    inv_amount: value,
+    dimensions: dimensions,
+    payment_mode: 'prepaid',
+  });
+
+  btn.disabled = false; btn.textContent = 'Get Rate';
+
+  if (!result) { toast('Session expired. Please log in again.', 'error'); return; }
+  if (!result.success) { toast(result.error || 'Failed to get rate', 'error'); return; }
+
+  const d = result.data;
+  const priceBreakupRows = d.priceBreakup ? Object.entries(d.priceBreakup).map(([k,v]) =>
+    `<tr><td style="padding:7px 14px;font-size:12px;color:var(--gray);text-transform:capitalize;border-bottom:1px solid var(--gray3)">${k.replace(/_/g,' ')}</td><td style="padding:7px 14px;font-size:13px;text-align:right;border-bottom:1px solid var(--gray3)">₹${Number(v).toLocaleString()}</td></tr>`
+  ).join('') : '';
+
+  // Calculate vol weight per box
+  let volRows = '';
+  let totalVolWt = 0;
+  dimensions.forEach((dim, i) => {
+    const divisor = 4500;
+    const volWt = (dim.length_cm * dim.width_cm * dim.height_cm) / divisor;
+    totalVolWt += volWt;
+    volRows += `<tr><td style="padding:5px 14px;font-size:12px;color:var(--gray);border-bottom:1px solid var(--gray3)">${i+1}. ${dim.length_cm}×${dim.width_cm}×${dim.height_cm}cm</td><td style="padding:5px 14px;font-size:12px;text-align:center;border-bottom:1px solid var(--gray3)">${dim.box_count}</td><td style="padding:5px 14px;font-size:12px;text-align:right;border-bottom:1px solid var(--gray3)">${volWt.toFixed(2)} kg</td></tr>`;
+  });
+
+  document.getElementById('gr-result').innerHTML = `
+  <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--gray3);display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:14px;font-weight:700;color:var(--black)">Rate Card</div>
+      <div style="font-size:11px;color:var(--gray)">${origin} → ${dest}</div>
+    </div>
+    <div style="padding:16px 20px">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--gray4)">
+          <th style="padding:8px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Item</th>
+          <th style="padding:8px 14px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Amount</th>
+        </tr></thead>
+        <tbody>
+          ${priceBreakupRows}
+          <tr style="background:var(--brand-bg)"><td style="padding:10px 14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--brand);border-bottom:2px solid var(--brand-border)">YNC Rate (30% margin)</td><td style="padding:10px 14px;font-size:20px;text-align:right;border-bottom:2px solid var(--brand-border);font-weight:800;color:var(--brand-dark)">₹${d.finalRate.toLocaleString()}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="padding:12px 20px;border-top:1px solid var(--gray3);display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:var(--gray2)">
+      <span>Physical: <strong>${weight} kg</strong></span>
+      <span>Chargeable: <strong>${d.chargedWeight || '—'} kg</strong></span>
+      <span>Volumetric: <strong>${totalVolWt.toFixed(2)} kg</strong></span>
+    </div>
+    ${volRows ? `
+    <div style="padding:0 20px 14px">
+      <div style="background:var(--gray4);border-radius:8px;padding:6px 0">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="border-bottom:1px solid var(--gray3)">
+            <th style="padding:5px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--gray);text-align:left">Dimensions</th>
+            <th style="padding:5px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--gray);text-align:center">Qty</th>
+            <th style="padding:5px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--gray);text-align:right">Vol. Wt</th>
+          </tr></thead>
+          <tbody>${volRows}</tbody>
+          <tfoot><tr style="font-weight:700;border-top:1px solid var(--gray3)">
+            <td colspan="2" style="padding:5px 14px;font-size:11px;text-align:right">Total</td>
+            <td style="padding:5px 14px;font-size:11px;text-align:right">${totalVolWt.toFixed(2)} kg</td>
+          </tr></tfoot>
+        </table>
+      </div>
+    </div>` : ''}
   </div>`;
 }
 
