@@ -1016,7 +1016,7 @@ async function fetchGetRate() {
 
   // Default to 1x1x1 if no dimensions (Delhivery allows this)
   if (dimensions.length === 0) {
-    dimensions = [{ length_cm: 1, width_cm: 1, height_cm: 1, box_count: 1 }];
+    dimensions.push({ length_cm: 1, width_cm: 1, height_cm: 1, box_count: 1 });
   }
 
   const btn = document.getElementById('gr-fetch-btn');
