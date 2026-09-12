@@ -1034,9 +1034,13 @@ async function fetchGetRate() {
   if (!result.success) { toast(result.error || 'Failed to get rate', 'error'); return; }
 
   const d = result.data;
-  const priceBreakupRows = d.priceBreakup ? Object.entries(d.priceBreakup).filter(([k,v]) => v != null && !isNaN(Number(v)) && Number(v) > 0).map(([k,v]) =>
-    `<tr><td style="padding:7px 14px;font-size:12px;color:var(--gray);text-transform:capitalize;border-bottom:1px solid var(--gray3)">${k.replace(/_/g,' ')}</td><td style="padding:7px 14px;font-size:13px;text-align:right;border-bottom:1px solid var(--gray3)">₹${Number(v).toLocaleString()}</td></tr>`
-  ).join('') : '';
+
+  // Clean breakup: skip internal/zero fields, use friendly labels
+  const SKIP = ['pre_tax_freight_charges','gst_percent','meta_charges','markup','green','lm','appointment_charges','other_handling_charges'];
+  const LABELS = { base_freight_charge:'Base Freight', fuel_surcharge:'Fuel Surcharge', fuel_hike:'Fuel Hike', insurance_rov:'Insurance / ROV', oda:'ODA Charges', fm:'FM Charges', gst:'GST (18%)' };
+  const breakup = d.priceBreakup ? Object.entries(d.priceBreakup)
+    .filter(([k,v]) => !SKIP.includes(k) && v != null && !isNaN(Number(v)) && Number(v) > 0)
+    .map(([k,v]) => ({ label: LABELS[k] || k.replace(/_/g,' '), amount: Number(v) })) : [];
 
   // Calculate vol weight per box
   let volRows = '';
@@ -1050,26 +1054,45 @@ async function fetchGetRate() {
 
   document.getElementById('gr-result').innerHTML = `
   <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
-    <div style="padding:16px 20px;border-bottom:1px solid var(--gray3);display:flex;justify-content:space-between;align-items:center">
-      <div style="font-size:14px;font-weight:700;color:var(--black)">Rate Card</div>
-      <div style="font-size:11px;color:var(--gray)">${origin} → ${dest}</div>
+    <!-- Header -->
+    <div style="padding:16px 20px;border-bottom:1px solid var(--gray3);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--black)">🚚 Surface Shipping</div>
+        <div style="font-size:11px;color:var(--gray);margin-top:2px">${origin} → ${dest}</div>
+      </div>
+      <div style="display:flex;gap:20px;font-size:12px">
+        <span style="color:var(--gray)">Chargeable<br><strong style="color:var(--black);font-size:15px">${d.chargedWeight || '—'} kg</strong></span>
+      </div>
     </div>
-    <div style="padding:16px 20px">
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="background:var(--gray4)">
-          <th style="padding:8px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Item</th>
-          <th style="padding:8px 14px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Amount</th>
-        </tr></thead>
-        <tbody>
-          ${priceBreakupRows}
-          <tr style="background:var(--brand-bg)"><td style="padding:10px 14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--brand);border-bottom:2px solid var(--brand-border)">YNC Rate (30% margin)</td><td style="padding:10px 14px;font-size:20px;text-align:right;border-bottom:2px solid var(--brand-border);font-weight:800;color:var(--brand-dark)">₹${d.finalRate.toLocaleString()}</td></tr>
-        </tbody>
-      </table>
+    <!-- Breakup -->
+    <div style="padding:14px 20px">
+      <div style="background:var(--gray4);border-radius:10px;padding:14px 16px">
+        ${breakup.map(item => `
+        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-bottom:1px solid var(--gray3)">
+          <span style="color:var(--gray)">${item.label}</span>
+          <span style="color:var(--black);font-weight:500">₹${item.amount.toLocaleString()}</span>
+        </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;padding:8px 0 4px;font-size:14px;font-weight:700;border-top:2px solid var(--gray3);margin-top:4px">
+          <span>Total (Delhivery)</span>
+          <span>₹${d.delhiveryRate.toLocaleString()}</span>
+        </div>
+      </div>
     </div>
-    <div style="padding:12px 20px;border-top:1px solid var(--gray3);display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:var(--gray2)">
-      <span>Physical: <strong>${weight} kg</strong></span>
-      <span>Chargeable: <strong>${d.chargedWeight || '—'} kg</strong></span>
-      <span>Volumetric: <strong>${totalVolWt.toFixed(2)} kg</strong></span>
+    <!-- YNC Final Rate -->
+    <div style="padding:0 20px 16px">
+      <div style="background:var(--brand-bg);border:2px solid var(--brand-border);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--brand)">YNC Rate (30% margin)</div>
+          <div style="font-size:10px;color:var(--gray);margin-top:2px">Delhivery cost + YNC margin</div>
+        </div>
+        <div style="font-size:24px;font-weight:800;color:var(--brand-dark)">₹${d.finalRate.toLocaleString()}</div>
+      </div>
+    </div>
+    <!-- Weights -->
+    <div style="padding:10px 20px;border-top:1px solid var(--gray3);display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:var(--gray2)">
+      <span>Physical: <strong style="color:var(--black)">${weight} kg</strong></span>
+      <span>Chargeable: <strong style="color:var(--black)">${d.chargedWeight || '—'} kg</strong></span>
+      <span>Volumetric: <strong style="color:var(--black)">${totalVolWt.toFixed(2)} kg</strong></span>
     </div>
     ${volRows ? `
     <div style="padding:0 20px 14px">
@@ -2388,9 +2411,12 @@ async function getBookRates(id) {
   const rateData = rateR.data;
   await api('PATCH', `/api/shipment-leads/${id}`, { delhiveryRate: rateData.finalRate, chargedWeight: rateData.chargedWeight });
 
-  const priceBreakupRows = rateData.priceBreakup ? Object.entries(rateData.priceBreakup).filter(([k,v]) => v != null && !isNaN(Number(v)) && Number(v) > 0).map(([k,v]) =>
-    `<tr><td style="padding:7px 12px;font-size:12px;color:var(--gray);text-transform:capitalize;border-bottom:1px solid var(--gray3)">${k.replace(/_/g,' ')}</td><td style="padding:7px 12px;font-size:13px;text-align:right;border-bottom:1px solid var(--gray3)">₹${Number(v).toLocaleString()}</td></tr>`
-  ).join('') : '';
+  // Clean breakup: skip internal/zero fields, use friendly labels
+  const SKIP = ['pre_tax_freight_charges','gst_percent','meta_charges','markup','green','lm','appointment_charges','other_handling_charges'];
+  const LABELS = { base_freight_charge:'Base Freight', fuel_surcharge:'Fuel Surcharge', fuel_hike:'Fuel Hike', insurance_rov:'Insurance / ROV', oda:'ODA Charges', fm:'FM Charges', gst:'GST (18%)' };
+  const breakup = rateData.priceBreakup ? Object.entries(rateData.priceBreakup)
+    .filter(([k,v]) => !SKIP.includes(k) && v != null && !isNaN(Number(v)) && Number(v) > 0)
+    .map(([k,v]) => ({ label: LABELS[k] || k.replace(/_/g,' '), amount: Number(v) })) : [];
 
   // Calculate volumetric weight breakdown from packing list
   let volWeightRows = '';
@@ -2410,34 +2436,48 @@ async function getBookRates(id) {
 
   showModal('Rate Card', `
     <div style="background:var(--white);border-radius:10px;overflow:hidden;border:1px solid var(--gray3)">
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="background:var(--gray4)">
-          <th style="padding:9px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Item</th>
-          <th style="padding:9px 14px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)">Amount</th>
-        </tr></thead>
-        <tbody>
-          <tr><td style="padding:8px 14px;font-size:13px;border-bottom:1px solid var(--gray3)">Delhivery Base Rate</td><td style="padding:8px 14px;font-size:13px;text-align:right;border-bottom:1px solid var(--gray3);font-weight:600">₹${rateData.delhiveryRate.toLocaleString()}</td></tr>
-          ${priceBreakupRows}
-          <tr style="background:var(--brand-bg)"><td style="padding:9px 14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--brand);border-bottom:2px solid var(--brand-border)">Your Final Rate (30% margin)</td><td style="padding:9px 14px;font-size:18px;text-align:right;border-bottom:2px solid var(--brand-border);font-weight:800;color:var(--brand-dark)">₹${rateData.finalRate.toLocaleString()}</td></tr>
-        </tbody>
-      </table>
+      <!-- Delhivery breakup -->
+      <div style="padding:14px 16px">
+        <div style="background:var(--gray4);border-radius:10px;padding:14px 16px">
+          ${breakup.map(item => `
+          <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-bottom:1px solid var(--gray3)">
+            <span style="color:var(--gray)">${item.label}</span>
+            <span style="color:var(--black);font-weight:500">₹${item.amount.toLocaleString()}</span>
+          </div>`).join('')}
+          <div style="display:flex;justify-content:space-between;padding:8px 0 4px;font-size:14px;font-weight:700;border-top:2px solid var(--gray3);margin-top:4px">
+            <span>Total (Delhivery)</span>
+            <span>₹${rateData.delhiveryRate.toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+      <!-- YNC Final Rate -->
+      <div style="padding:0 16px 14px">
+        <div style="background:var(--brand-bg);border:2px solid var(--brand-border);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--brand)">YNC Rate (30% margin)</div>
+            <div style="font-size:10px;color:var(--gray);margin-top:2px">Delhivery cost + YNC margin</div>
+          </div>
+          <div style="font-size:22px;font-weight:800;color:var(--brand-dark)">₹${rateData.finalRate.toLocaleString()}</div>
+        </div>
+      </div>
     </div>
-    <div style="margin-top:12px;font-size:12px;color:var(--gray2);display:flex;gap:16px;flex-wrap:wrap">
-      <span>Physical Weight: <strong>${l.weight || '—'} kg</strong></span>
-      <span>Chargeable Weight: <strong>${rateData.chargedWeight ? rateData.chargedWeight+'kg' : '—'}</strong></span>
-      ${totalVolWt > 0 ? `<span>Total Volumetric Weight: <strong>${totalVolWt.toFixed(2)} kg</strong></span>` : ''}
+    <!-- Weights -->
+    <div style="margin-top:10px;font-size:12px;color:var(--gray2);display:flex;gap:16px;flex-wrap:wrap">
+      <span>Physical: <strong style="color:var(--black)">${l.weight || '—'} kg</strong></span>
+      <span>Chargeable: <strong style="color:var(--black)">${rateData.chargedWeight ? rateData.chargedWeight+'kg' : '—'}</strong></span>
+      ${totalVolWt > 0 ? `<span>Volumetric: <strong style="color:var(--black)">${totalVolWt.toFixed(2)} kg</strong></span>` : ''}
     </div>
     ${volWeightRows ? `
     <div style="margin-top:10px;background:var(--gray4);border-radius:8px;padding:8px 0">
       <table style="width:100%;border-collapse:collapse">
         <thead><tr style="border-bottom:1px solid var(--gray3)">
-          <th style="padding:6px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--gray);text-align:left">Dimensions</th>
-          <th style="padding:6px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--gray);text-align:right">Vol. Weight</th>
+          <th style="padding:6px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--gray);text-align:left">Dimensions</th>
+          <th style="padding:6px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--gray);text-align:right">Vol. Weight</th>
         </tr></thead>
         <tbody>${volWeightRows}</tbody>
         <tfoot><tr style="font-weight:700;border-top:1px solid var(--gray3)">
-          <td style="padding:6px 12px;font-size:12px;text-align:right">Total Volumetric</td>
-          <td style="padding:6px 12px;font-size:12px;text-align:right">${totalVolWt.toFixed(2)} kg</td>
+          <td style="padding:6px 12px;font-size:11px;text-align:right">Total Volumetric</td>
+          <td style="padding:6px 12px;font-size:11px;text-align:right">${totalVolWt.toFixed(2)} kg</td>
         </tr></tfoot>
       </table>
     </div>` : ''}
