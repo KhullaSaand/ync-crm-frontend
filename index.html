@@ -1034,7 +1034,7 @@ async function fetchGetRate() {
   if (!result.success) { toast(result.error || 'Failed to get rate', 'error'); return; }
 
   const d = result.data;
-  const priceBreakupRows = d.priceBreakup ? Object.entries(d.priceBreakup).map(([k,v]) =>
+  const priceBreakupRows = d.priceBreakup ? Object.entries(d.priceBreakup).filter(([k,v]) => v != null && !isNaN(Number(v)) && Number(v) > 0).map(([k,v]) =>
     `<tr><td style="padding:7px 14px;font-size:12px;color:var(--gray);text-transform:capitalize;border-bottom:1px solid var(--gray3)">${k.replace(/_/g,' ')}</td><td style="padding:7px 14px;font-size:13px;text-align:right;border-bottom:1px solid var(--gray3)">₹${Number(v).toLocaleString()}</td></tr>`
   ).join('') : '';
 
@@ -1669,7 +1669,7 @@ function fmtStatus(s) {
 }
 function roleLabel(r) { return {admin:'Admin',manager:'Manager',sales_rep:'Sales Rep'}[r]||r; }
 function fmtDate(d) { if (!d) return '—'; return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
-function fmtCur(v) { if (!v && v!==0) return '—'; return '₹'+Number(v).toLocaleString('en-IN',{maximumFractionDigits:0}); }
+function fmtCur(v) { if (!v && v!==0) return '—'; const n = Number(v); if (isNaN(n)) return '—'; return '₹'+n.toLocaleString('en-IN',{maximumFractionDigits:0}); }
 function emptyState(icon, title, sub) {
   return `<div class="empty"><div class="empty-icon">${icon}</div><div class="empty-title">${title}</div><div class="empty-sub">${sub}</div></div>`;
 }
@@ -2388,7 +2388,7 @@ async function getBookRates(id) {
   const rateData = rateR.data;
   await api('PATCH', `/api/shipment-leads/${id}`, { delhiveryRate: rateData.finalRate, chargedWeight: rateData.chargedWeight });
 
-  const priceBreakupRows = rateData.priceBreakup ? Object.entries(rateData.priceBreakup).map(([k,v]) =>
+  const priceBreakupRows = rateData.priceBreakup ? Object.entries(rateData.priceBreakup).filter(([k,v]) => v != null && !isNaN(Number(v)) && Number(v) > 0).map(([k,v]) =>
     `<tr><td style="padding:7px 12px;font-size:12px;color:var(--gray);text-transform:capitalize;border-bottom:1px solid var(--gray3)">${k.replace(/_/g,' ')}</td><td style="padding:7px 12px;font-size:13px;text-align:right;border-bottom:1px solid var(--gray3)">₹${Number(v).toLocaleString()}</td></tr>`
   ).join('') : '';
 
@@ -2401,7 +2401,7 @@ async function getBookRates(id) {
       const wid = parseFloat(p.width) || 0;
       const hgt = parseFloat(p.height) || 0;
       const unit = (p.unit || 'cm').toLowerCase();
-      const divisor = unit === 'in' ? 139 : 5000;
+      const divisor = unit === 'in' ? 139 : 4500;
       const volWt = (len * wid * hgt) / divisor;
       totalVolWt += volWt;
       volWeightRows += `<tr><td style="padding:6px 12px;font-size:12px;color:var(--gray);border-bottom:1px solid var(--gray3)">${i+1}. ${len}×${wid}×${hgt}${unit}</td><td style="padding:6px 12px;font-size:12px;text-align:right;border-bottom:1px solid var(--gray3)">${volWt.toFixed(2)} kg</td></tr>`;
