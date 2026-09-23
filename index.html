@@ -452,6 +452,7 @@ function startAutoRefresh() {
       'contacts':      ['/api/contacts?page=1&limit=15'],
       'quote-leads':   ['/api/quote-leads?page=1&limit=15'],
       'shipment-leads':['/api/shipment-leads?page=1&limit=15'],
+      'book-shipment': ['/api/shipment-leads?page=1&limit=15&source=booking'],
       'tasks':         ['/api/tasks?page=1&limit=15'],
     };
     const urls = pageMap[curPage];
@@ -469,9 +470,10 @@ function preloadAll() {
     '/api/contacts?page=1&limit=15',
     '/api/quote-leads?page=1&limit=15',
     '/api/shipment-leads?page=1&limit=15',
+    '/api/shipment-leads?page=1&limit=15&source=booking',
     '/api/tasks?page=1&limit=15',
   ];
-  if (me.role === 'admin' || me.role === 'manager') pages.push('/api/users?page=1&limit=50');
+  if (me.role === 'admin' || me.role === 'manager') pages.push('/api/users');
   pages.forEach(p => api('GET', p));
 }
 
@@ -1324,12 +1326,13 @@ async function openContactModal(c) {
   <div class="fg"><label>Website</label><input id="mf-website" value="${esc(c?.website||'')}"/></div></div>
   ${me?.role !== 'sales_rep' ? `<div class="fg"><label>Assigned To</label>${assignDropdown(c?.assignedToId||'')}</div>` : ''}
   <div class="fg"><label>Notes</label><textarea id="mf-notes">${esc(c?.notes||'')}</textarea></div>`, async () => {
+    const assignEl = document.getElementById('mf-assigned');
     const body = {
       name: document.getElementById('mf-name').value, email: document.getElementById('mf-email').value,
       phone: document.getElementById('mf-phone').value, company: document.getElementById('mf-company').value,
       jobTitle: document.getElementById('mf-jobtitle').value, status: document.getElementById('mf-status').value,
       dealValue: document.getElementById('mf-dealvalue').value, website: document.getElementById('mf-website').value,
-      assignedToId: document.getElementById('mf-assigned')?.value || null,
+      ...(assignEl ? { assignedToId: assignEl.value || null } : {}),
       notes: document.getElementById('mf-notes').value,
     };
     const r = c ? await api('PATCH', `/api/contacts/${c.id}`, body) : await api('POST', '/api/contacts', body);
@@ -1427,13 +1430,14 @@ async function openQuoteLeadModal(l) {
   </div>`, async () => {
     const category = document.getElementById('mf-category').value;
     if (!category) { toast('Please select a category', 'error'); return; }
+    const assignEl = document.getElementById('mf-assigned');
     const body = {
       category,
       customerName: document.getElementById('mf-name')?.value || '',
       phone: document.getElementById('mf-phone')?.value || '',
       email: document.getElementById('mf-email')?.value || '',
       status: document.getElementById('mf-status')?.value || 'new_inquiry',
-      assignedToId: document.getElementById('mf-assigned')?.value || null,
+      ...(assignEl ? { assignedToId: assignEl.value || null } : {}),
       notes: document.getElementById('mf-notes')?.value || '',
     };
     const L=document.getElementById('mf-len')?.value;
@@ -1585,6 +1589,7 @@ async function openShipmentLeadModal(l) {
     const dAddr1=document.getElementById('mf-d-address1').value, dAddr2=document.getElementById('mf-d-address2').value, dAddr3=document.getElementById('mf-d-address3').value;
     const originStr = [oAddr1,oAddr2,oAddr3,oCity,oState,oPin,oCountry].filter(Boolean).join(', ');
     const destStr   = [dAddr1,dAddr2,dAddr3,dCity,dState,dPin,dCountry].filter(Boolean).join(', ');
+    const assignEl = document.getElementById('mf-assigned');
     const body = {
       customerName: document.getElementById('mf-name').value, company: document.getElementById('mf-company').value,
       email: document.getElementById('mf-email').value, phone: document.getElementById('mf-phone').value,
@@ -1597,7 +1602,7 @@ async function openShipmentLeadModal(l) {
       expectedPickup: document.getElementById('mf-pickup').value||null,
       expectedDelivery: document.getElementById('mf-delivery').value||null,
       status: document.getElementById('mf-status').value, currency: document.getElementById('mf-currency').value,
-      assignedToId: document.getElementById('mf-assigned')?.value || null,
+      ...(assignEl ? { assignedToId: assignEl.value || null } : {}),
       notes: document.getElementById('mf-notes').value,
     };
     const r = l ? await api('PATCH', `/api/shipment-leads/${l.id}`, body) : await api('POST', '/api/shipment-leads', body);
@@ -1844,7 +1849,7 @@ async function renderBookShipment() {
         <div class="empty"><div class="empty-icon">📦</div><div class="empty-title">No Bookings Yet</div><div class="empty-sub">Click "+ New Booking" to create a shipment</div></div>
       ` : `
         <table><thead><tr>
-          <th>Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Shipment Type</th><th>Mode</th><th>Status</th><th>Amount</th><th>Created</th>
+          <th>Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Shipment Type</th><th>Mode</th><th>Status</th><th>Amount</th><th>Assigned</th><th>Created</th>
         </tr></thead><tbody>
           ${leads.map(l => `<tr onclick="showBookShipmentDetail('${l.id}')" style="cursor:pointer">
             <td><code style="font-size:12px;background:var(--blue-bg);color:var(--blue);padding:2px 7px;border-radius:5px">${esc(l.leadId)}</code></td>
@@ -1855,6 +1860,7 @@ async function renderBookShipment() {
             <td>${l.shipmentMode?badge(l.shipmentMode):'-'}</td>
             <td>${badge(l.status)}</td>
             <td>${l.freightCharge ? fmtCur(l.freightCharge, l.currency) : '-'}</td>
+            <td>${esc(l.assignedTo?.name||'—')}</td>
             <td><span class="sub">${fmtDate(l.createdAt)}</span></td>
           </tr>`).join('')}
         </tbody></table>
@@ -2003,6 +2009,7 @@ async function openBookShipmentModal(l) {
       const val = valStr.split(',').map(s=>parseFloat(s.trim())||0).reduce((a,b)=>a+b,0);
       packingRows.push({ type:gv('type'), unit:gv('unit'), length:gv('length'), width:gv('width'), height:gv('height'), volWeight:gv('volweight'), description:gv('description'), qty, declaredValues:valStr, total:qty*val });
     });
+    const assignEl = document.getElementById('mf-assigned');
     const body = {
       source: 'booking',
       customerName: document.getElementById('mf-name').value,
@@ -2026,7 +2033,7 @@ async function openBookShipmentModal(l) {
       packingList: packingRows.length ? packingRows : null,
       expectedPickup: document.getElementById('mf-pickup').value||null,
       currency: 'INR',
-      assignedToId: document.getElementById('mf-assigned')?.value || null,
+      ...(assignEl ? { assignedToId: assignEl.value || null } : {}),
       notes: document.getElementById('mf-notes').value,
     };
     const r = l ? await api('PATCH', `/api/shipment-leads/${l.id}`, body) : await api('POST', '/api/shipment-leads', body);
