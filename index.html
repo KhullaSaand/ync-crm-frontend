@@ -1752,7 +1752,7 @@ function renderTrackingModal() {
           ${s.location ? `<div class="tl-loc">📍 ${esc(s.location)}</div>` : ''}
           <div class="tl-date">${fmtDate(s.timestamp || s.status_date)}</div>
         </div>
-        <button class="tl-del" onclick="deleteTrackingEntry('${s.id || i}')" title="Delete">✕</button>
+        <button class="tl-del" onclick="deleteTrackingEntry(${i})" title="Delete">✕</button>
       </div>`).join('')
     : '<div style="text-align:center;padding:20px;color:var(--gray2);font-size:13px">No tracking entries yet. Add one below.</div>';
 
@@ -1798,13 +1798,20 @@ async function addTrackingEntry() {
   renderTrackingModal();
 }
 
-async function deleteTrackingEntry(entryId) {
+async function deleteTrackingEntry(idx) {
+  const entry = _trackTimeline[idx];
+  if (!entry) return;
   if (!confirm('Delete this status entry?')) return;
-  const r = await api('DELETE', `/api/tracking/${_trackId}/statuses/${entryId}`);
-  if (!r?.success) { toast(r?.error || 'Error deleting', 'error'); return; }
-  _trackTimeline = _trackTimeline.filter(s => s.id !== entryId);
-  toast('Status deleted', 'success');
-  renderTrackingModal();
+  const key = entry.id ?? idx;
+  try {
+    const r = await api('DELETE', `/api/tracking/${_trackId}/statuses/${key}`);
+    if (!r?.success) { toast(r?.error || 'Error deleting entry', 'error'); return; }
+    _trackTimeline.splice(idx, 1);
+    toast('Status deleted', 'success');
+    renderTrackingModal();
+  } catch (e) {
+    toast('Could not delete entry', 'error');
+  }
 }
 
 // ─── BOOK A SHIPMENT ─────────────────────────────────────────────────────────
