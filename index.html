@@ -752,7 +752,7 @@ async function renderQuoteLeads() {
       </div>
     </div>
     ${items.length ? `<table><thead><tr>
-      <th>ID</th><th>Customer</th><th>Category</th><th>Route</th><th>Mode</th><th>Cargo</th><th>Dimensions</th><th>Weight</th><th>Quoted</th><th>Status</th><th>Assigned</th>
+      <th>ID</th><th>Customer</th><th>Category</th><th>Route</th><th>Mode</th><th>Tracking</th><th>Quoted</th><th>Status</th><th>Assigned</th>
     </tr></thead><tbody>
     ${items.map(l=>`<tr onclick="viewQuoteLead('${l.id}')">
       <td><span style="font-family:monospace;font-size:12px;color:#888">${esc(l.leadId||'—')}</span></td>
@@ -760,9 +760,7 @@ async function renderQuoteLeads() {
       <td>${l.category?`<span class="badge badge-${l.category}">${fmtStatus(l.category)}</span>`:'—'}</td>
       <td><div class="cell-name">${esc(l.origin||'?')}${l.originPincode?' <span style=color:var(--gray2)>('+esc(l.originPincode)+')</span>':''} → ${esc(l.destination||'?')}${l.destinationPincode?' <span style=color:var(--gray2)>('+esc(l.destinationPincode)+')</span>':''}</div></td>
       <td>${l.shipmentMode?badge(l.shipmentMode):'—'}</td>
-      <td>${esc(l.cargoType||'—')}</td>
-      <td>${l.dimensions?esc(l.dimensions.replace(/x/g,'×')):'—'}</td>
-      <td>${l.weight?l.weight+' kg':'—'}</td>
+      <td>${l.tracking?.trackingId?`<span style="font-family:monospace;font-size:12px;font-weight:700;color:var(--green)">${esc(l.tracking.trackingId)}</span>`:'—'}</td>
       <td>${l.quotedAmount?fmtCur(l.quotedAmount):'—'}</td>
       <td>${badge(l.status)}</td>
       <td>${esc(l.assignedTo?.name||'—')}</td>
