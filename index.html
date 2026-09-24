@@ -138,6 +138,7 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .badge-quoted{background:var(--yellow-bg);color:var(--yellow)}
 .badge-follow_up{background:#fff7ed;color:#c2410c}
 .badge-shipment_booked{background:var(--green-bg);color:var(--green)}
+.badge-delivered{background:#052e16;color:#86efac}
 .badge-cancelled{background:#fee2e2;color:#dc2626}
 /* task */
 .badge-pending{background:var(--yellow-bg);color:var(--yellow)}
@@ -735,7 +736,7 @@ async function renderQuoteLeads() {
   if (curCategoryFilter) url += `&category=${curCategoryFilter}`;
   const r = await api('GET', url);
   const items = r?.data || []; const pg = r?.pagination || {};
-  const statusOpts = ['','new_inquiry','quoted','follow_up','shipment_booked','cancelled'];
+  const statusOpts = ['','new_inquiry','quoted','follow_up','shipment_booked','delivered','cancelled'];
   const modeOpts   = ['','air','sea','road','courier'];
   document.getElementById('content').innerHTML = `
   <div class="table-card">
@@ -858,7 +859,7 @@ async function renderShipmentLeads() {
   if (curFilter.mode)   url += `&mode=${curFilter.mode}`;
   const r = await api('GET', url);
   const items = r?.data || []; const pg = r?.pagination || {};
-  const statusOpts = ['','new_inquiry','quoted','follow_up','shipment_booked','cancelled'];
+  const statusOpts = ['','new_inquiry','quoted','follow_up','shipment_booked','delivered','cancelled'];
   const modeOpts   = ['','air','sea','road','courier'];
   document.getElementById('content').innerHTML = `
   <div class="table-card">
@@ -1369,7 +1370,7 @@ async function openQuoteLeadModal(l) {
     <div class="fg"><label>Phone</label><input id="mf-phone" value="${esc(l?.phone||'')}"/></div></div>
     <div class="form-row"><div class="fg"><label>Email</label><input id="mf-email" type="email" value="${esc(l?.email||'')}"/></div>
     <div class="fg"><label>Status</label><select id="mf-status">
-      ${['new_inquiry','quoted','follow_up','shipment_booked','cancelled'].map(s=>`<option value="${s}" ${(l?.status||'new_inquiry')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
+      ${['new_inquiry','quoted','follow_up','shipment_booked','delivered','cancelled'].map(s=>`<option value="${s}" ${(l?.status||'new_inquiry')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
     </select></div></div>
     ${me?.role !== 'sales_rep' ? `<div class="fg"><label>Assigned To</label>${assignDropdown(l?.assignedToId||'')}</div>` : ''}
   </div>
@@ -1573,7 +1574,7 @@ async function openShipmentLeadModal(l) {
   <div class="form-row"><div class="fg"><label>Expected Pickup</label><input id="mf-pickup" type="date" value="${l?.expectedPickup?l.expectedPickup.slice(0,10):''}"/></div>
   <div class="fg"><label>Expected Delivery</label><input id="mf-delivery" type="date" value="${l?.expectedDelivery?l.expectedDelivery.slice(0,10):''}"/></div></div>
   <div class="form-row"><div class="fg"><label>Status</label><select id="mf-status">
-    ${['new_inquiry','quoted','follow_up','shipment_booked','cancelled'].map(s=>`<option value="${s}" ${(l?.status||'new_inquiry')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
+    ${['new_inquiry','quoted','follow_up','shipment_booked','delivered','cancelled'].map(s=>`<option value="${s}" ${(l?.status||'new_inquiry')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
   </select></div>
   <div class="fg"><label>Currency</label><select id="mf-currency">
     ${['INR','USD','AED','GBP','EUR'].map(c=>`<option value="${c}" ${(l?.currency||'INR')===c?'selected':''}>${c}</option>`).join('')}
@@ -1711,7 +1712,7 @@ function badge(s) { return `<span class="badge badge-${s}">${fmtStatus(s)}</span
 function fmtStatus(s) {
   const map = {
     prospect:'Prospect', qualified:'Qualified', hot_lead:'Hot Lead', negotiation:'Negotiation', won:'Won', lost:'Lost', cold:'Cold',
-    new_inquiry:'New Inquiry', quoted:'Quoted', follow_up:'Follow Up', shipment_booked:'Shipment Booked', cancelled:'Cancelled',
+    new_inquiry:'New Inquiry', quoted:'Quoted', follow_up:'Follow Up', shipment_booked:'Shipment Booked', delivered:'Delivered', cancelled:'Cancelled',
     pending:'Pending', in_progress:'In Progress', completed:'Completed', overdue:'Overdue',
     high:'High', medium:'Medium', low:'Low',
     air:'Air', sea:'Sea', road:'Road', courier:'Courier',
