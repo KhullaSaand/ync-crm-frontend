@@ -1337,7 +1337,8 @@ async function openContactModal(c) {
     const r = c ? await api('PATCH', `/api/contacts/${c.id}`, body) : await api('POST', '/api/contacts', body);
     if (!r?.success) { toast(r?.error || 'Error saving contact', 'error'); return; }
     toast(c ? 'Contact updated!' : 'Contact created!', 'success');
-    closeModal(); renderContacts();
+    closeModal();
+    if (c) viewContact(c.id); else renderContacts();
   });
 }
 function editContact(c) { openContactModal(c); }
@@ -1481,7 +1482,8 @@ async function openQuoteLeadModal(l) {
     const r = l ? await api('PATCH', `/api/quote-leads/${l.id}`, body) : await api('POST', '/api/quote-leads', body);
     if (!r?.success) { toast(r?.error || 'Error saving lead', 'error'); return; }
     toast(l ? 'Quote lead updated!' : 'Quote lead created!', 'success');
-    closeModal(); renderQuoteLeads();
+    closeModal();
+    if (l) viewQuoteLead(l.id); else renderQuoteLeads();
   });
   setTimeout(() => updateQuoteLeadFields(), 0);
 }
@@ -1607,7 +1609,8 @@ async function openShipmentLeadModal(l) {
     const r = l ? await api('PATCH', `/api/shipment-leads/${l.id}`, body) : await api('POST', '/api/shipment-leads', body);
     if (!r?.success) { toast(r?.error || 'Error saving lead', 'error'); return; }
     toast(l ? 'Shipment lead updated!' : 'Shipment lead created!', 'success');
-    closeModal(); renderShipmentLeads();
+    closeModal();
+    if (l) viewShipmentLead(l.id); else renderShipmentLeads();
   });
 }
 function editShipmentLead(l) { openShipmentLeadModal(l); }
@@ -2046,7 +2049,8 @@ async function openBookShipmentModal(l) {
     if (!r?.success) { toast(r?.error || 'Error saving booking', 'error'); return; }
     _invalidateBookCache();
     toast(l ? 'Booking updated!' : 'Booking created!', 'success');
-    closeModal(); renderBookShipment();
+    closeModal();
+    if (l) showBookShipmentDetail(l.id); else renderBookShipment();
   });
   if (packing.length) { packing.forEach(row => addPackingRow(row)); } else { addPackingRow(); }
   if (l?.shipmentType) { document.getElementById('mf-shipment-type').value = l.shipmentType; onShipmentTypeChange(); setTimeout(()=>{ if(l?.shipmentMode) document.getElementById('mf-shipment-mode').value=l.shipmentMode; },50); }
@@ -2172,6 +2176,7 @@ async function lookupLead() {
 }
 
 async function showBookShipmentDetail(id) {
+  _viewingDetail = true;
   const r = await api('GET', `/api/shipment-leads/${id}`);
   if (!r?.success) { toast('Lead not found', 'error'); return; }
   const l = r.data;
