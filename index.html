@@ -790,7 +790,7 @@ async function viewQuoteLead(id) {
       <div class="dp-actions">
         ${t ? `<button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(t.timeline||[]).replace(/"/g,'&quot;')},'${l.id}','quote')">📦 Manage Tracking</button>` : ''}
         <button class="btn-edit" onclick="editQuoteLead(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏️ Edit</button>
-        ${me.role!=='sales_rep'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteQuoteLead('${l.id}')">Delete</button>`:''}
+        ${me.role==='admin'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteQuoteLead('${l.id}')">Delete</button>`:''}
       </div>
     </div>
     <div class="dp-fields">
@@ -911,7 +911,7 @@ async function viewShipmentLead(id) {
       <div class="dp-actions">
         ${t ? `<button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(t.timeline||[]).replace(/"/g,'&quot;')},'${l.id}','shipment')">📦 Manage Tracking</button>` : ''}
         <button class="btn-edit" onclick="editShipmentLead(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏️ Edit</button>
-        ${me.role!=='sales_rep'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteShipmentLead('${l.id}')">Delete</button>`:''}
+        ${me.role==='admin'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteShipmentLead('${l.id}')">Delete</button>`:''}
       </div>
     </div>
     <div class="dp-fields">
@@ -2210,7 +2210,7 @@ async function showBookShipmentDetail(id) {
       ${!l.delhiveryLr ? `<button class="btn-book" onclick="confirmBookShipment('${l.id}')">🚚 Book Shipment</button>` : ''}
       ${l.delhiveryLr ? `<button class="btn-label" onclick="downloadLabel('${l.delhiveryLr}')">🏷️ Download Label</button>` : ''}
       <button class="btn-edit" onclick="editBookShipmentById('${l.id}')">✏️ Edit</button>
-      ${me?.role!=='sales_rep'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteBookShipment('${l.id}')">Delete</button>`:''}
+      ${me?.role==='admin'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteBookShipment('${l.id}')">Delete</button>`:''}
     </div>
   </div>
 
