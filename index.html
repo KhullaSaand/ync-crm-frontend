@@ -4,9 +4,6 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>YNC CRM</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet"/>
 <style>
 :root{
   --brand:#8B0000;
@@ -312,84 +309,73 @@ td.actions-col>*+*,th.actions-col>*+*{margin-left:6px}
 .badge-due{background:#fef2f2;color:#dc2626}
 .inv-toolbar{max-width:760px;margin:0 auto 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);padding:10px 18px;border:1px solid var(--gray3);border-radius:12px;box-shadow:0 1px 2px rgba(15,23,42,.05)}
 .inv-toolbar-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--gray);font-weight:500}
-.pill-verified{display:inline-flex;align-items:center;align-items:center;padding:3px 11px;border-radius:999px;background:#ecfdf5;color:#047857;font-size:11.5px;font-weight:700}
+.pill-verified{display:inline-flex;align-items:center;align-items:center;padding:3px 11px;border-radius:999px;background:#ecfdf5;color:#047857;font-size:11.5px;font-weight:600}
 .pill-verified .dot{width:6px;height:6px;border-radius:50%;background:#10b981;margin-right:6px;display:inline-block}
-.inv-btn-dark{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;background:#0f172a;color:#fff;border:none;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;transition:background .15s}
+.inv-btn-dark{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;background:#0f172a;color:#fff;border:none;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .15s}
 .inv-btn-dark:hover{background:#1e293b}
-.inv-btn-light{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;background:#fff;color:#334155;border:1px solid #cbd5e1;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;transition:background .15s}
+.inv-btn-light{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;background:#fff;color:#334155;border:1px solid #cbd5e1;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .15s}
 .inv-btn-light:hover{background:#f8fafc}
-.inv-btn-danger{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;background:#fff;color:#dc2626;border:1px solid #fecaca;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;transition:background .15s}
+.inv-btn-danger{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;background:#fff;color:#dc2626;border:1px solid #fecaca;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .15s}
 .inv-btn-danger:hover{background:#fef2f2}
 .invoice-page{max-width:760px;margin:0 auto;background:#fff;border:1px solid var(--gray3);border-radius:14px;box-shadow:0 14px 34px rgba(15,23,42,.08);padding:36px 40px;color:#0f172a}
 .inv-head{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}
-.inv-brand{display:flex;align-items:center}
-.inv-ync-logo{font-size:30px;font-weight:900;letter-spacing:-1px;color:#991b1b;display:flex;align-items:flex-start;line-height:1}
-.inv-ync-logo .cpart{color:#b91c1c}
-.inv-ync-logo .up{width:15px;height:15px;color:#dc2626;margin-left:1px;margin-top:-2px;display:inline-block;fill:currentColor}
+.inv-logo-img{height:54px;width:auto;display:block}
 .inv-logo-div{border-left:1px solid #cbd5e1;padding-left:10px;margin-left:9px;line-height:1.15}
-.inv-brand-name{display:block;font-size:15px;font-weight:900;letter-spacing:.08em;color:#1e293b}
-.inv-brand-tag{display:block;font-size:8px;font-weight:800;letter-spacing:.18em;color:#64748b;text-transform:uppercase;margin-top:2px}
-.inv-cmeta{font-size:12px;color:#475569;line-height:1.65;margin-top:14px}
+.inv-cmeta{font-size:12px;color:#475569;line-height:1.65;margin-top:16px}
 .inv-cmeta p{margin:1px 0}
-.inv-company{font-size:14px;font-weight:800;color:#0f172a;letter-spacing:-.2px}
+.inv-company{font-size:14.5px;font-weight:600;color:#0f172a;letter-spacing:-.2px}
 .inv-title{display:flex;flex-direction:column;align-items:flex-end}
-.inv-title h1{font-size:27px;font-weight:900;letter-spacing:-.5px;margin:0;text-transform:uppercase;color:#111}
+.inv-title h1{font-size:27px;font-weight:700;letter-spacing:-.3px;margin:0;text-transform:uppercase;color:#111}
 .inv-title .bar{height:4px;background:#991b1b;border-radius:4px;margin-top:6px;width:100%}
 .inv-meta{background:#edf5fd;border:1px solid #dbeafe;border-radius:9px;padding:11px 14px;margin-top:13px;width:250px;font-size:11.5px;color:#334155}
 .inv-meta .row{display:flex;justify-content:space-between;gap:10px;padding:2.5px 0}
 .inv-meta .row span{color:#64748b;font-weight:500;white-space:nowrap}
-.inv-meta .row b{color:#0f172a;text-align:right}
+.inv-meta .row b{color:#0f172a;text-align:right;font-weight:600}
 .inv-billto{background:#edf5fd;border:1px solid #dbeafe;border-radius:9px;padding:12px 16px;margin-top:20px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
 .inv-billto .who{display:flex;align-items:center;gap:12px}
 .inv-avatar{width:34px;height:34px;border-radius:9px;background:#dbeafe;color:#2563eb;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.inv-klabel{font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#64748b;display:block}
-.inv-billto h2{font-size:16.5px;font-weight:800;margin:1px 0 0;color:#111}
-.inv-waybill{text-align:right;font-size:11.5px;font-weight:800;color:#0f172a}
+.inv-klabel{font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#64748b;display:block}
+.inv-billto h2{font-size:16.5px;font-weight:600;margin:1px 0 0;color:#111}
+.inv-waybill{text-align:right;font-size:11.5px;font-weight:600;color:#0f172a}
 .inv-waybill .sub{font-size:10.5px;font-weight:500;color:#64748b;margin-top:3px}
 .inv-num{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.03em}
 .inv-table{width:100%;border-collapse:collapse;margin-top:18px}
-.inv-table th{background:#e2edf8;color:#475569;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;padding:9px 12px;text-align:left}
+.inv-table th{background:#e2edf8;color:#475569;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;padding:9px 12px;text-align:left}
 .inv-table th.r,.inv-table td.r{text-align:right}
 .inv-table th.c,.inv-table td.c{text-align:center}
 .inv-table td{padding:13px 12px;font-size:12.5px;border-bottom:1px solid #f1f5f9;vertical-align:top;color:#334155}
-.inv-item-name{font-weight:800;color:#0f172a;font-size:13.5px}
+.inv-item-name{font-weight:600;color:#0f172a;font-size:13.5px}
 .inv-item-sub{font-size:11px;color:#64748b;margin-top:3px;line-height:1.55;max-width:430px}
+.inv-num{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.03em}
 .inv-summary{display:grid;grid-template-columns:1.35fr 1fr;gap:20px;margin-top:26px;padding-top:16px;border-top:1px solid var(--gray3)}
 .inv-words{background:#f8fafc;border:1px solid var(--gray3);border-radius:9px;padding:13px 15px}
-.inv-words .k{font-size:9.5px;font-weight:800;letter-spacing:.09em;color:#64748b;text-transform:uppercase;display:block}
-.inv-words p{margin:5px 0 0;font-size:13px;font-weight:800;font-style:italic;color:#991b1b}
+.inv-words .k{font-size:9.5px;font-weight:600;letter-spacing:.09em;color:#64748b;text-transform:uppercase;display:block}
+.inv-words p{margin:5px 0 0;font-size:13px;font-weight:600;font-style:italic;color:#991b1b}
 .inv-thanks{display:flex;gap:8px;align-items:flex-start;color:#475569;font-size:11.5px;margin-top:14px;line-height:1.6}
 .inv-totals{display:flex;flex-direction:column;gap:7px;font-size:12.5px}
 .inv-trow{display:flex;justify-content:space-between;padding:3px 6px;color:#334155;font-weight:500}
 .inv-trow .v{font-family:ui-monospace,Menlo,Consolas,monospace;color:#0f172a}
-.inv-total-box{display:flex;justify-content:space-between;align-items:center;background:#dbeafe;color:#0f172a;font-weight:900;padding:9px 13px;border-radius:8px;margin-top:5px;font-size:14px}
+.inv-total-box{display:flex;justify-content:space-between;align-items:center;background:#dbeafe;color:#0f172a;font-weight:700;padding:9px 13px;border-radius:8px;margin-top:5px;font-size:14px}
 .inv-total-box .amt{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px}
 .inv-balance{background:#991b1b;color:#fff;border-radius:8px;padding:10px 13px;display:flex;justify-content:space-between;align-items:center;margin-top:8px;box-shadow:0 1px 3px rgba(153,27,27,.35)}
 .inv-balance.is-paid{background:#047857;box-shadow:0 1px 3px rgba(4,120,87,.35)}
-.inv-balance .lbl{font-size:9.5px;font-weight:900;text-transform:uppercase;letter-spacing:.07em}
+.inv-balance .lbl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
 .inv-balance .sub{font-size:9.5px;color:#fecaca;font-weight:500;margin-top:2px}
 .inv-balance.is-paid .sub{color:#d1fae5}
-.inv-balance .amt{font-size:18px;font-weight:900;font-family:ui-monospace,Menlo,Consolas,monospace}
-.inv-footer{margin-top:28px;padding-top:18px;border-top:1px solid var(--gray3);display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.inv-fbox{background:#f8fafc;border:1px solid var(--gray3);border-radius:9px;padding:14px 16px}
-.inv-fbox-head{display:flex;align-items:center;gap:7px;font-weight:800;font-size:12.5px;color:#0f172a;padding-bottom:8px;margin-bottom:9px;border-bottom:1px solid #e2e8f0}
+.inv-balance .amt{font-size:18px;font-weight:700;font-family:ui-monospace,Menlo,Consolas,monospace}
+.inv-footer{margin-top:28px;padding-top:18px;border-top:1px solid var(--gray3)}
+.inv-fbox{background:#f8fafc;border:1px solid var(--gray3);border-radius:9px;padding:14px 16px;display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.inv-fbox-head{display:flex;align-items:center;gap:7px;font-weight:600;font-size:12.5px;color:#0f172a;padding-bottom:8px;margin-bottom:9px;border-bottom:1px solid #e2e8f0}
+.inv-bank-rows{flex:1;min-width:260px}
 .inv-brow{display:grid;grid-template-columns:104px 1fr;gap:3px 8px;font-size:11.5px;padding:2.5px 0}
-.inv-brow .k{color:#64748b;font-weight:600}
-.inv-brow .v{color:#0f172a;font-weight:700;word-break:break-word}
-.inv-qr{width:120px;height:120px;border-radius:8px;border:1px solid var(--gray3);display:block;margin-top:11px;background:#000}
-.inv-qr-cap{font-size:9.5px;color:#64748b;margin-top:5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
-.inv-edi{display:flex;align-items:center;gap:9px}
-.inv-edi-icon{width:30px;height:30px;border-radius:50%;background:#ecfdf5;border:1px solid #a7f3d0;color:#059669;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.inv-edi .t1{font-size:9.5px;font-weight:900;color:#047857;text-transform:uppercase;letter-spacing:.07em}
-.inv-edi .t2{font-size:9.5px;color:#94a3b8;margin-top:1px}
-.inv-sign{text-align:center;margin-top:16px}
-.inv-signature{font-family:'Dancing Script',cursive;font-size:27px;color:#991b1b;line-height:1.25}
-.inv-sign-line{width:210px;height:1px;background:#bfdbfe;margin:7px auto}
-.inv-sign-role{font-size:11px;font-weight:800;color:#0f172a}
-.inv-sign-co{font-size:9.5px;color:#94a3b8;margin-top:2px}
+.inv-brow .k{color:#64748b;font-weight:500}
+.inv-brow .v{color:#0f172a;font-weight:600;word-break:break-word}
+.inv-qr-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center}
+.inv-qr{width:120px;height:120px;border-radius:8px;border:1px solid var(--gray3);display:block;background:#000}
+.inv-qr-cap{font-size:9.5px;color:#64748b;margin-top:5px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;text-align:center}
 .inv-footnote{max-width:760px;margin:16px auto 4px;text-align:center;font-size:11.5px;color:#94a3b8;padding-bottom:12px}
 .inv-line{display:grid;grid-template-columns:1.3fr 1.7fr 64px 96px 28px;gap:6px;margin-bottom:7px;align-items:center}
-.inv-lhead span{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray2)}
+.inv-lhead span{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--gray2)}
 .inv-inp{padding:7px 9px;border:1.5px solid var(--gray3);border-radius:7px;font-size:12.5px;width:100%;box-sizing:border-box;font-family:inherit;color:var(--black);background:#fff}
 .inv-inp:focus{border-color:var(--brand);outline:none}
 .inv-line-del{width:26px;height:26px;border-radius:6px;border:1.5px solid #fecaca;background:#fef2f2;color:#dc2626;cursor:pointer;font-weight:800;font-size:12px;line-height:1;padding:0}
@@ -522,6 +508,7 @@ td.actions-col>*+*,th.actions-col>*+*{margin-left:6px}
 <!-- TOAST -->
 <div id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.min.js"></script>
 <script>
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 const API = 'https://ync-crm-backend.vercel.app';
@@ -1875,15 +1862,6 @@ function invMoney(n) { if (n == null || isNaN(Number(n))) return '₹0.00'; retu
 function fmtINVDate(d) { if (!d) return '—'; const dt = new Date(d); if (isNaN(dt.getTime())) return '—'; const p = x => String(x).padStart(2, '0'); return `${p(dt.getDate())}/${p(dt.getMonth() + 1)}/${dt.getFullYear()}`; }
 function payBadge(s) { const m = { paid: 'Paid', partial: 'Partial', due: 'Due' }; return `<span class="badge badge-${s}">${m[s] || esc(s)}</span>`; }
 function invBalance(inv) { return Math.max(0, Math.round(((Number(inv.total) || 0) - (Number(inv.amountPaid) || 0)) * 100) / 100); }
-function invHash(str) {
-  let h = 5381;
-  for (let i = 0; i < str.length; i++) { h = (((h << 5) + h) + str.charCodeAt(i)) >>> 0; }
-  const g = (Math.imul(h, 2654435761)) >>> 0;
-  const x = h.toString(16).padStart(8, '0');
-  const y = g.toString(16).padStart(8, '0');
-  const z = (h ^ g).toString(16).padStart(8, '0');
-  return `${x.slice(0, 4)}-${y.slice(0, 4)}-${z.slice(0, 4)}`.toUpperCase();
-}
 function invWords(num) {
   const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
   const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
@@ -1953,7 +1931,6 @@ async function viewInvoice(id) {
   if (!inv) { toast('Invoice not found', 'error'); nav('invoices'); return; }
   const items = Array.isArray(inv.items) ? inv.items : [];
   const balance = invBalance(inv);
-  const hash = invHash(String(inv.id) + String(inv.invoiceNo));
   const words = invWords(Number(inv.total) || 0);
   const dueSub = (inv.terms === 'Due on Receipt') ? 'Payable Immediately' : 'Payable by ' + fmtINVDate(inv.dueDate);
   window._invEditData = inv;
@@ -1967,7 +1944,7 @@ async function viewInvoice(id) {
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="inv-btn-dark" onclick="window.print()">🖨 Print Invoice</button>
-      <button class="inv-btn-light" onclick="window.print()">⬇ Download PDF</button>
+      <button class="inv-btn-light" onclick="downloadInvoicePdf(this)">⬇ Download PDF</button>
       ${balance > 0 ? `<button class="inv-btn-light" onclick="recordPayment('${inv.id}')">💰 Record Payment</button>` : ''}
       <button class="inv-btn-light" onclick="openInvoiceModal(window._invEditData)">✏️ Edit</button>
       ${me?.role === 'admin' ? `<button class="inv-btn-danger" onclick="deleteInvoice('${inv.id}')">🗑 Delete</button>` : ''}
@@ -1976,15 +1953,12 @@ async function viewInvoice(id) {
   <main class="invoice-page">
     <header class="inv-head">
       <div>
-        <div class="inv-brand">
-          <div class="inv-ync-logo">yn<span class="cpart">c<svg class="up" viewBox="0 0 24 24"><path d="M12 3.5l7.5 9.5H14v7.5h-8V13H4.5z"/></svg></span></div>
-          <div class="inv-logo-div"><span class="inv-brand-name">YNC</span><span class="inv-brand-tag">Your Next Courier</span></div>
-        </div>
+        <img class="inv-logo-img" src="assets/ync-logo.png" alt="YNC - Your Next Courier"/>
         <div class="inv-cmeta">
           <p class="inv-company">Kharjahrin Associates Pvt Ltd</p>
           <p>Gujarat, India</p>
-          <p><a href="mailto:dariti@yournextcourier.com" style="color:#2563eb;text-decoration:none">dariti@yournextcourier.com</a></p>
-          <p style="font-size:11px;font-weight:700;color:#334155">GSTIN: <span class="inv-num">24AAACK1234F1Z5</span></p>
+          <p><a href="mailto:sales@yournextcourier.com" style="color:#2563eb;text-decoration:none">sales@yournextcourier.com</a></p>
+          <p style="font-size:11px;font-weight:600;color:#334155">GSTIN: <span class="inv-num">24AAACK1234F1Z5</span></p>
         </div>
       </div>
       <div class="inv-title">
@@ -2015,7 +1989,6 @@ async function viewInvoice(id) {
       <div>
         <div class="inv-waybill">Consignment Waybill: <span class="inv-num">#${esc(inv.waybill || '—')}</span></div>
         <div class="inv-waybill sub">${esc(inv.serviceDesc || '')}</div>
-        ${inv.sourceLeadId ? `<div class="inv-waybill sub">Lead: <span class="inv-num">${esc(inv.sourceLeadId)}</span></div>` : ''}
       </div>
     </section>
 
@@ -2027,7 +2000,7 @@ async function viewInvoice(id) {
           <td><div class="inv-item-name">${esc(it.description)}</div>${it.details ? `<div class="inv-item-sub">${esc(it.details)}</div>` : ''}</td>
           <td class="r inv-num">${(Number(it.qty) || 0).toFixed(2)}</td>
           <td class="r inv-num">${(Number(it.rate) || 0).toFixed(2)}</td>
-          <td class="r inv-num" style="font-weight:800;font-size:13px;color:#0f172a">${((Number(it.qty) || 0) * (Number(it.rate) || 0)).toFixed(2)}</td>
+          <td class="r inv-num" style="font-weight:600;font-size:13px;color:#0f172a">${((Number(it.qty) || 0) * (Number(it.rate) || 0)).toFixed(2)}</td>
         </tr>`).join('')}
       </tbody>
     </table>
@@ -2055,26 +2028,16 @@ async function viewInvoice(id) {
 
     <footer class="inv-footer">
       <div class="inv-fbox">
-        <div class="inv-fbox-head">🏦 Payment Remittance Details</div>
-        <div class="inv-brow"><span class="k">Bank:</span><span class="v">IndusInd Bank</span></div>
-        <div class="inv-brow"><span class="k">Account Name:</span><span class="v">KHARJAHRIN ASSOCIATES PRIVATE LIMITED</span></div>
-        <div class="inv-brow"><span class="k">Account No:</span><span class="v inv-num">259862090339</span></div>
-        <div class="inv-brow"><span class="k">IFSC Code:</span><span class="v inv-num">INDB0000880</span></div>
-        <img class="inv-qr" src="assets/invoice-qr.jpeg" alt="PhonePe UPI QR - KHARJAHRIN ASSOCIATES PRIVATE LIMITED"/>
-        <div class="inv-qr-cap">Scan to pay • PhonePe / UPI accepted</div>
-      </div>
-      <div class="inv-fbox">
-        <div class="inv-edi">
-          <div class="inv-edi-icon">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-          </div>
-          <div><div class="t1">Digital EDI Authenticated</div><div class="t2">SHA256: ${hash}</div></div>
+        <div class="inv-bank-rows">
+          <div class="inv-fbox-head">🏦 Payment Remittance Details</div>
+          <div class="inv-brow"><span class="k">Bank:</span><span class="v">IndusInd Bank</span></div>
+          <div class="inv-brow"><span class="k">Account Name:</span><span class="v">KHARJAHRIN ASSOCIATES PRIVATE LIMITED</span></div>
+          <div class="inv-brow"><span class="k">Account No:</span><span class="v inv-num">259862090339</span></div>
+          <div class="inv-brow"><span class="k">IFSC Code:</span><span class="v inv-num">INDB0000880</span></div>
         </div>
-        <div class="inv-sign">
-          <div class="inv-signature">Dariti Kharjahrin</div>
-          <div class="inv-sign-line"></div>
-          <div class="inv-sign-role">Authorized Signatory</div>
-          <div class="inv-sign-co">Kharjahrin Associates Pvt Ltd</div>
+        <div class="inv-qr-wrap">
+          <img class="inv-qr" src="assets/invoice-qr.jpeg" alt="PhonePe UPI QR - KHARJAHRIN ASSOCIATES PRIVATE LIMITED"/>
+          <div class="inv-qr-cap">Scan to pay • PhonePe / UPI accepted</div>
         </div>
       </div>
     </footer>
@@ -2282,6 +2245,33 @@ async function deleteInvoice(id) {
   if (!r?.success) { toast(r?.error || 'Error deleting invoice', 'error'); return; }
   toast('Invoice deleted', 'success');
   nav('invoices');
+}
+
+async function downloadInvoicePdf(btn) {
+  const el = document.querySelector('.invoice-page');
+  if (!el) return;
+  if (typeof html2pdf === 'undefined') {
+    toast('PDF library has not loaded yet — check your connection and try again', 'error');
+    return;
+  }
+  const orig = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Generating…'; }
+  try {
+    const inv = window._invEditData || {};
+    const filename = String(inv.invoiceNo || 'invoice').replace(/[\\/:*?"<>|]/g, '-') + '.pdf';
+    await html2pdf().set({
+      margin: [6, 8],
+      filename,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] },
+    }).from(el).save();
+  } catch (e) {
+    console.error('[PDF]', e);
+    toast('Could not generate PDF', 'error');
+  }
+  if (btn) { btn.disabled = false; btn.innerHTML = orig; }
 }
 
 async function generateInvoiceFromBooking(id) {
