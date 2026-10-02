@@ -294,6 +294,14 @@ th.actions-col,td.actions-col{text-align:right;white-space:nowrap}
 .note-del:hover{background:#fee2e2}
 .note-editor textarea{width:100%;min-height:74px;padding:10px 12px;border:1.5px solid var(--gray3);border-radius:10px;font-size:13.5px;font-family:inherit;resize:vertical;margin-bottom:8px;box-sizing:border-box}
 .note-editor-actions{display:flex;gap:8px;justify-content:flex-end}
+.row-status{display:inline-block;appearance:none;-webkit-appearance:none;padding:3px 20px 3px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M1 1l3 3 3-3' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;max-width:170px;font-family:inherit}
+.row-status:hover:not(:disabled){filter:brightness(.97)}
+.row-status:disabled{cursor:not-allowed;opacity:.75}
+.row-status option{color:#111;background:#fff}
+.btn-save:disabled{opacity:.6;cursor:not-allowed}
+.btn-track{padding:6px 12px;background:var(--green-bg);color:var(--green);border:1.5px solid #bbf7d0;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;transition:filter .15s}
+.btn-track:hover{filter:brightness(.96)}
+td.actions-col>*+*,th.actions-col>*+*{margin-left:6px}
 </style>
 </head>
 <body>
@@ -464,6 +472,8 @@ function startAutoRefresh() {
     if (!token || !curPage || _viewingDetail) return;
     const modalOpen = document.getElementById('modal-overlay')?.classList.contains('show');
     if (modalOpen) return;
+    // don't yank the page away while the user is picking an inline status
+    if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('row-status')) return;
     const pageMap = {
       'dashboard':     ['/api/reports?type=summary', '/api/reports?type=activity&range=month'],
       'contacts':      ['/api/contacts?page=1&limit=15'],
@@ -674,8 +684,10 @@ async function renderContacts() {
   let url = `/api/contacts?page=${curPageNum}&limit=15`;
   if (curSearch) url += `&search=${encodeURIComponent(curSearch)}`;
   if (curFilter.status) url += `&status=${curFilter.status}`;
+  if (curFilter.assignedToId) url += `&assignedToId=${curFilter.assignedToId}`;
   const r = await api('GET', url);
   const items = r?.data || []; const pg = r?.pagination || {};
+  const assignedHtml = await assignedFilterHtml();
   const statusOpts = ['','prospect','qualified','hot_lead','negotiation','won','lost','cold'];
   document.getElementById('content').innerHTML = `
   <div class="table-card">
@@ -685,6 +697,7 @@ async function renderContacts() {
         <select class="filter-select" onchange="setFilter('status',this.value)" value="${curFilter.status||''}">
           ${statusOpts.map(s=>`<option value="${s}" ${curFilter.status===s?'selected':''}>${s?fmtStatus(s):'All Statuses'}</option>`).join('')}
         </select>
+        ${assignedHtml}
       </div>
     </div>
     ${items.length ? `<table><thead><tr>
@@ -694,7 +707,7 @@ async function renderContacts() {
       <td><span style="font-family:monospace;font-size:12px;color:#888">${esc(c.leadId||'—')}</span></td>
       <td><div class="avatar-cell"><div class="av">${c.avatar||c.name?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(c.name)}</div><div class="cell-sub">${esc(c.email||'')}</div></div></div></td>
       <td>${esc(c.company||'—')}</td>
-      <td>${badge(c.status)}</td>
+      <td>${statusSelectHtml('contact', c.status, c.id, lk)}</td>
       <td>${c.dealValue ? fmtCur(c.dealValue) : '—'}</td>
       <td><div class="avatar-cell"><div class="av sm">${c.assignedTo?.avatar||'?'}</div>${esc(c.assignedTo?.name||'—')}</div></td>
       <td>${fmtDate(c.createdAt)}</td>
@@ -752,9 +765,11 @@ async function renderQuoteLeads() {
   if (curSearch) url += `&search=${encodeURIComponent(curSearch)}`;
   if (curFilter.status) url += `&status=${curFilter.status}`;
   if (curFilter.mode)   url += `&mode=${curFilter.mode}`;
+  if (curFilter.assignedToId) url += `&assignedToId=${curFilter.assignedToId}`;
   if (curCategoryFilter) url += `&category=${curCategoryFilter}`;
   const r = await api('GET', url);
   const items = r?.data || []; const pg = r?.pagination || {};
+  const assignedHtml = await assignedFilterHtml();
   const statusOpts = ['','new_inquiry','quoted','follow_up','shipment_booked','delivered','cancelled'];
   const modeOpts   = ['','air','sea','road','courier'];
   document.getElementById('content').innerHTML = `
@@ -765,27 +780,27 @@ async function renderQuoteLeads() {
         <select class="filter-select" onchange="setFilter('status',this.value)">
           ${statusOpts.map(s=>`<option value="${s}" ${curFilter.status===s?'selected':''}>${s?fmtStatus(s):'All Statuses'}</option>`).join('')}
         </select>
+        ${assignedHtml}
         <select class="filter-select" onchange="setFilter('mode',this.value)">
           ${modeOpts.map(m=>`<option value="${m}" ${curFilter.mode===m?'selected':''}>${m?m.toUpperCase():'All Modes'}</option>`).join('')}
         </select>
       </div>
     </div>
     ${items.length ? `<table><thead><tr>
-      <th>ID</th><th>Customer</th><th>Category</th><th>Route</th><th>Mode</th><th>Tracking</th><th>Quoted</th><th>Status</th><th>Assigned</th><th class="actions-col">Actions</th>
+      <th>ID</th><th>Customer</th><th>Route</th><th>Mode</th><th>Tracking</th><th>Quoted</th><th>Status</th><th>Assigned</th><th class="actions-col">Actions</th>
     </tr></thead><tbody>
     ${items.map(l=>{const lk=rowLocked(l);return `<tr>
       <td><span style="font-family:monospace;font-size:12px;color:#888">${esc(l.leadId||'—')}</span></td>
       <td><div class="avatar-cell"><div class="av">${l.customerName?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(l.customerName)}</div><div class="cell-sub">${esc(l.company||l.email||'')}</div></div></div></td>
-      <td>${l.category?`<span class="badge badge-${l.category}">${fmtStatus(l.category)}</span>`:'—'}</td>
       <td><div class="cell-name">${esc(l.origin||'?')}${l.originPincode?' <span style=color:var(--gray2)>('+esc(l.originPincode)+')</span>':''} → ${esc(l.destination||'?')}${l.destinationPincode?' <span style=color:var(--gray2)>('+esc(l.destinationPincode)+')</span>':''}</div></td>
       <td>${l.shipmentMode?badge(l.shipmentMode):'—'}</td>
       <td>${l.tracking?.trackingId?`<span style="font-family:monospace;font-size:12px;font-weight:700;color:var(--green)">${esc(l.tracking.trackingId)}</span>`:'—'}</td>
       <td>${l.quotedAmount?fmtCur(l.quotedAmount):'—'}</td>
-      <td>${badge(l.status)}</td>
+      <td>${statusSelectHtml('quote', l.status, l.id, lk)}</td>
       <td>${esc(l.assignedTo?.name||'—')}</td>
       <td class="actions-col">${lk
         ? `<button type="button" class="btn-view locked" data-name="${esc(l.assignedTo?.name||'')}" onclick="lockedAccess(this)">🔒 Locked</button>`
-        : `<button type="button" class="btn-view" onclick="viewQuoteLead('${l.id}')">👁 View</button>`}</td>
+        : `<button type="button" class="btn-view" onclick="viewQuoteLead('${l.id}')">👁 View</button>${l.tracking?.trackingId?`<button type="button" class="btn-track" title="Manage Tracking" onclick="manageTrackingFromRow('${l.id}','quote')">📦 Tracking</button>`:''}`}</td>
     </tr>`}).join('')}
     </tbody></table>` : emptyState('💬','No quote leads found','Add your first quote lead using the button above')}
     ${pgHtml(pg)}
@@ -877,8 +892,10 @@ async function renderShipmentLeads() {
   if (curSearch) url += `&search=${encodeURIComponent(curSearch)}`;
   if (curFilter.status) url += `&status=${curFilter.status}`;
   if (curFilter.mode)   url += `&mode=${curFilter.mode}`;
+  if (curFilter.assignedToId) url += `&assignedToId=${curFilter.assignedToId}`;
   const r = await api('GET', url);
   const items = r?.data || []; const pg = r?.pagination || {};
+  const assignedHtml = await assignedFilterHtml();
   const statusOpts = ['','new_inquiry','quoted','follow_up','shipment_booked','delivered','cancelled'];
   const modeOpts   = ['','air','sea','road','courier'];
   document.getElementById('content').innerHTML = `
@@ -889,6 +906,7 @@ async function renderShipmentLeads() {
         <select class="filter-select" onchange="setFilter('status',this.value)">
           ${statusOpts.map(s=>`<option value="${s}" ${curFilter.status===s?'selected':''}>${s?fmtStatus(s):'All Statuses'}</option>`).join('')}
         </select>
+        ${assignedHtml}
         <select class="filter-select" onchange="setFilter('mode',this.value)">
           ${modeOpts.map(m=>`<option value="${m}" ${curFilter.mode===m?'selected':''}>${m?m.toUpperCase():'All Modes'}</option>`).join('')}
         </select>
@@ -905,11 +923,11 @@ async function renderShipmentLeads() {
       <td>${esc(l.bookingRef||'—')}</td>
       <td>${esc(l.awbNumber||'—')}</td>
       <td>${l.freightCharge?fmtCur(l.freightCharge):'—'}</td>
-      <td>${badge(l.status)}</td>
+      <td>${statusSelectHtml('shipment', l.status, l.id, lk)}</td>
       <td>${esc(l.assignedTo?.name||'—')}</td>
       <td class="actions-col">${lk
         ? `<button type="button" class="btn-view locked" data-name="${esc(l.assignedTo?.name||'')}" onclick="lockedAccess(this)">🔒 Locked</button>`
-        : `<button type="button" class="btn-view" onclick="viewShipmentLead('${l.id}')">👁 View</button>`}</td>
+        : `<button type="button" class="btn-view" onclick="viewShipmentLead('${l.id}')">👁 View</button>${l.tracking?.trackingId?`<button type="button" class="btn-track" title="Manage Tracking" onclick="manageTrackingFromRow('${l.id}','shipment')">📦 Tracking</button>`:''}`}</td>
     </tr>`}).join('')}
     </tbody></table>` : emptyState('🚢','No shipment leads found','Add your first shipment booking using the button above')}
     ${pgHtml(pg)}
@@ -1167,8 +1185,10 @@ async function renderTasks() {
   if (curSearch) url += `&search=${encodeURIComponent(curSearch)}`;
   if (curFilter.status)   url += `&status=${curFilter.status}`;
   if (curFilter.priority) url += `&priority=${curFilter.priority}`;
+  if (curFilter.assignedToId) url += `&assignedToId=${curFilter.assignedToId}`;
   const r = await api('GET', url);
   const items = r?.data || []; const pg = r?.pagination || {};
+  const assignedHtml = await assignedFilterHtml();
   document.getElementById('content').innerHTML = `
   <div class="table-card">
     <div class="table-header">
@@ -1177,6 +1197,7 @@ async function renderTasks() {
         <select class="filter-select" onchange="setFilter('status',this.value)">
           ${['','pending','in_progress','completed','overdue'].map(s=>`<option value="${s}" ${curFilter.status===s?'selected':''}>${s?fmtStatus(s):'All Statuses'}</option>`).join('')}
         </select>
+        ${assignedHtml}
         <select class="filter-select" onchange="setFilter('priority',this.value)">
           ${['','high','medium','low'].map(p=>`<option value="${p}" ${curFilter.priority===p?'selected':''}>${p?p.charAt(0).toUpperCase()+p.slice(1):'All Priorities'}</option>`).join('')}
         </select>
@@ -1331,7 +1352,16 @@ function showModal(title, bodyHtml, saveCb) {
   modalCb = saveCb;
 }
 function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); modalCb = null; }
-function modalSave() { if (modalCb) modalCb(); }
+let _modalSaving = false;
+function modalSave() {
+  // Prevent double-submit: ignore extra clicks while a save is in flight
+  if (_modalSaving || !modalCb) return;
+  _modalSaving = true;
+  const btn = document.getElementById('modal-save');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  const done = () => { _modalSaving = false; if (btn) { btn.disabled = false; btn.textContent = 'Save'; } };
+  try { Promise.resolve(modalCb()).then(done, done); } catch (e) { done(); }
+}
 
 // Contact Modal
 async function openContactModal(c) {
@@ -1737,6 +1767,51 @@ function fmtDT(d) { if (!d) return ''; const dt = new Date(d); if (isNaN(dt.getT
 function rowLocked(r) { return !!(me && me.role === 'sales_rep' && (!r || !r.assignedTo || r.assignedTo.id !== me.id)); }
 function lockedAccess(btn) { toast('🔒 Assigned to ' + (btn && btn.dataset ? btn.dataset.name : 'another user') + ' — you do not have access to this record.', 'error'); }
 
+// ─── ASSIGNED FILTER (beside All Statuses) ─────────────────────────────────
+async function assignedFilterHtml() {
+  if (me?.role === 'sales_rep') return ''; // reps only see their own leads by default
+  if (!_usersCache || !_usersCache.length) {
+    const r = await api('GET', '/api/users');
+    _usersCache = r?.data || [];
+  }
+  const sel = curFilter.assignedToId || '';
+  return `<select class="filter-select" onchange="setFilter('assignedToId',this.value)">
+    <option value="">All Assigned</option>
+    ${(_usersCache||[]).map(u=>`<option value="${u.id}" ${sel===u.id?'selected':''}>${esc(u.name)}</option>`).join('')}
+  </select>`;
+}
+
+// ─── INLINE STATUS (change status from the list row) ──────────────────────
+const STATUS_OPTS = {
+  contact:  ['prospect','qualified','hot_lead','negotiation','won','lost','cold'],
+  quote:    ['new_inquiry','quoted','follow_up','shipment_booked','delivered','cancelled'],
+  shipment: ['new_inquiry','quoted','follow_up','shipment_booked','delivered','cancelled'],
+};
+function statusSelectHtml(type, status, id, locked) {
+  const opts = (STATUS_OPTS[type] || STATUS_OPTS.quote).slice();
+  if (status && !opts.includes(status)) opts.unshift(status);
+  return `<select class="badge badge-${status||''} row-status" ${locked ? 'disabled title="Assigned to another user"' : ''} onchange="rowStatusChange('${type}','${id}',this.value,this)">
+    ${opts.map(s=>`<option value="${s}" ${s===status?'selected':''}>${fmtStatus(s)}</option>`).join('')}
+  </select>`;
+}
+async function rowStatusChange(type, id, val, sel) {
+  const paths = { contact: '/api/contacts', quote: '/api/quote-leads', shipment: '/api/shipment-leads' };
+  const wasDisabled = sel.disabled;
+  sel.disabled = true;
+  const r = await api('PATCH', `${paths[type]}/${id}`, { status: val });
+  sel.disabled = wasDisabled;
+  if (!r?.success) { toast(r?.error || 'Error updating status', 'error'); renderPage(curPage); return; }
+  sel.className = `badge badge-${val} row-status`;
+  toast('Status updated', 'success');
+}
+
+// ─── MANAGE TRACKING FROM LIST ROW ────────────────────────────────────────
+async function manageTrackingFromRow(leadId, leadType) {
+  const r = await api('GET', `/api/tracking/${leadId}`);
+  if (!r?.success || !r.data) { toast(r?.error || 'No tracking found for this lead yet', 'error'); return; }
+  openTrackingModal(r.data.id, r.data.timeline || [], leadId, leadType, true);
+}
+
 // ─── MULTIPLE NOTES ────────────────────────────────────────────────────────
 const NOTE_API = { contact: '/api/contacts', quote: '/api/quote-leads', shipment: '/api/shipment-leads' };
 function parseNotes(raw) {
@@ -1836,12 +1911,14 @@ let _trackId = null;
 let _trackTimeline = [];
 let _trackLeadId = null;
 let _trackLeadType = null;
+let _trackFromList = false;
 
-function openTrackingModal(trackId, timeline, leadId, leadType) {
+function openTrackingModal(trackId, timeline, leadId, leadType, fromList) {
   _trackId = trackId;
   _trackTimeline = Array.isArray(timeline) ? [...timeline] : [];
   _trackLeadId = leadId;
   _trackLeadType = leadType;
+  _trackFromList = !!fromList;
   renderTrackingModal();
 }
 
@@ -1873,10 +1950,12 @@ function renderTrackingModal() {
 }
 
 function closeTrackingAndRefresh() {
+  const fromList = _trackFromList; _trackFromList = false;
   closeModal();
   if (_trackLeadId && _trackLeadType) {
     invalidateCache('/api/tracking/');
-    if (_trackLeadType === 'quote') viewQuoteLead(_trackLeadId);
+    if (fromList) renderPage(curPage); // opened from a list row — stay on the list
+    else if (_trackLeadType === 'quote') viewQuoteLead(_trackLeadId);
     else if (_trackLeadType === 'shipment') viewShipmentLead(_trackLeadId);
   }
 }
@@ -1966,7 +2045,7 @@ async function renderBookShipment() {
             <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.destination||'-')}</td>
             <td>${l.shipmentType?l.shipmentType.charAt(0).toUpperCase()+l.shipmentType.slice(1):'-'}</td>
             <td>${l.shipmentMode?badge(l.shipmentMode):'-'}</td>
-            <td>${badge(l.status)}</td>
+            <td>${statusSelectHtml('shipment', l.status, l.id, lk)}</td>
             <td>${l.freightCharge ? fmtCur(l.freightCharge, l.currency) : '-'}</td>
             <td>${esc(l.assignedTo?.name||'—')}</td>
             <td><span class="sub">${fmtDate(l.createdAt)}</span></td>
