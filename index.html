@@ -278,6 +278,22 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .tracking-tl-item .tl-del:hover{color:#dc2626;background:#fee2e2}
 .btn-tracking{padding:7px 16px;background:#059669;color:#fff;border-radius:8px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;transition:background .2s}
 .btn-tracking:hover{background:#047857}
+.btn-view{padding:6px 14px;background:var(--brand-bg);color:var(--brand);border:1.5px solid var(--brand-border);border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;transition:filter .15s}
+.btn-view:hover{filter:brightness(.96)}
+.btn-view.locked{background:var(--gray4);color:var(--gray2);border-color:var(--gray3);cursor:not-allowed}
+th.actions-col,td.actions-col{text-align:right;white-space:nowrap}
+.notes-block{margin-top:18px;border-top:1.5px dashed var(--gray3);padding-top:14px}
+.notes-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.notes-head .notes-label{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray2);margin:0}
+.btn-note-add{padding:5px 12px;background:var(--brand-bg);color:var(--brand);border:1.5px solid var(--brand-border);border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn-note-add:hover{filter:brightness(.96)}
+.note-item{position:relative;background:var(--gray4);border:1.5px solid var(--gray3);border-radius:10px;padding:10px 36px 10px 12px;margin-bottom:8px}
+.note-meta{font-size:11.5px;color:var(--gray2);margin-bottom:4px;font-weight:600}
+.note-text{font-size:13.5px;color:var(--gray);white-space:pre-wrap;line-height:1.5;word-break:break-word}
+.note-del{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:6px;border:1.5px solid #fecaca;background:#fef2f2;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;line-height:1}
+.note-del:hover{background:#fee2e2}
+.note-editor textarea{width:100%;min-height:74px;padding:10px 12px;border:1.5px solid var(--gray3);border-radius:10px;font-size:13.5px;font-family:inherit;resize:vertical;margin-bottom:8px;box-sizing:border-box}
+.note-editor-actions{display:flex;gap:8px;justify-content:flex-end}
 </style>
 </head>
 <body>
@@ -367,7 +383,7 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
       <div class="topbar-right">
         <div class="search-box" id="search-wrap" style="display:none">
           <span class="si">🔍</span>
-          <input type="text" id="search-input" placeholder="Search..." oninput="onSearch(this.value)"/>
+          <input type="text" id="search-input" placeholder="Search by name, phone, ID..." oninput="onSearch(this.value)"/>
         </div>
         <button class="btn-add" id="btn-add" style="display:none" onclick="openAddModal()">+ Add</button>
       </div>
@@ -672,9 +688,9 @@ async function renderContacts() {
       </div>
     </div>
     ${items.length ? `<table><thead><tr>
-      <th>ID</th><th>Name</th><th>Company</th><th>Status</th><th>Deal Value</th><th>Assigned To</th><th>Created</th>
+      <th>ID</th><th>Name</th><th>Company</th><th>Status</th><th>Deal Value</th><th>Assigned To</th><th>Created</th><th class="actions-col">Actions</th>
     </tr></thead><tbody>
-    ${items.map(c=>`<tr onclick="viewContact('${c.id}')">
+    ${items.map(c=>{const lk=rowLocked(c);return `<tr>
       <td><span style="font-family:monospace;font-size:12px;color:#888">${esc(c.leadId||'—')}</span></td>
       <td><div class="avatar-cell"><div class="av">${c.avatar||c.name?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(c.name)}</div><div class="cell-sub">${esc(c.email||'')}</div></div></div></td>
       <td>${esc(c.company||'—')}</td>
@@ -682,7 +698,10 @@ async function renderContacts() {
       <td>${c.dealValue ? fmtCur(c.dealValue) : '—'}</td>
       <td><div class="avatar-cell"><div class="av sm">${c.assignedTo?.avatar||'?'}</div>${esc(c.assignedTo?.name||'—')}</div></td>
       <td>${fmtDate(c.createdAt)}</td>
-    </tr>`).join('')}
+      <td class="actions-col">${lk
+        ? `<button type="button" class="btn-view locked" data-name="${esc(c.assignedTo?.name||'')}" onclick="lockedAccess(this)">🔒 Locked</button>`
+        : `<button type="button" class="btn-view" onclick="viewContact('${c.id}')">👁 View</button>`}</td>
+    </tr>`}).join('')}
     </tbody></table>` : emptyState('👥','No contacts found','Add your first contact using the button above')}
     ${pgHtml(pg)}
   </div>`;
@@ -714,7 +733,7 @@ async function viewContact(id) {
       <div class="dp-field"><label>Assigned To</label><span>${esc(c.assignedTo?.name||'—')}</span></div>
       <div class="dp-field"><label>Created</label><span>${fmtDate(c.createdAt)}</span></div>
     </div>
-    ${c.notes?`<div style="margin-top:16px"><div class="dp-field"><label>Notes</label><span>${esc(c.notes)}</span></div></div>`:''}
+    ${notesHtml('contact', c.id, c.notes, 'd')}
   </div>
   ${c.activities?.length?`
   <div class="table-card">
@@ -752,9 +771,9 @@ async function renderQuoteLeads() {
       </div>
     </div>
     ${items.length ? `<table><thead><tr>
-      <th>ID</th><th>Customer</th><th>Category</th><th>Route</th><th>Mode</th><th>Tracking</th><th>Quoted</th><th>Status</th><th>Assigned</th>
+      <th>ID</th><th>Customer</th><th>Category</th><th>Route</th><th>Mode</th><th>Tracking</th><th>Quoted</th><th>Status</th><th>Assigned</th><th class="actions-col">Actions</th>
     </tr></thead><tbody>
-    ${items.map(l=>`<tr onclick="viewQuoteLead('${l.id}')">
+    ${items.map(l=>{const lk=rowLocked(l);return `<tr>
       <td><span style="font-family:monospace;font-size:12px;color:#888">${esc(l.leadId||'—')}</span></td>
       <td><div class="avatar-cell"><div class="av">${l.customerName?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(l.customerName)}</div><div class="cell-sub">${esc(l.company||l.email||'')}</div></div></div></td>
       <td>${l.category?`<span class="badge badge-${l.category}">${fmtStatus(l.category)}</span>`:'—'}</td>
@@ -764,7 +783,10 @@ async function renderQuoteLeads() {
       <td>${l.quotedAmount?fmtCur(l.quotedAmount):'—'}</td>
       <td>${badge(l.status)}</td>
       <td>${esc(l.assignedTo?.name||'—')}</td>
-    </tr>`).join('')}
+      <td class="actions-col">${lk
+        ? `<button type="button" class="btn-view locked" data-name="${esc(l.assignedTo?.name||'')}" onclick="lockedAccess(this)">🔒 Locked</button>`
+        : `<button type="button" class="btn-view" onclick="viewQuoteLead('${l.id}')">👁 View</button>`}</td>
+    </tr>`}).join('')}
     </tbody></table>` : emptyState('💬','No quote leads found','Add your first quote lead using the button above')}
     ${pgHtml(pg)}
   </div>`;
@@ -807,7 +829,7 @@ async function viewQuoteLead(id) {
       <div class="dp-field"><label>Assigned To</label><span>${esc(l.assignedTo?.name||'—')}</span></div>
       <div class="dp-field"><label>Created</label><span>${fmtDate(l.createdAt)}</span></div>
     </div>
-    ${l.notes?`<div style="margin-top:16px"><div class="dp-field"><label>Notes</label><span>${esc(l.notes)}</span></div></div>`:''}
+    ${notesHtml('quote', l.id, l.notes, 'd')}
     ${t && t.timeline?.length ? `<div style="margin-top:20px"><div class="section-title">Tracking Timeline</div><div class="tracking-tl">${t.timeline.map((s,i)=>`<div class="tracking-tl-item"><div class="tl-status">${esc(s.status||s.status_text||'')}</div>${s.location?`<div class="tl-loc">📍 ${esc(s.location)}</div>`:''}<div class="tl-date">${fmtDate(s.timestamp||s.status_date)}</div></div>`).join('')}</div></div>` : ''}
   </div>
   <div class="table-card" style="margin-top:16px">
@@ -873,9 +895,9 @@ async function renderShipmentLeads() {
       </div>
     </div>
     ${items.length ? `<table><thead><tr>
-      <th>ID</th><th>Customer</th><th>Route</th><th>Mode</th><th>Booking Ref</th><th>AWB / Tracking</th><th>Freight</th><th>Status</th><th>Assigned</th>
+      <th>ID</th><th>Customer</th><th>Route</th><th>Mode</th><th>Booking Ref</th><th>AWB / Tracking</th><th>Freight</th><th>Status</th><th>Assigned</th><th class="actions-col">Actions</th>
     </tr></thead><tbody>
-    ${items.map(l=>`<tr onclick="viewShipmentLead('${l.id}')">
+    ${items.map(l=>{const lk=rowLocked(l);return `<tr>
       <td><span style="font-family:monospace;font-size:12px;color:#888">${esc(l.leadId||'—')}</span></td>
       <td><div class="avatar-cell"><div class="av">${l.customerName?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(l.customerName)}</div><div class="cell-sub">${esc(l.company||l.email||'')}</div></div></div></td>
       <td><div class="cell-name">${esc(l.origin||'?')} → ${esc(l.destination||'?')}</div></td>
@@ -885,7 +907,10 @@ async function renderShipmentLeads() {
       <td>${l.freightCharge?fmtCur(l.freightCharge):'—'}</td>
       <td>${badge(l.status)}</td>
       <td>${esc(l.assignedTo?.name||'—')}</td>
-    </tr>`).join('')}
+      <td class="actions-col">${lk
+        ? `<button type="button" class="btn-view locked" data-name="${esc(l.assignedTo?.name||'')}" onclick="lockedAccess(this)">🔒 Locked</button>`
+        : `<button type="button" class="btn-view" onclick="viewShipmentLead('${l.id}')">👁 View</button>`}</td>
+    </tr>`}).join('')}
     </tbody></table>` : emptyState('🚢','No shipment leads found','Add your first shipment booking using the button above')}
     ${pgHtml(pg)}
   </div>`;
@@ -931,7 +956,7 @@ async function viewShipmentLead(id) {
       <div class="dp-field"><label>Assigned To</label><span>${esc(l.assignedTo?.name||'—')}</span></div>
       <div class="dp-field"><label>Created</label><span>${fmtDate(l.createdAt)}</span></div>
     </div>
-    ${l.notes?`<div style="margin-top:16px"><div class="dp-field"><label>Notes</label><span>${esc(l.notes)}</span></div></div>`:''}
+    ${notesHtml('shipment', l.id, l.notes, 'd')}
     ${t && t.timeline?.length ? `<div style="margin-top:20px"><div class="section-title">Tracking Timeline</div><div class="tracking-tl">${t.timeline.map((s,i)=>`<div class="tracking-tl-item"><div class="tl-status">${esc(s.status||s.status_text||'')}</div>${s.location?`<div class="tl-loc">📍 ${esc(s.location)}</div>`:''}<div class="tl-date">${fmtDate(s.timestamp||s.status_date)}</div></div>`).join('')}</div></div>` : ''}
   </div>`;
 }
@@ -1323,7 +1348,7 @@ async function openContactModal(c) {
   <div class="form-row">  <div class="fg"><label>Deal Value (INR)</label><input id="mf-dealvalue" type="number" value="${c?.dealValue||''}"/></div>
   <div class="fg"><label>Website</label><input id="mf-website" value="${esc(c?.website||'')}"/></div></div>
   ${me?.role !== 'sales_rep' ? `<div class="fg"><label>Assigned To</label>${assignDropdown(c?.assignedToId||'')}</div>` : ''}
-  <div class="fg"><label>Notes</label><textarea id="mf-notes">${esc(c?.notes||'')}</textarea></div>`, async () => {
+  ${c ? notesHtml('contact', c.id, c.notes, 'm') : `<div class="fg"><label>Notes</label><textarea id="mf-notes"></textarea></div>`}`, async () => {
     const assignEl = document.getElementById('mf-assigned');
     const body = {
       name: document.getElementById('mf-name').value, email: document.getElementById('mf-email').value,
@@ -1331,7 +1356,7 @@ async function openContactModal(c) {
       jobTitle: document.getElementById('mf-jobtitle').value, status: document.getElementById('mf-status').value,
       dealValue: document.getElementById('mf-dealvalue').value, website: document.getElementById('mf-website').value,
       ...(assignEl ? { assignedToId: assignEl.value || null } : {}),
-      notes: document.getElementById('mf-notes').value,
+      ...(c ? {} : { notes: document.getElementById('mf-notes')?.value || '' }),
     };
     const r = c ? await api('PATCH', `/api/contacts/${c.id}`, body) : await api('POST', '/api/contacts', body);
     if (!r?.success) { toast(r?.error || 'Error saving contact', 'error'); return; }
@@ -1425,7 +1450,7 @@ async function openQuoteLeadModal(l) {
   </div>
 
   <div id="ql-bottom-fields" style="display:none">
-    <div class="fg"><label>Notes</label><textarea id="mf-notes">${esc(l?.notes||'')}</textarea></div>
+    ${l ? notesHtml('quote', l.id, l.notes, 'm') : `<div class="fg"><label>Notes</label><textarea id="mf-notes"></textarea></div>`}
   </div>`, async () => {
     const category = document.getElementById('mf-category').value;
     if (!category) { toast('Please select a category', 'error'); return; }
@@ -1437,7 +1462,7 @@ async function openQuoteLeadModal(l) {
       email: document.getElementById('mf-email')?.value || '',
       status: document.getElementById('mf-status')?.value || 'new_inquiry',
       ...(assignEl ? { assignedToId: assignEl.value || null } : {}),
-      notes: document.getElementById('mf-notes')?.value || '',
+      ...(l ? {} : { notes: document.getElementById('mf-notes')?.value || '' }),
     };
     const L=document.getElementById('mf-len')?.value;
     const W=document.getElementById('mf-wid')?.value;
@@ -1578,7 +1603,7 @@ async function openShipmentLeadModal(l) {
     ${['INR','USD','AED','GBP','EUR'].map(c=>`<option value="${c}" ${(l?.currency||'INR')===c?'selected':''}>${c}</option>`).join('')}
   </select></div></div>
   ${me?.role !== 'sales_rep' ? `<div class="fg"><label>Assigned To</label>${assignDropdown(l?.assignedToId||'')}</div>` : ''}
-  <div class="fg"><label>Notes</label><textarea id="mf-notes">${esc(l?.notes||'')}</textarea></div>`, async () => {
+  ${l ? notesHtml('shipment', l.id, l.notes, 'm') : `<div class="fg"><label>Notes</label><textarea id="mf-notes"></textarea></div>`}`, async () => {
     const L=document.getElementById('mf-len').value;
     const W=document.getElementById('mf-wid').value;
     const H=document.getElementById('mf-hgt').value;
@@ -1603,7 +1628,7 @@ async function openShipmentLeadModal(l) {
       expectedDelivery: document.getElementById('mf-delivery').value||null,
       status: document.getElementById('mf-status').value, currency: document.getElementById('mf-currency').value,
       ...(assignEl ? { assignedToId: assignEl.value || null } : {}),
-      notes: document.getElementById('mf-notes').value,
+      ...(l ? {} : { notes: document.getElementById('mf-notes')?.value || '' }),
     };
     const r = l ? await api('PATCH', `/api/shipment-leads/${l.id}`, body) : await api('POST', '/api/shipment-leads', body);
     if (!r?.success) { toast(r?.error || 'Error saving lead', 'error'); return; }
@@ -1706,6 +1731,81 @@ function pgHtml(pg) {
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtDT(d) { if (!d) return ''; const dt = new Date(d); if (isNaN(dt.getTime())) return ''; return dt.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+
+// ─── ROW LOCK (sales rep sees other reps' records only as locked search hits) ─
+function rowLocked(r) { return !!(me && me.role === 'sales_rep' && (!r || !r.assignedTo || r.assignedTo.id !== me.id)); }
+function lockedAccess(btn) { toast('🔒 Assigned to ' + (btn && btn.dataset ? btn.dataset.name : 'another user') + ' — you do not have access to this record.', 'error'); }
+
+// ─── MULTIPLE NOTES ────────────────────────────────────────────────────────
+const NOTE_API = { contact: '/api/contacts', quote: '/api/quote-leads', shipment: '/api/shipment-leads' };
+function parseNotes(raw) {
+  if (!raw) return [];
+  const t = String(raw).trim(); if (!t) return [];
+  if (t.startsWith('[')) {
+    try {
+      const arr = JSON.parse(t);
+      if (Array.isArray(arr)) {
+        if (arr.length === 0) return [];
+        const items = arr.filter(n => n && typeof n.text === 'string' && n.text.trim())
+          .map(n => ({ id: (typeof n.id === 'string' && n.id) ? n.id : 'n' + Math.random().toString(36).slice(2,10), text: String(n.text), by: (typeof n.by === 'string' && n.by) ? n.by : null, at: (typeof n.at === 'string' && n.at) ? n.at : null }));
+        if (items.length) return items;
+      }
+    } catch (e) {}
+  }
+  return [{ id: 'legacy', text: t, by: null, at: null }];
+}
+function notesHtml(type, id, raw, ctx) {
+  ctx = ctx || 'd';
+  const notes = parseNotes(raw);
+  return `<div class="notes-block" id="notes-${type}-${id}-${ctx}">
+    <div class="notes-head"><div class="notes-label">📝 Notes (${notes.length})</div>
+      <button type="button" class="btn-note-add" onclick="noteEditorToggle('${type}','${id}','${ctx}')">+ Add Note</button></div>
+    <div class="notes-list">${notes.length ? notes.map(n => `
+      <div class="note-item"><div class="note-meta">${esc(n.by || '—')}${n.at ? ' · ' + fmtDT(n.at) : ''}</div>
+        <div class="note-text">${esc(n.text)}</div>
+        <button type="button" class="note-del" title="Delete note" onclick="deleteNote('${type}','${id}','${n.id}','${ctx}')">✕</button></div>`).join('')
+      : `<div style="font-size:12.5px;color:var(--gray2);padding:2px 0">No notes yet — click "+ Add Note" to write one.</div>`}</div>
+    <div class="note-editor" id="note-ed-${type}-${id}-${ctx}" style="display:none">
+      <textarea id="note-ta-${type}-${id}-${ctx}" placeholder="Write a note..."></textarea>
+      <div class="note-editor-actions">
+        <button type="button" class="btn-cancel" onclick="noteEditorHide('${type}','${id}','${ctx}')">Cancel</button>
+        <button type="button" class="btn-save" onclick="saveNote('${type}','${id}','${ctx}')">Save Note</button>
+      </div>
+    </div>
+  </div>`;
+}
+function noteEditorToggle(type, id, ctx) {
+  const ed = document.getElementById(`note-ed-${type}-${id}-${ctx}`); if (!ed) return;
+  const show = ed.style.display === 'none';
+  ed.style.display = show ? '' : 'none';
+  if (show) { const ta = document.getElementById(`note-ta-${type}-${id}-${ctx}`); if (ta) ta.focus(); }
+}
+function noteEditorHide(type, id, ctx) { const ed = document.getElementById(`note-ed-${type}-${id}-${ctx}`); if (ed) ed.style.display = 'none'; }
+function refreshNotes(type, id, ctx, raw) {
+  // refresh the calling context and the other one (detail ↔ modal) so nothing goes stale
+  ['d','m'].forEach(c => {
+    const wrap = document.getElementById(`notes-${type}-${id}-${c}`); if (!wrap) return;
+    const tmp = document.createElement('div'); tmp.innerHTML = notesHtml(type, id, raw, c);
+    wrap.replaceWith(tmp.firstElementChild);
+  });
+}
+async function saveNote(type, id, ctx) {
+  const ta = document.getElementById(`note-ta-${type}-${id}-${ctx}`);
+  const text = (ta && ta.value || '').trim();
+  if (!text) { toast('Note cannot be empty', 'error'); return; }
+  const r = await api('PATCH', `${NOTE_API[type]}/${id}`, { addNote: text });
+  if (!r?.success) { toast(r?.error || 'Error adding note', 'error'); return; }
+  refreshNotes(type, id, ctx, r.data?.notes);
+  toast('Note added', 'success');
+}
+async function deleteNote(type, id, noteId, ctx) {
+  if (!confirm('Delete this note?')) return;
+  const r = await api('PATCH', `${NOTE_API[type]}/${id}`, { deleteNoteId: noteId });
+  if (!r?.success) { toast(r?.error || 'Error deleting note', 'error'); return; }
+  refreshNotes(type, id, ctx, r.data?.notes);
+  toast('Note deleted', 'success');
+}
 function badge(s) { return `<span class="badge badge-${s}">${fmtStatus(s)}</span>`; }
 function fmtStatus(s) {
   const map = {
@@ -1857,9 +1957,9 @@ async function renderBookShipment() {
         <div class="empty"><div class="empty-icon">📦</div><div class="empty-title">No Bookings Yet</div><div class="empty-sub">Click "+ New Booking" to create a shipment</div></div>
       ` : `
         <table><thead><tr>
-          <th>Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Shipment Type</th><th>Mode</th><th>Status</th><th>Amount</th><th>Assigned</th><th>Created</th>
+          <th>Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Shipment Type</th><th>Mode</th><th>Status</th><th>Amount</th><th>Assigned</th><th>Created</th><th class="actions-col">Actions</th>
         </tr></thead><tbody>
-          ${leads.map(l => `<tr onclick="showBookShipmentDetail('${l.id}')" style="cursor:pointer">
+          ${leads.map(l => { const lk = rowLocked(l); return `<tr>
             <td><code style="font-size:12px;background:var(--blue-bg);color:var(--blue);padding:2px 7px;border-radius:5px">${esc(l.leadId)}</code></td>
             <td><strong>${esc(l.customerName)}</strong><br><span class="sub">${esc(l.company||'')}</span></td>
             <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.origin||'-')}</td>
@@ -1870,7 +1970,10 @@ async function renderBookShipment() {
             <td>${l.freightCharge ? fmtCur(l.freightCharge, l.currency) : '-'}</td>
             <td>${esc(l.assignedTo?.name||'—')}</td>
             <td><span class="sub">${fmtDate(l.createdAt)}</span></td>
-          </tr>`).join('')}
+            <td class="actions-col">${lk
+              ? `<button type="button" class="btn-view locked" data-name="${esc(l.assignedTo?.name||'')}" onclick="lockedAccess(this)">🔒 Locked</button>`
+              : `<button type="button" class="btn-view" onclick="showBookShipmentDetail('${l.id}')">👁 View</button>`}</td>
+          </tr>`; }).join('')}
         </tbody></table>
       `}
       ${totalPages > 1 ? `<div class="pagination"><span>Showing ${(bookShipmentPage-1)*BOOK_SHIP_PAGE_SIZE+1}-${Math.min(bookShipmentPage*BOOK_SHIP_PAGE_SIZE, bookShipmentTotal)} of ${bookShipmentTotal}</span><div class="page-btns"><button class="page-btn" onclick="bookShipmentPage--;renderBookShipment()" ${bookShipmentPage===1?'disabled':''}>← Prev</button><span style="padding:6px 12px;font-size:13px;color:var(--gray)">Page ${bookShipmentPage} of ${totalPages}</span><button class="page-btn" onclick="bookShipmentPage++;renderBookShipment()" ${bookShipmentPage>=totalPages?'disabled':''}>Next →</button></div></div>` : ''}
@@ -2000,7 +2103,7 @@ async function openBookShipmentModal(l) {
     <button type="button" onclick="addPackingRow()" style="margin-top:8px;background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--brand);cursor:pointer">+ Add More</button>
   </div>
 
-  <div class="fg"><label>Additional Notes</label><textarea id="mf-notes" placeholder="Any additional notes...">${esc(l?.notes||'')}</textarea></div>
+  ${l ? notesHtml('shipment', l.id, l.notes, 'm') : `<div class="fg"><label>Additional Notes</label><textarea id="mf-notes" placeholder="Any additional notes..."></textarea></div>`}
   ${me?.role !== 'sales_rep' ? `<div class="fg"><label>Assigned To</label>${assignDropdown(l?.assignedToId||'')}</div>` : ''}
   `, async () => {
     const oAddr1=document.getElementById('mf-o-address1').value, oAddr2=document.getElementById('mf-o-address2').value, oAddr3=document.getElementById('mf-o-address3').value;
@@ -2042,7 +2145,7 @@ async function openBookShipmentModal(l) {
       expectedPickup: document.getElementById('mf-pickup').value||null,
       currency: 'INR',
       ...(assignEl ? { assignedToId: assignEl.value || null } : {}),
-      notes: document.getElementById('mf-notes').value,
+      ...(l ? {} : { notes: document.getElementById('mf-notes')?.value || '' }),
     };
     const r = l ? await api('PATCH', `/api/shipment-leads/${l.id}`, body) : await api('POST', '/api/shipment-leads', body);
     if (!r?.success) { toast(r?.error || 'Error saving booking', 'error'); return; }
@@ -2144,6 +2247,12 @@ async function lookupLead() {
   }
 
   if (!data) { el.innerHTML = '<span style="color:var(--red)">Lead not found</span>'; return; }
+
+  // Sales rep must not load details of a record assigned to someone else
+  if (rowLocked(data)) {
+    el.innerHTML = `<span style="color:#dc2626">🔒 Assigned to <strong>${esc(data.assignedTo?.name || 'another user')}</strong> — you do not have access to this record</span>`;
+    return;
+  }
 
   const setVal = (id, v) => { const e = document.getElementById(id); if (e) e.value = v || ''; };
   setVal('mf-name', data.customerName || data.name);
@@ -2256,15 +2365,14 @@ async function showBookShipmentDetail(id) {
       </div>
 
       <!-- NOTES (moved to left to balance columns) -->
-      ${l.notes ? `
       <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
         <table style="width:100%;border-collapse:collapse">
           <tbody>
             ${sectionHeader('📝', 'Notes', '#ea580c')}
-            <tr><td colspan="2" style="padding:10px 14px;font-size:13px;color:var(--black);line-height:1.5;border-bottom:1px solid var(--gray3)">${esc(l.notes)}</td></tr>
+            <tr><td colspan="2" style="padding:10px 14px;font-size:13px;color:var(--black);line-height:1.5;border-bottom:1px solid var(--gray3)">${notesHtml('shipment', l.id, l.notes, 'd')}</td></tr>
           </tbody>
         </table>
-      </div>` : ''}
+      </div>
     </div>
 
     <!-- RIGHT COLUMN -->
