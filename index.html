@@ -4,6 +4,9 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>YNC CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet"/>
 <style>
 :root{
   --brand:#8B0000;
@@ -302,6 +305,106 @@ th.actions-col,td.actions-col{text-align:right;white-space:nowrap}
 .btn-track{padding:6px 12px;background:var(--green-bg);color:var(--green);border:1.5px solid #bbf7d0;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;transition:filter .15s}
 .btn-track:hover{filter:brightness(.96)}
 td.actions-col>*+*,th.actions-col>*+*{margin-left:6px}
+
+/* ─── INVOICES ────────────────────────────────────────────────────────────── */
+.badge-paid{background:#ecfdf5;color:#059669}
+.badge-partial{background:#fffbeb;color:#d97706}
+.badge-due{background:#fef2f2;color:#dc2626}
+.inv-toolbar{max-width:760px;margin:0 auto 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);padding:10px 18px;border:1px solid var(--gray3);border-radius:12px;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+.inv-toolbar-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--gray);font-weight:500}
+.pill-verified{display:inline-flex;align-items:center;align-items:center;padding:3px 11px;border-radius:999px;background:#ecfdf5;color:#047857;font-size:11.5px;font-weight:700}
+.pill-verified .dot{width:6px;height:6px;border-radius:50%;background:#10b981;margin-right:6px;display:inline-block}
+.inv-btn-dark{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;background:#0f172a;color:#fff;border:none;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;transition:background .15s}
+.inv-btn-dark:hover{background:#1e293b}
+.inv-btn-light{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;background:#fff;color:#334155;border:1px solid #cbd5e1;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;transition:background .15s}
+.inv-btn-light:hover{background:#f8fafc}
+.inv-btn-danger{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;background:#fff;color:#dc2626;border:1px solid #fecaca;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;transition:background .15s}
+.inv-btn-danger:hover{background:#fef2f2}
+.invoice-page{max-width:760px;margin:0 auto;background:#fff;border:1px solid var(--gray3);border-radius:14px;box-shadow:0 14px 34px rgba(15,23,42,.08);padding:36px 40px;color:#0f172a}
+.inv-head{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}
+.inv-brand{display:flex;align-items:center}
+.inv-ync-logo{font-size:30px;font-weight:900;letter-spacing:-1px;color:#991b1b;display:flex;align-items:flex-start;line-height:1}
+.inv-ync-logo .cpart{color:#b91c1c}
+.inv-ync-logo .up{width:15px;height:15px;color:#dc2626;margin-left:1px;margin-top:-2px;display:inline-block;fill:currentColor}
+.inv-logo-div{border-left:1px solid #cbd5e1;padding-left:10px;margin-left:9px;line-height:1.15}
+.inv-brand-name{display:block;font-size:15px;font-weight:900;letter-spacing:.08em;color:#1e293b}
+.inv-brand-tag{display:block;font-size:8px;font-weight:800;letter-spacing:.18em;color:#64748b;text-transform:uppercase;margin-top:2px}
+.inv-cmeta{font-size:12px;color:#475569;line-height:1.65;margin-top:14px}
+.inv-cmeta p{margin:1px 0}
+.inv-company{font-size:14px;font-weight:800;color:#0f172a;letter-spacing:-.2px}
+.inv-title{display:flex;flex-direction:column;align-items:flex-end}
+.inv-title h1{font-size:27px;font-weight:900;letter-spacing:-.5px;margin:0;text-transform:uppercase;color:#111}
+.inv-title .bar{height:4px;background:#991b1b;border-radius:4px;margin-top:6px;width:100%}
+.inv-meta{background:#edf5fd;border:1px solid #dbeafe;border-radius:9px;padding:11px 14px;margin-top:13px;width:250px;font-size:11.5px;color:#334155}
+.inv-meta .row{display:flex;justify-content:space-between;gap:10px;padding:2.5px 0}
+.inv-meta .row span{color:#64748b;font-weight:500;white-space:nowrap}
+.inv-meta .row b{color:#0f172a;text-align:right}
+.inv-billto{background:#edf5fd;border:1px solid #dbeafe;border-radius:9px;padding:12px 16px;margin-top:20px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+.inv-billto .who{display:flex;align-items:center;gap:12px}
+.inv-avatar{width:34px;height:34px;border-radius:9px;background:#dbeafe;color:#2563eb;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.inv-klabel{font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#64748b;display:block}
+.inv-billto h2{font-size:16.5px;font-weight:800;margin:1px 0 0;color:#111}
+.inv-waybill{text-align:right;font-size:11.5px;font-weight:800;color:#0f172a}
+.inv-waybill .sub{font-size:10.5px;font-weight:500;color:#64748b;margin-top:3px}
+.inv-num{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.03em}
+.inv-table{width:100%;border-collapse:collapse;margin-top:18px}
+.inv-table th{background:#e2edf8;color:#475569;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;padding:9px 12px;text-align:left}
+.inv-table th.r,.inv-table td.r{text-align:right}
+.inv-table th.c,.inv-table td.c{text-align:center}
+.inv-table td{padding:13px 12px;font-size:12.5px;border-bottom:1px solid #f1f5f9;vertical-align:top;color:#334155}
+.inv-item-name{font-weight:800;color:#0f172a;font-size:13.5px}
+.inv-item-sub{font-size:11px;color:#64748b;margin-top:3px;line-height:1.55;max-width:430px}
+.inv-summary{display:grid;grid-template-columns:1.35fr 1fr;gap:20px;margin-top:26px;padding-top:16px;border-top:1px solid var(--gray3)}
+.inv-words{background:#f8fafc;border:1px solid var(--gray3);border-radius:9px;padding:13px 15px}
+.inv-words .k{font-size:9.5px;font-weight:800;letter-spacing:.09em;color:#64748b;text-transform:uppercase;display:block}
+.inv-words p{margin:5px 0 0;font-size:13px;font-weight:800;font-style:italic;color:#991b1b}
+.inv-thanks{display:flex;gap:8px;align-items:flex-start;color:#475569;font-size:11.5px;margin-top:14px;line-height:1.6}
+.inv-totals{display:flex;flex-direction:column;gap:7px;font-size:12.5px}
+.inv-trow{display:flex;justify-content:space-between;padding:3px 6px;color:#334155;font-weight:500}
+.inv-trow .v{font-family:ui-monospace,Menlo,Consolas,monospace;color:#0f172a}
+.inv-total-box{display:flex;justify-content:space-between;align-items:center;background:#dbeafe;color:#0f172a;font-weight:900;padding:9px 13px;border-radius:8px;margin-top:5px;font-size:14px}
+.inv-total-box .amt{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px}
+.inv-balance{background:#991b1b;color:#fff;border-radius:8px;padding:10px 13px;display:flex;justify-content:space-between;align-items:center;margin-top:8px;box-shadow:0 1px 3px rgba(153,27,27,.35)}
+.inv-balance.is-paid{background:#047857;box-shadow:0 1px 3px rgba(4,120,87,.35)}
+.inv-balance .lbl{font-size:9.5px;font-weight:900;text-transform:uppercase;letter-spacing:.07em}
+.inv-balance .sub{font-size:9.5px;color:#fecaca;font-weight:500;margin-top:2px}
+.inv-balance.is-paid .sub{color:#d1fae5}
+.inv-balance .amt{font-size:18px;font-weight:900;font-family:ui-monospace,Menlo,Consolas,monospace}
+.inv-footer{margin-top:28px;padding-top:18px;border-top:1px solid var(--gray3);display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.inv-fbox{background:#f8fafc;border:1px solid var(--gray3);border-radius:9px;padding:14px 16px}
+.inv-fbox-head{display:flex;align-items:center;gap:7px;font-weight:800;font-size:12.5px;color:#0f172a;padding-bottom:8px;margin-bottom:9px;border-bottom:1px solid #e2e8f0}
+.inv-brow{display:grid;grid-template-columns:104px 1fr;gap:3px 8px;font-size:11.5px;padding:2.5px 0}
+.inv-brow .k{color:#64748b;font-weight:600}
+.inv-brow .v{color:#0f172a;font-weight:700;word-break:break-word}
+.inv-qr{width:120px;height:120px;border-radius:8px;border:1px solid var(--gray3);display:block;margin-top:11px;background:#000}
+.inv-qr-cap{font-size:9.5px;color:#64748b;margin-top:5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.inv-edi{display:flex;align-items:center;gap:9px}
+.inv-edi-icon{width:30px;height:30px;border-radius:50%;background:#ecfdf5;border:1px solid #a7f3d0;color:#059669;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.inv-edi .t1{font-size:9.5px;font-weight:900;color:#047857;text-transform:uppercase;letter-spacing:.07em}
+.inv-edi .t2{font-size:9.5px;color:#94a3b8;margin-top:1px}
+.inv-sign{text-align:center;margin-top:16px}
+.inv-signature{font-family:'Dancing Script',cursive;font-size:27px;color:#991b1b;line-height:1.25}
+.inv-sign-line{width:210px;height:1px;background:#bfdbfe;margin:7px auto}
+.inv-sign-role{font-size:11px;font-weight:800;color:#0f172a}
+.inv-sign-co{font-size:9.5px;color:#94a3b8;margin-top:2px}
+.inv-footnote{max-width:760px;margin:16px auto 4px;text-align:center;font-size:11.5px;color:#94a3b8;padding-bottom:12px}
+.inv-line{display:grid;grid-template-columns:1.3fr 1.7fr 64px 96px 28px;gap:6px;margin-bottom:7px;align-items:center}
+.inv-lhead span{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray2)}
+.inv-inp{padding:7px 9px;border:1.5px solid var(--gray3);border-radius:7px;font-size:12.5px;width:100%;box-sizing:border-box;font-family:inherit;color:var(--black);background:#fff}
+.inv-inp:focus{border-color:var(--brand);outline:none}
+.inv-line-del{width:26px;height:26px;border-radius:6px;border:1.5px solid #fecaca;background:#fef2f2;color:#dc2626;cursor:pointer;font-weight:800;font-size:12px;line-height:1;padding:0}
+.inv-line-del:hover{background:#fee2e2}
+.inv-totals-live{display:flex;gap:14px;flex-wrap:wrap;align-items:center;background:var(--gray4);border:1px solid var(--gray3);border-radius:9px;padding:10px 14px;font-size:12.5px;color:var(--gray);margin-top:10px}
+.inv-totals-live b{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--black)}
+@media print{
+  #sidebar,#topbar,.inv-toolbar,.inv-footnote,.btn-back,#toast,#modal-overlay,.no-print{display:none!important}
+  html,body{background:#fff!important}
+  #app{display:block!important;height:auto!important}
+  #main{margin:0!important;height:auto!important;overflow:visible!important}
+  #content{padding:0!important;overflow:visible!important}
+  .invoice-page{box-shadow:none!important;border:none!important;border-radius:0!important;max-width:100%!important;margin:0!important;padding:6mm 4mm!important}
+  @page{size:A4;margin:8mm 10mm}
+}
 </style>
 </head>
 <body>
@@ -367,6 +470,7 @@ td.actions-col>*+*,th.actions-col>*+*{margin-left:6px}
       <div class="nav-section">
         <div class="nav-section-title">Work</div>
         <div class="nav-item" onclick="nav('tasks')" id="nav-tasks"><span class="ni">✅</span>Tasks</div>
+        <div class="nav-item" onclick="nav('invoices')" id="nav-invoices"><span class="ni">🧾</span>Invoices</div>
       </div>
       <div class="nav-section" id="nav-section-admin" style="display:none">
         <div class="nav-section-title">Admin</div>
@@ -481,6 +585,7 @@ function startAutoRefresh() {
       'shipment-leads':['/api/shipment-leads?page=1&limit=15'],
       'book-shipment': ['/api/shipment-leads?page=1&limit=15&source=booking'],
       'tasks':         ['/api/tasks?page=1&limit=15'],
+      'invoices':      ['/api/invoices?page=1&limit=15'],
     };
     const urls = pageMap[curPage];
     if (urls) {
@@ -592,11 +697,12 @@ const PAGE_TITLES = {
   dashboard: 'Dashboard', contacts: 'Contacts',
   'quote-leads': 'Leads', 'shipment-leads': 'Shipment',
   tasks: 'Tasks', users: 'Team Management', reports: 'Reports',
-  'get-rate': 'Get Rate'
+  'get-rate': 'Get Rate', invoices: 'Invoices'
 };
 const ADD_LABELS = {
   contacts: '+ Contact', 'quote-leads': '+ Quote Lead',
-  'shipment-leads': '+ Shipment Lead', tasks: '+ Task', users: '+ Team Member'
+  'shipment-leads': '+ Shipment Lead', tasks: '+ Task', users: '+ Team Member',
+  invoices: '+ Invoice'
 };
 
 function nav(page) {
@@ -611,7 +717,7 @@ function nav(page) {
   const srchWrap = document.getElementById('search-wrap');
   if (ADD_LABELS[page]) { addBtn.style.display = ''; addBtn.textContent = ADD_LABELS[page]; }
   else addBtn.style.display = 'none';
-  const searchPages = ['contacts','quote-leads','shipment-leads','tasks','users'];
+  const searchPages = ['contacts','quote-leads','shipment-leads','tasks','users','invoices'];
   srchWrap.style.display = searchPages.includes(page) ? '' : 'none';
   document.getElementById('search-input').value = '';
   const catFilters = document.getElementById('cat-filters');
@@ -634,6 +740,7 @@ function renderPage(page) {
     case 'shipment-leads':renderShipmentLeads(); break;
     case 'book-shipment':renderBookShipment(); break;
     case 'tasks':         renderTasks(); break;
+    case 'invoices':      renderInvoices(); break;
     case 'users':         renderUsers(); break;
     case 'reports':       renderReports(); break;
     case 'get-rate':      renderGetRate(); break;
@@ -1340,6 +1447,7 @@ function openAddModal() {
     case 'shipment-leads': openShipmentLeadModal(null); break;
     case 'book-shipment':  openBookShipmentModal(null); break;
     case 'tasks':          openTaskModal(null); break;
+    case 'invoices':       openInvoiceModal(null); break;
     case 'users':          openUserModal(null); break;
   }
 }
@@ -1759,6 +1867,444 @@ function pgHtml(pg) {
   return `<div class="pagination"><div>Showing ${((pg.page-1)*pg.limit)+1}–${Math.min(pg.page*pg.limit,pg.total)} of ${pg.total}</div><div class="page-btns">${btns.join('')}</div></div>`;
 }
 
+// ─── INVOICES ───────────────────────────────────────────────────────────────
+let _invLines = [];
+let _invLeadType = null;
+
+function invMoney(n) { if (n == null || isNaN(Number(n))) return '₹0.00'; return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function fmtINVDate(d) { if (!d) return '—'; const dt = new Date(d); if (isNaN(dt.getTime())) return '—'; const p = x => String(x).padStart(2, '0'); return `${p(dt.getDate())}/${p(dt.getMonth() + 1)}/${dt.getFullYear()}`; }
+function payBadge(s) { const m = { paid: 'Paid', partial: 'Partial', due: 'Due' }; return `<span class="badge badge-${s}">${m[s] || esc(s)}</span>`; }
+function invBalance(inv) { return Math.max(0, Math.round(((Number(inv.total) || 0) - (Number(inv.amountPaid) || 0)) * 100) / 100); }
+function invHash(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) { h = (((h << 5) + h) + str.charCodeAt(i)) >>> 0; }
+  const g = (Math.imul(h, 2654435761)) >>> 0;
+  const x = h.toString(16).padStart(8, '0');
+  const y = g.toString(16).padStart(8, '0');
+  const z = (h ^ g).toString(16).padStart(8, '0');
+  return `${x.slice(0, 4)}-${y.slice(0, 4)}-${z.slice(0, 4)}`.toUpperCase();
+}
+function invWords(num) {
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const two = n => n < 20 ? ones[n] : (tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : ''));
+  const three = n => n >= 100 ? (ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + two(n % 100) : '')) : two(n);
+  const inr = n => {
+    n = Math.floor(n);
+    if (n === 0) return 'Zero';
+    let s = '';
+    const cr = Math.floor(n / 10000000); n %= 10000000;
+    const lk = Math.floor(n / 100000); n %= 100000;
+    const th = Math.floor(n / 1000); n %= 1000;
+    if (cr) s += three(cr) + ' Crore ';
+    if (lk) s += two(lk) + ' Lakh ';
+    if (th) s += two(th) + ' Thousand ';
+    if (n) s += three(n);
+    return s.trim();
+  };
+  const rupees = Math.floor(num || 0);
+  const paise = Math.round(((num || 0) - rupees) * 100);
+  let out = 'Indian Rupee ' + inr(rupees);
+  if (paise) out += ' and ' + inr(paise) + ' Paise';
+  return out + ' Only';
+}
+
+async function renderInvoices() {
+  let url = `/api/invoices?page=${curPageNum}&limit=15`;
+  if (curSearch) url += `&search=${encodeURIComponent(curSearch)}`;
+  if (curFilter.paymentStatus) url += `&paymentStatus=${curFilter.paymentStatus}`;
+  const r = await api('GET', url);
+  const items = Array.isArray(r?.data) ? r.data : [];
+  const pg = r?.pagination || {};
+  const payOpts = ['', 'due', 'partial', 'paid'];
+  document.getElementById('content').innerHTML = `
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title">🧾 Invoices ${pg.total ? '(' + pg.total + ')' : ''}</div>
+      <div class="table-filters">
+        <select class="filter-select" onchange="setFilter('paymentStatus',this.value)">
+          ${payOpts.map(s => `<option value="${s}" ${curFilter.paymentStatus === s ? 'selected' : ''}>${s ? (s.charAt(0).toUpperCase() + s.slice(1)) : 'All Payments'}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    ${items.length ? `<table><thead><tr>
+      <th>Invoice #</th><th>Customer</th><th>Waybill / Lead</th><th>Date</th><th>Due Date</th><th>Total</th><th>Balance</th><th>Payment</th><th class="actions-col">Actions</th>
+    </tr></thead><tbody>
+    ${items.map(inv => `<tr>
+      <td><code style="font-size:12px;background:var(--brand-bg);color:var(--brand);padding:2px 7px;border-radius:5px">${esc(inv.invoiceNo)}</code></td>
+      <td><div class="cell-name">${esc(inv.customerName)}</div><div class="cell-sub">${esc(inv.email || inv.customerAddress || '')}</div></td>
+      <td><span style="font-family:monospace;font-size:12px;color:var(--gray)">${esc(inv.waybill || inv.sourceLeadId || '—')}</span></td>
+      <td>${fmtINVDate(inv.invoiceDate)}</td>
+      <td>${fmtINVDate(inv.dueDate)}</td>
+      <td style="font-weight:700">${invMoney(inv.total)}</td>
+      <td style="font-weight:700;color:${invBalance(inv) > 0 ? '#dc2626' : '#059669'}">${invMoney(invBalance(inv))}</td>
+      <td>${payBadge(inv.paymentStatus)}</td>
+      <td class="actions-col"><button type="button" class="btn-view" onclick="viewInvoice('${inv.id}')">👁 View</button></td>
+    </tr>`).join('')}
+    </tbody></table>` : emptyState('🧾', 'No invoices yet', 'Create your first invoice with the + Invoice button, or generate one from a booking')}
+    ${pgHtml(pg)}
+  </div>`;
+}
+
+async function viewInvoice(id) {
+  _viewingDetail = true;
+  const r = await api('GET', `/api/invoices/${id}`);
+  const inv = r?.data;
+  if (!inv) { toast('Invoice not found', 'error'); nav('invoices'); return; }
+  const items = Array.isArray(inv.items) ? inv.items : [];
+  const balance = invBalance(inv);
+  const hash = invHash(String(inv.id) + String(inv.invoiceNo));
+  const words = invWords(Number(inv.total) || 0);
+  const dueSub = (inv.terms === 'Due on Receipt') ? 'Payable Immediately' : 'Payable by ' + fmtINVDate(inv.dueDate);
+  window._invEditData = inv;
+  document.getElementById('content').innerHTML = `
+  <button class="btn-back no-print" onclick="nav('invoices')">← Back</button>
+  <div class="inv-toolbar no-print">
+    <div class="inv-toolbar-left">
+      <span class="pill-verified"><span class="dot"></span> Verified Invoice</span>
+      <span>• Ref: <b style="color:var(--black)">${esc(inv.invoiceNo)}</b></span>
+      ${payBadge(inv.paymentStatus)}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="inv-btn-dark" onclick="window.print()">🖨 Print Invoice</button>
+      <button class="inv-btn-light" onclick="window.print()">⬇ Download PDF</button>
+      ${balance > 0 ? `<button class="inv-btn-light" onclick="recordPayment('${inv.id}')">💰 Record Payment</button>` : ''}
+      <button class="inv-btn-light" onclick="openInvoiceModal(window._invEditData)">✏️ Edit</button>
+      ${me?.role === 'admin' ? `<button class="inv-btn-danger" onclick="deleteInvoice('${inv.id}')">🗑 Delete</button>` : ''}
+    </div>
+  </div>
+  <main class="invoice-page">
+    <header class="inv-head">
+      <div>
+        <div class="inv-brand">
+          <div class="inv-ync-logo">yn<span class="cpart">c<svg class="up" viewBox="0 0 24 24"><path d="M12 3.5l7.5 9.5H14v7.5h-8V13H4.5z"/></svg></span></div>
+          <div class="inv-logo-div"><span class="inv-brand-name">YNC</span><span class="inv-brand-tag">Your Next Courier</span></div>
+        </div>
+        <div class="inv-cmeta">
+          <p class="inv-company">Kharjahrin Associates Pvt Ltd</p>
+          <p>Gujarat, India</p>
+          <p><a href="mailto:dariti@yournextcourier.com" style="color:#2563eb;text-decoration:none">dariti@yournextcourier.com</a></p>
+          <p style="font-size:11px;font-weight:700;color:#334155">GSTIN: <span class="inv-num">24AAACK1234F1Z5</span></p>
+        </div>
+      </div>
+      <div class="inv-title">
+        <h1>Tax Invoice</h1>
+        <div class="bar"></div>
+        <div class="inv-meta">
+          <div class="row"><span>Invoice #</span><b class="inv-num">: ${esc(inv.invoiceNo)}</b></div>
+          <div class="row"><span>Invoice Date</span><b>: ${fmtINVDate(inv.invoiceDate)}</b></div>
+          <div class="row"><span>Terms</span><b style="color:#b91c1c;text-transform:uppercase;font-size:10.5px">: ${esc(inv.terms || '—')}</b></div>
+          <div class="row"><span>Due Date</span><b>: ${fmtINVDate(inv.dueDate)}</b></div>
+          <div class="row"><span>Place of Supply</span><b>: ${esc(inv.placeOfSupply || '—')}</b></div>
+        </div>
+      </div>
+    </header>
+
+    <section class="inv-billto">
+      <div class="who">
+        <div class="inv-avatar">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div>
+          <span class="inv-klabel">Bill To Customer</span>
+          <h2>${esc(inv.customerName)}</h2>
+          ${inv.customerAddress ? `<div style="font-size:11.5px;color:#475569;margin-top:2px">${esc(inv.customerAddress)}</div>` : ''}
+          ${inv.email ? `<div style="font-size:11.5px;color:#475569">${esc(inv.email)}</div>` : ''}
+        </div>
+      </div>
+      <div>
+        <div class="inv-waybill">Consignment Waybill: <span class="inv-num">#${esc(inv.waybill || '—')}</span></div>
+        <div class="inv-waybill sub">${esc(inv.serviceDesc || '')}</div>
+        ${inv.sourceLeadId ? `<div class="inv-waybill sub">Lead: <span class="inv-num">${esc(inv.sourceLeadId)}</span></div>` : ''}
+      </div>
+    </section>
+
+    <table class="inv-table">
+      <thead><tr><th class="c">#</th><th>Description</th><th class="r">Qty</th><th class="r">Rate (₹)</th><th class="r">Amount (₹)</th></tr></thead>
+      <tbody>
+        ${items.map((it, i) => `<tr>
+          <td class="c inv-num" style="color:#64748b">${i + 1}</td>
+          <td><div class="inv-item-name">${esc(it.description)}</div>${it.details ? `<div class="inv-item-sub">${esc(it.details)}</div>` : ''}</td>
+          <td class="r inv-num">${(Number(it.qty) || 0).toFixed(2)}</td>
+          <td class="r inv-num">${(Number(it.rate) || 0).toFixed(2)}</td>
+          <td class="r inv-num" style="font-weight:800;font-size:13px;color:#0f172a">${((Number(it.qty) || 0) * (Number(it.rate) || 0)).toFixed(2)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+
+    <section class="inv-summary">
+      <div>
+        <div class="inv-words"><span class="k">Total in words:</span><p>“${words}”</p></div>
+        <div class="inv-thanks">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Thanks for your business. Fast, reliable logistic solutions.</span>
+        </div>
+        ${inv.notes ? `<div class="inv-thanks"><span>📝</span><span>${esc(inv.notes)}</span></div>` : ''}
+      </div>
+      <div class="inv-totals">
+        <div class="inv-trow"><span>Sub Total</span><span class="v">${invMoney(inv.subtotal)}</span></div>
+        <div class="inv-trow" style="color:#64748b"><span>CGST (${Number(inv.cgstRate) || 0}%)</span><span class="v">${invMoney(inv.cgstAmount)}</span></div>
+        <div class="inv-trow" style="color:#64748b"><span>SGST (${Number(inv.sgstRate) || 0}%)</span><span class="v">${invMoney(inv.sgstAmount)}</span></div>
+        <div class="inv-total-box"><span>Total</span><span class="amt">${invMoney(inv.total)}</span></div>
+        <div class="inv-trow"><span>Amount Paid</span><span class="v">${invMoney(inv.amountPaid)}</span></div>
+        ${balance > 0
+          ? `<div class="inv-balance"><div><div class="lbl">Balance Due</div><div class="sub">${esc(dueSub)}</div></div><div class="amt">${invMoney(balance)}</div></div>`
+          : `<div class="inv-balance is-paid"><div><div class="lbl">Paid in Full</div><div class="sub">Payment received — thank you</div></div><div class="amt">${invMoney(inv.total)}</div></div>`}
+      </div>
+    </section>
+
+    <footer class="inv-footer">
+      <div class="inv-fbox">
+        <div class="inv-fbox-head">🏦 Payment Remittance Details</div>
+        <div class="inv-brow"><span class="k">Bank:</span><span class="v">IndusInd Bank</span></div>
+        <div class="inv-brow"><span class="k">Account Name:</span><span class="v">KHARJAHRIN ASSOCIATES PRIVATE LIMITED</span></div>
+        <div class="inv-brow"><span class="k">Account No:</span><span class="v inv-num">259862090339</span></div>
+        <div class="inv-brow"><span class="k">IFSC Code:</span><span class="v inv-num">INDB0000880</span></div>
+        <img class="inv-qr" src="assets/invoice-qr.jpeg" alt="PhonePe UPI QR - KHARJAHRIN ASSOCIATES PRIVATE LIMITED"/>
+        <div class="inv-qr-cap">Scan to pay • PhonePe / UPI accepted</div>
+      </div>
+      <div class="inv-fbox">
+        <div class="inv-edi">
+          <div class="inv-edi-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          </div>
+          <div><div class="t1">Digital EDI Authenticated</div><div class="t2">SHA256: ${hash}</div></div>
+        </div>
+        <div class="inv-sign">
+          <div class="inv-signature">Dariti Kharjahrin</div>
+          <div class="inv-sign-line"></div>
+          <div class="inv-sign-role">Authorized Signatory</div>
+          <div class="inv-sign-co">Kharjahrin Associates Pvt Ltd</div>
+        </div>
+      </div>
+    </footer>
+  </main>
+  <div class="inv-footnote no-print">GST Compliant Electronic Invoice • Generated securely via YNC Carrier Infrastructure</div>`;
+}
+
+function openInvoiceModal(inv, prefill) {
+  prefill = prefill || {};
+  _invLeadType = inv?.sourceLeadType || prefill.sourceLeadType || null;
+  _invLines = (Array.isArray(inv?.items) && inv.items.length)
+    ? inv.items.map(i => ({ description: i.description || '', details: i.details || '', qty: i.qty ?? 1, rate: i.rate ?? '' }))
+    : (Array.isArray(prefill.items) && prefill.items.length)
+      ? prefill.items.map(i => ({ description: i.description || '', details: i.details || '', qty: i.qty ?? 1, rate: i.rate ?? '' }))
+      : [{ description: '', details: '', qty: 1, rate: '' }];
+  const today = new Date().toISOString().slice(0, 10);
+  const invDate = inv?.invoiceDate ? String(inv.invoiceDate).slice(0, 10) : today;
+  const dueDate = inv?.dueDate ? String(inv.dueDate).slice(0, 10) : '';
+  const termsOpts = ['Due on Receipt', 'Net 7', 'Net 15', 'Net 30'];
+  const curTerms = inv?.terms || prefill.terms || 'Due on Receipt';
+
+  showModal(inv ? `Edit Invoice ${inv.invoiceNo}` : 'New Invoice', `
+  <div class="fg" style="background:var(--blue-bg);border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 14px;margin-bottom:14px">
+    <label style="color:var(--blue)">Lead ID Lookup (optional)</label>
+    <div style="display:flex;gap:8px">
+      <input id="inv-lookup" placeholder="Enter YNC-S-XXXXX, YNC-Q-XXXXX, or YNC-C-XXXXX" style="flex:1"/>
+      <button type="button" class="btn-save" style="background:var(--blue);padding:8px 14px;font-size:12px" onclick="invLookupLead()">Lookup</button>
+    </div>
+    <div id="inv-lookup-result" style="margin-top:6px;font-size:12px;color:var(--gray)"></div>
+    <div style="font-size:11.5px;margin-top:6px;color:var(--gray)">Linked lead: <b id="inv-lead" style="font-family:monospace;color:var(--black)">${esc(inv?.sourceLeadId || prefill.sourceLeadId || '—')}</b></div>
+  </div>
+
+  <div class="form-row">
+    <div class="fg"><label>Invoice Date *</label><input type="date" id="inv-date" value="${invDate}" onchange="invTermsChange(document.getElementById('inv-terms').value)"/></div>
+    <div class="fg"><label>Terms</label><select id="inv-terms" onchange="invTermsChange(this.value)">${termsOpts.map(t => `<option ${t === curTerms ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+    <div class="fg"><label>Due Date</label><input type="date" id="inv-duedate" value="${dueDate}"/></div>
+  </div>
+  <div class="form-row">
+    <div class="fg"><label>Bill To Customer *</label><input id="inv-customer" value="${esc(inv?.customerName || prefill.customerName || '')}"/></div>
+    <div class="fg"><label>Email</label><input id="inv-email" type="email" value="${esc(inv?.email || prefill.email || '')}"/></div>
+  </div>
+  <div class="fg"><label>Customer Address</label><input id="inv-address" value="${esc(inv?.customerAddress || prefill.customerAddress || '')}"/></div>
+  <div class="form-row">
+    <div class="fg"><label>Place of Supply</label><input id="inv-pos" value="${esc(inv?.placeOfSupply || 'Gujarat (24)')}"/></div>
+    <div class="fg"><label>Waybill / Consignment #</label><input id="inv-waybill" value="${esc(inv?.waybill || prefill.waybill || '')}"/></div>
+  </div>
+  <div class="fg"><label>Service Description</label><input id="inv-service" value="${esc(inv?.serviceDesc || prefill.serviceDesc || 'Domestic Express Courier Service • Surface Network')}"/></div>
+
+  <div style="margin-top:6px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <label style="font-size:12px;font-weight:700">Line Items *</label>
+      <button type="button" class="btn-note-add" onclick="invLineAdd()">+ Add Line</button>
+    </div>
+    <div class="inv-line inv-lhead"><span>Description</span><span>Details</span><span>Qty</span><span>Rate (₹)</span><span></span></div>
+    <div id="inv-lines"></div>
+  </div>
+
+  <div class="form-row" style="margin-top:12px">
+    <div class="fg"><label>CGST %</label><input type="number" min="0" step="any" id="inv-cgst" value="${inv?.cgstRate ?? 0}" oninput="invCalcTotals()"/></div>
+    <div class="fg"><label>SGST %</label><input type="number" min="0" step="any" id="inv-sgst" value="${inv?.sgstRate ?? 0}" oninput="invCalcTotals()"/></div>
+    <div class="fg"><label>Amount Paid (₹)</label><input type="number" min="0" step="any" id="inv-paid" value="${inv?.amountPaid ?? 0}" oninput="invCalcTotals()"/></div>
+  </div>
+  <div class="inv-totals-live" id="inv-totals"></div>
+  <div class="fg" style="margin-top:12px"><label>Notes (optional)</label><textarea id="inv-notes" style="min-height:60px" placeholder="Payment remarks, PO reference...">${esc(inv?.notes || '')}</textarea></div>
+  `, async () => {
+    const items = _invLines.filter(l => (l.description && l.description.trim()) || Number(l.rate));
+    if (!document.getElementById('inv-customer').value.trim()) { toast('Customer name is required', 'error'); return; }
+    if (!items.length || !items.every(l => l.description && l.description.trim())) { toast('Each line needs a description', 'error'); return; }
+    const leadId = document.getElementById('inv-lead').textContent.trim();
+    const body = {
+      invoiceDate: document.getElementById('inv-date').value || today,
+      dueDate: document.getElementById('inv-duedate').value || null,
+      terms: document.getElementById('inv-terms').value,
+      placeOfSupply: document.getElementById('inv-pos').value,
+      customerName: document.getElementById('inv-customer').value,
+      email: document.getElementById('inv-email').value,
+      customerAddress: document.getElementById('inv-address').value,
+      waybill: document.getElementById('inv-waybill').value,
+      serviceDesc: document.getElementById('inv-service').value,
+      items: items.map(l => ({ description: l.description.trim(), details: (l.details || '').trim(), qty: Number(l.qty) || 1, rate: Number(l.rate) || 0 })),
+      cgstRate: Number(document.getElementById('inv-cgst').value) || 0,
+      sgstRate: Number(document.getElementById('inv-sgst').value) || 0,
+      amountPaid: Number(document.getElementById('inv-paid').value) || 0,
+      notes: document.getElementById('inv-notes').value,
+      sourceLeadId: (leadId && leadId !== '—') ? leadId : null,
+      sourceLeadType: (leadId && leadId !== '—') ? (_invLeadType || inv?.sourceLeadType || null) : null,
+    };
+    const r = inv ? await api('PATCH', `/api/invoices/${inv.id}`, body) : await api('POST', '/api/invoices', body);
+    if (!r?.success) { toast(r?.error || 'Error saving invoice', 'error'); return; }
+    toast(inv ? 'Invoice updated' : 'Invoice created', 'success');
+    closeModal();
+    viewInvoice(r.data.id);
+  });
+  invLinesRender();
+  invCalcTotals();
+  if (!inv) invTermsChange(curTerms);
+}
+
+function invLinesRender() {
+  const el = document.getElementById('inv-lines');
+  if (!el) return;
+  el.innerHTML = _invLines.length ? _invLines.map((l, i) => `
+    <div class="inv-line">
+      <input class="inv-inp" placeholder="e.g. Shipping Charges" value="${esc(l.description)}" oninput="invLineField(${i},'description',this.value)"/>
+      <input class="inv-inp" placeholder="Sub-description (optional)" value="${esc(l.details || '')}" oninput="invLineField(${i},'details',this.value)"/>
+      <input class="inv-inp" type="number" min="0" step="any" value="${l.qty ?? 1}" oninput="invLineField(${i},'qty',this.value)"/>
+      <input class="inv-inp" type="number" min="0" step="any" placeholder="0.00" value="${l.rate ?? ''}" oninput="invLineField(${i},'rate',this.value)"/>
+      <button type="button" class="inv-line-del" onclick="invLineRemove(${i})" title="Remove line">✕</button>
+    </div>`).join('') : `<div style="font-size:12.5px;color:var(--gray2);padding:4px 0">No lines yet — click "+ Add Line".</div>`;
+}
+function invLineField(i, k, v) { if (!_invLines[i]) return; _invLines[i][k] = v; invCalcTotals(); }
+function invLineAdd() { _invLines.push({ description: '', details: '', qty: 1, rate: '' }); invLinesRender(); invCalcTotals(); }
+function invLineRemove(i) { _invLines.splice(i, 1); invLinesRender(); invCalcTotals(); }
+function invCalcTotals() {
+  const el = document.getElementById('inv-totals');
+  if (!el) return;
+  const sub = _invLines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.rate) || 0), 0);
+  const c = Number(document.getElementById('inv-cgst')?.value) || 0;
+  const g = Number(document.getElementById('inv-sgst')?.value) || 0;
+  const ca = sub * c / 100, sa = sub * g / 100, tot = sub + ca + sa;
+  const paid = Number(document.getElementById('inv-paid')?.value) || 0;
+  const bal = Math.max(0, tot - paid);
+  el.innerHTML = `
+    <span>Sub Total: <b>${invMoney(sub)}</b></span>
+    <span>CGST (${c}%): <b>${invMoney(ca)}</b></span>
+    <span>SGST (${g}%): <b>${invMoney(sa)}</b></span>
+    <span>Balance: <b style="color:${bal > 0 ? '#dc2626' : '#059669'}">${invMoney(bal)}</b></span>
+    <span style="margin-left:auto">Total: <b style="font-size:14px;color:var(--brand)">${invMoney(tot)}</b></span>`;
+}
+function invTermsChange(v) {
+  const days = { 'Due on Receipt': 0, 'Net 7': 7, 'Net 15': 15, 'Net 30': 30 }[v] ?? 0;
+  const dEl = document.getElementById('inv-date'), dueEl = document.getElementById('inv-duedate');
+  if (!dEl || !dueEl) return;
+  const base = dEl.value ? new Date(dEl.value + 'T00:00:00') : new Date();
+  base.setDate(base.getDate() + days);
+  const p = x => String(x).padStart(2, '0');
+  dueEl.value = `${base.getFullYear()}-${p(base.getMonth() + 1)}-${p(base.getDate())}`;
+}
+async function invLookupLead() {
+  const val = document.getElementById('inv-lookup').value.trim();
+  const el = document.getElementById('inv-lookup-result');
+  if (!val) { el.innerHTML = '<span style="color:var(--red)">Please enter a Lead ID</span>'; return; }
+  el.innerHTML = '<span style="color:var(--gray)">Looking up...</span>';
+  let data = null, type = null;
+  for (const t of ['shipment-leads', 'quote-leads', 'contacts']) {
+    const r = await api('GET', `/api/${t}?search=${encodeURIComponent(val)}&limit=5`);
+    const items = Array.isArray(r?.data) ? r.data : [];
+    if (items.length) { data = items[0]; type = t; break; }
+  }
+  if (!data) { el.innerHTML = '<span style="color:var(--red)">Lead not found</span>'; return; }
+  if (rowLocked(data)) {
+    el.innerHTML = `<span style="color:#dc2626">🔒 Assigned to <strong>${esc(data.assignedTo?.name || 'another user')}</strong> — you do not have access to this record</span>`;
+    return;
+  }
+  _invLeadType = type === 'shipment-leads' ? 'shipment' : type === 'quote-leads' ? 'quote' : 'contact';
+  document.getElementById('inv-lead').textContent = data.leadId || '';
+  const setVal = (id, v) => { const e = document.getElementById(id); if (e && v != null) e.value = v || ''; };
+  setVal('inv-customer', data.customerName || data.name);
+  setVal('inv-email', data.email);
+  const addr = [data.address1, data.address2, data.address3].filter(Boolean).join(', ');
+  if (addr) setVal('inv-address', addr);
+  const route = [data.origin, data.destination].filter(Boolean).join(' → ');
+  if (type === 'shipment-leads') {
+    setVal('inv-waybill', data.awbNumber || data.bookingRef);
+    if (data.freightCharge) {
+      _invLines = [{ description: 'Shipping Charges', details: (route || 'Shipment freight') + ' shipment freight charges', qty: 1, rate: data.freightCharge }];
+      invLinesRender();
+    }
+  } else if (type === 'quote-leads') {
+    if (data.quotedAmount) {
+      _invLines = [{ description: 'Shipping Charges', details: (route || 'Shipment freight') + ' quoted freight charges', qty: 1, rate: data.quotedAmount }];
+      invLinesRender();
+    }
+  }
+  invCalcTotals();
+  el.innerHTML = `<span style="color:#059669;font-weight:700">✓ Linked ${esc(data.leadId)}${data.customerName ? ' — ' + esc(data.customerName) : ''}</span>`;
+}
+
+async function recordPayment(id) {
+  const r = await api('GET', `/api/invoices/${id}`);
+  const inv = r?.data;
+  if (!inv) { toast('Invoice not found', 'error'); return; }
+  const balance = invBalance(inv);
+  showModal('Record Payment', `
+    <div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:9px;padding:12px 14px;font-size:13px;margin-bottom:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <span>Invoice <b style="font-family:monospace">${esc(inv.invoiceNo)}</b> • Total <b>${invMoney(inv.total)}</b></span>
+      <span>Balance due: <b style="color:${balance > 0 ? '#dc2626' : '#059669'}">${invMoney(balance)}</b></span>
+    </div>
+    <div class="fg"><label>Cumulative Amount Paid (₹)</label><input type="number" min="0" step="any" id="pay-amount" value="${Number(inv.amountPaid) || 0}"/></div>
+    <div style="font-size:11.5px;color:var(--gray);line-height:1.6">Enter the new cumulative total paid. If ₹50 was already paid and you received ₹30 now, enter <b>80</b>. Payment status updates automatically to Partial or Paid.</div>
+  `, async () => {
+    const v = Number(document.getElementById('pay-amount').value);
+    if (isNaN(v) || v < 0) { toast('Enter a valid amount', 'error'); return; }
+    const pr = await api('PATCH', `/api/invoices/${id}`, { amountPaid: v });
+    if (!pr?.success) { toast(pr?.error || 'Error updating payment', 'error'); return; }
+    toast('Payment recorded', 'success');
+    closeModal();
+    viewInvoice(id);
+  });
+}
+
+async function deleteInvoice(id) {
+  if (!confirm('Delete this invoice? This cannot be undone.')) return;
+  const r = await api('DELETE', `/api/invoices/${id}`);
+  if (!r?.success) { toast(r?.error || 'Error deleting invoice', 'error'); return; }
+  toast('Invoice deleted', 'success');
+  nav('invoices');
+}
+
+async function generateInvoiceFromBooking(id) {
+  const r = await api('GET', `/api/shipment-leads/${id}`);
+  const l = r?.data;
+  if (!l) { toast('Booking not found', 'error'); return; }
+  if (rowLocked(l)) { toast('🔒 Assigned to ' + (l.assignedTo?.name || 'another user') + ' — you do not have access to this record.', 'error'); return; }
+  const modeLabel = l.shipmentMode ? l.shipmentMode.charAt(0).toUpperCase() + l.shipmentMode.slice(1) : 'Surface';
+  const domestic = l.shipmentType !== 'international';
+  const route = [l.origin, l.destination].filter(Boolean).join(' → ');
+  const prefill = {
+    customerName: l.customerName,
+    email: l.email,
+    customerAddress: [l.address1, l.address2, l.address3].filter(Boolean).join(', '),
+    waybill: l.awbNumber || l.bookingRef || '',
+    serviceDesc: `${domestic ? 'Domestic' : 'International'} Express Courier Service • ${modeLabel} Network`,
+    sourceLeadId: l.leadId,
+    sourceLeadType: 'shipment',
+    items: [{ description: 'Shipping Charges', details: (route || 'Shipment freight') + ' shipment freight charges', qty: 1, rate: Number(l.freightCharge) || 0 }],
+  };
+  openInvoiceModal(null, prefill);
+}
+
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtDT(d) { if (!d) return ''; const dt = new Date(d); if (isNaN(dt.getTime())) return ''; return dt.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
@@ -2051,7 +2597,7 @@ async function renderBookShipment() {
             <td><span class="sub">${fmtDate(l.createdAt)}</span></td>
             <td class="actions-col">${lk
               ? `<button type="button" class="btn-view locked" data-name="${esc(l.assignedTo?.name||'')}" onclick="lockedAccess(this)">🔒 Locked</button>`
-              : `<button type="button" class="btn-view" onclick="showBookShipmentDetail('${l.id}')">👁 View</button>`}</td>
+              : `<button type="button" class="btn-view" onclick="showBookShipmentDetail('${l.id}')">👁 View</button><button type="button" class="btn-track" title="Generate Invoice" onclick="generateInvoiceFromBooking('${l.id}')">🧾 Invoice</button>`}</td>
           </tr>`; }).join('')}
         </tbody></table>
       `}
@@ -2397,6 +2943,7 @@ async function showBookShipmentDetail(id) {
       ${!l.delhiveryLr ? `<button class="btn-get-rates" onclick="getBookRates('${l.id}')">💰 Get Rates</button>` : ''}
       ${!l.delhiveryLr ? `<button class="btn-book" onclick="confirmBookShipment('${l.id}')">🚚 Book Shipment</button>` : ''}
       ${l.delhiveryLr ? `<button class="btn-label" onclick="downloadLabel('${l.delhiveryLr}')">🏷️ Download Label</button>` : ''}
+      <button class="btn-track" onclick="generateInvoiceFromBooking('${l.id}')">🧾 Generate Invoice</button>
       <button class="btn-edit" onclick="editBookShipmentById('${l.id}')">✏️ Edit</button>
       ${me?.role==='admin'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteBookShipment('${l.id}')">Delete</button>`:''}
     </div>
