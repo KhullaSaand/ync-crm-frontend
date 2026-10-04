@@ -2918,7 +2918,7 @@ async function renderBookShipment() {
             <td>${l.shipmentType?l.shipmentType.charAt(0).toUpperCase()+l.shipmentType.slice(1):'-'}</td>
             <td>${l.shipmentMode?badge(l.shipmentMode):'-'}</td>
             <td>${statusSelectHtml('shipment', l.status, l.id, lk)}</td>
-            <td>${l.freightCharge ? fmtCur(l.freightCharge, l.currency) : '-'}</td>
+            <td>${l.freightCharge ? fmtCur(l.freightCharge, l.currency) : '-'}${l.localVendor ? `<div style="font-size:10.5px;color:#7c3aed;font-weight:700">via ${esc(l.localVendor)}</div>` : ''}</td>
             <td>${esc(l.assignedTo?.name||'—')}</td>
             <td><span class="sub">${fmtDate(l.createdAt)}</span></td>
             <td class="actions-col">${lk
@@ -3267,10 +3267,13 @@ async function showBookShipmentDetail(id) {
       </div>
     </div>
     <div class="dp-actions" style="flex-wrap:wrap">
-      ${!l.delhiveryLr && !l.awbNumber ? `<button class="btn-get-rates" onclick="getBookRates('${l.id}')">💰 Get Rates</button>` : ''}
-      ${!l.delhiveryLr && !l.awbNumber ? (l.shipmentType === 'international'
+      ${!l.delhiveryLr && !l.awbNumber && !l.localVendor ? `<button class="btn-get-rates" onclick="getBookRates('${l.id}')">💰 Get Rates</button>` : ''}
+      ${!l.delhiveryLr && !l.awbNumber && !l.localVendor ? (l.shipmentType === 'international'
         ? `<button class="btn-book" onclick="openSgBooking('${l.id}')">🚚 Book Shipment</button>`
         : `<button class="btn-book" onclick="confirmBookShipment('${l.id}')">🚚 Book Shipment</button>`) : ''}
+      ${!l.delhiveryLr && !l.awbNumber ? (l.localVendor
+        ? `<button class="btn-book" style="background:#047857" onclick="openLocalVendorModal('${l.id}')" title="Edit local vendor booking">📞 Booked: ${esc(l.localVendor)}</button>`
+        : `<button class="btn-book" style="background:#7c3aed" onclick="openLocalVendorModal('${l.id}')">📞 Book with Local Vendor</button>`) : ''}
       ${l.delhiveryLr ? `<button class="btn-label" onclick="downloadLabel('${l.delhiveryLr}')">🏷️ Download Label</button>` : ''}
       ${!l.delhiveryLr && l.awbNumber ? `<button class="btn-label" onclick="downloadSgLabel('${l.awbNumber}')">🏷️ Download Label</button>` : ''}
       <button class="btn-track" onclick="generateInvoiceFromBooking('${l.id}')">🧾 Generate Invoice</button>
@@ -3363,6 +3366,8 @@ async function showBookShipmentDetail(id) {
             ${_tr('AWB', esc(l.delhiveryAwb || '—'))}
             ${l.shipmentType === 'international' && l.awbNumber ? _tr('ShipGlobal AWB', `<code style="background:#f0fdf4;color:#15803d;padding:2px 8px;border-radius:4px;font-size:13px;font-weight:700">${esc(l.awbNumber)}</code>`) : ''}
             ${_tr('Job ID', l.delhiveryJobId ? `<code style="font-family:monospace;font-size:12px">${esc(l.delhiveryJobId)}</code>` : '—')}
+            ${l.selectedService ? _tr('Selected Service', `<span style="color:var(--brand);font-weight:700">${esc(l.selectedService)}</span>`) : ''}
+            ${l.localVendor ? _tr('Local Vendor', `📞 <strong>${esc(l.localVendor)}</strong> — ${fmtCur(l.localVendorRate || 0, l.currency)}${l.localVendorBookedAt ? ` <span style="color:var(--gray2);font-size:11px">· ${fmtDate(l.localVendorBookedAt)}</span>` : ''}`) : ''}
           </tbody>
         </table>
       </div>
@@ -3448,7 +3453,7 @@ async function showBookShipmentDetail(id) {
   }
 }
 
-let _sbgLead = null;
+let _sbgLead = null, _sbgServices = [];
 function showShipGlobalBookingRates(l, pre = {}) {
   _sbgLead = l;
   const pc = pre.pc || '';
@@ -3482,29 +3487,41 @@ async function fetchBookingSgRates() {
   btn.disabled = false; btn.textContent = '🔍 Get Rates';
   if (!r) { const e = document.getElementById('sbg-results'); if (e) e.innerHTML = ''; toast('Session expired. Please log in again.', 'error'); return; }
   if (!r.success) { const e = document.getElementById('sbg-results'); if (e) e.innerHTML = ''; toast(r.error || 'ShipGlobal failed', 'error'); return; }
-  const services = r.data.services || [];
+  _sbgServices = r.data.services || [];
+  renderSgSelectList();
+}
+function sgIsSelected(s) {
+  if (!_sbgLead) return false;
+  if (_sbgLead.selectedService) return _sbgLead.selectedService === s.title;
+  return Number(_sbgLead.freightCharge) === Number(s.finalRate);
+}
+function renderSgSelectList() {
   const el = document.getElementById('sbg-results'); if (!el) return;
+  const services = _sbgServices;
   if (!services.length) { el.innerHTML = `<div style="font-size:13px;color:var(--gray);text-align:center;padding:12px">No services found for this destination.</div>`; return; }
   const best = Math.min(...services.map(s => s.finalRate));
-  el.innerHTML = services.map(s => `
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--white);border:1px solid var(--gray3);border-radius:8px;padding:10px 12px;margin-bottom:8px">
+  el.innerHTML = services.map((s, i) => { const sel = sgIsSelected(s); return `
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;background:${sel ? '#f0fdfa' : 'var(--white)'};border:${sel ? '1.5px solid #34d399' : '1px solid var(--gray3)'};border-radius:8px;padding:10px 12px;margin-bottom:8px">
     <div>
-      <div style="font-size:13px;font-weight:700;color:var(--black)">${esc(s.title)}${s.finalRate === best ? ' <span style="background:var(--green-bg);color:#047857;border:1px solid #a7f3d0;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:700">LOWEST</span>' : ''}</div>
+      <div style="font-size:13px;font-weight:700;color:var(--black)">${esc(s.title)}${s.finalRate === best ? ' <span style="background:var(--green-bg);color:#047857;border:1px solid #a7f3d0;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:700">LOWEST</span>' : ''}${sel ? ' <span style="background:#d1fae5;color:#047857;border:1px solid #6ee7b7;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:800">✓ SELECTED</span>' : ''}</div>
       <div style="font-size:11.5px;color:var(--gray);margin-top:2px">⏱ ${esc(s.transitTime)}${s.notes ? ' · ' + esc(s.notes) : ''}${me?.role === 'admin' ? ` · Vendor ₹${Number(s.basePrice).toLocaleString('en-IN')}` : ''}</div>
     </div>
     <div style="text-align:right;flex-shrink:0">
       <div style="font-size:16px;font-weight:800;color:var(--brand-dark)">₹${Number(s.finalRate).toLocaleString('en-IN')}</div>
-      <button onclick="useBookingSgRate(${Number(s.finalRate)})" style="margin-top:4px;background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--brand);cursor:pointer">Use as Freight</button>
+      ${sel
+        ? `<span style="display:inline-block;margin-top:4px;color:#047857;font-size:11px;font-weight:800"></span>`
+        : `<button onclick="selectSgService(${i})" style="margin-top:4px;background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--brand);cursor:pointer">Select</button>`}
     </div>
-  </div>`).join('');
+  </div>`; }).join('') + `<div style="font-size:11.5px;color:var(--gray2);text-align:center;margin-top:2px">Selected vendor/service is used when you click 🚚 Book Shipment.</div>`;
 }
-async function useBookingSgRate(rate) {
-  if (!_sbgLead) return;
-  const rr = await api('PATCH', `/api/shipment-leads/${_sbgLead.id}`, { freightCharge: rate });
-  if (!rr?.success) { toast(rr?.error || 'Error updating freight charge', 'error'); return; }
-  toast(`Freight charge set to ₹${Number(rate).toLocaleString('en-IN')}`, 'success');
-  closeModal();
+async function selectSgService(i) {
+  const s = _sbgServices[i]; if (!s || !_sbgLead) return;
+  const rr = await api('PATCH', `/api/shipment-leads/${_sbgLead.id}`, { freightCharge: s.finalRate, selectedService: s.title });
+  if (!rr?.success) { toast(rr?.error || 'Error saving selection', 'error'); return; }
+  _sbgLead = Object.assign({}, _sbgLead, { freightCharge: s.finalRate, selectedService: s.title });
+  renderSgSelectList();
   showBookShipmentDetail(_sbgLead.id);
+  toast(`${s.title} selected — Book Shipment will use it`, 'success');
 }
 
 // ─── BOOK ON SHIPGLOBAL (international) ────────────────────────────────────
@@ -3538,7 +3555,8 @@ async function openSgBooking(id) {
   let defIdx = -1;
   if (services.length) {
     defIdx = services.reduce((bi, s, i, a) => (Number(s.finalRate) < Number(a[bi].finalRate) ? i : bi), 0);
-    if (l.freightCharge) { const m = services.findIndex(s => Number(s.finalRate) === Number(l.freightCharge)); if (m >= 0) defIdx = m; }
+    if (l.selectedService) { const m = services.findIndex(s => s.title === l.selectedService); if (m >= 0) defIdx = m; }
+    else if (l.freightCharge) { const m = services.findIndex(s => Number(s.finalRate) === Number(l.freightCharge)); if (m >= 0) defIdx = m; }
   }
   const svcHtml = services.length
     ? `<select id="sgbk-service">${services.map((s, i) => `<option value="${esc(s.title)}" ${i === defIdx ? 'selected' : ''}>${esc(s.title)} — ₹${Number(s.finalRate).toLocaleString('en-IN')}${s.transitTime ? ' · ' + esc(s.transitTime) : ''}</option>`).join('')}</select>`
@@ -3705,6 +3723,44 @@ async function downloadSgLabel(tracking) {
   if (!r?.success) { toast(r?.error || 'Label not available yet', 'error'); return; }
   if (r.data?.label) openSgLabel(r.data.label);
   else toast('Label not ready yet', 'error');
+}
+
+// ─── BOOK WITH LOCAL VENDOR (no API) ────────────────────────────────────────
+let _lvLead = null;
+async function openLocalVendorModal(id) {
+  const r = await api('GET', `/api/shipment-leads/${id}`);
+  if (!r?.success) { toast('Lead not found', 'error'); return; }
+  _lvLead = r.data;
+  const l = _lvLead;
+  showModal('📞 ' + (l.localVendor ? 'Edit Local Vendor Booking' : 'Book with Local Vendor'), `
+    <div class="fg"><label>Vendor Name *</label><input id="lv-name" placeholder="e.g. Sharma Roadlines" value="${esc(l.localVendor || '')}"/></div>
+    <div class="fg" style="margin-top:10px"><label>Rate (₹) *</label><input id="lv-rate" type="number" min="1" step="any" placeholder="e.g. 2500" value="${l.localVendorRate || ''}"/></div>
+    <div style="font-size:11.5px;color:var(--gray);margin-top:10px">Booking is placed with this vendor by call/WhatsApp — only the vendor name and agreed rate are saved here.</div>
+    ${l.localVendor ? `<button type="button" onclick="removeLocalBooking()" style="margin-top:12px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">✕ Remove local booking</button>` : ''}
+  `, async () => {
+    const name = document.getElementById('lv-name').value.trim();
+    const rate = parseFloat(document.getElementById('lv-rate').value);
+    if (!name) { toast('Enter vendor name', 'error'); return; }
+    if (!rate || rate <= 0) { toast('Enter agreed rate', 'error'); return; }
+    const rr = await api('PATCH', `/api/shipment-leads/${l.id}`, {
+      localVendor: name,
+      localVendorRate: rate,
+      localVendorBookedAt: l.localVendorBookedAt || new Date().toISOString(),
+      freightCharge: rate,
+    });
+    if (!rr?.success) { toast(rr?.error || 'Error saving booking', 'error'); return; }
+    closeModal();
+    toast(`Booked with ${name} — ₹${rate.toLocaleString('en-IN')}`, 'success');
+    showBookShipmentDetail(l.id);
+  });
+}
+async function removeLocalBooking() {
+  if (!_lvLead) return;
+  const rr = await api('PATCH', `/api/shipment-leads/${_lvLead.id}`, { localVendor: null, localVendorRate: null, localVendorBookedAt: null });
+  if (!rr?.success) { toast(rr?.error || 'Error removing booking', 'error'); return; }
+  closeModal();
+  toast('Local vendor booking removed', 'success');
+  showBookShipmentDetail(_lvLead.id);
 }
 
 async function getBookRates(id) {
