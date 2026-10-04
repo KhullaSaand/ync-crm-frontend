@@ -107,6 +107,7 @@ a{text-decoration:none;color:inherit}
 
 /* TABLE */
 .table-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.table-scroll{overflow-x:auto}
 .table-header{padding:16px 20px;border-bottom:1px solid var(--gray3);display:flex;align-items:center;justify-content:space-between}
 .table-title{font-size:15px;font-weight:700}
 .table-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -2764,6 +2765,7 @@ async function renderBookShipment() {
       ${leads.length === 0 ? `
         <div class="empty"><div class="empty-icon">📦</div><div class="empty-title">No Bookings Yet</div><div class="empty-sub">Click "+ New Booking" to create a shipment</div></div>
       ` : `
+        <div class="table-scroll">
         <table><thead><tr>
           <th>Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Shipment Type</th><th>Mode</th><th>Status</th><th>Amount</th><th>Assigned</th><th>Created</th><th class="actions-col">Actions</th>
         </tr></thead><tbody>
@@ -2783,6 +2785,7 @@ async function renderBookShipment() {
               : `<button type="button" class="btn-view" onclick="showBookShipmentDetail('${l.id}')">👁 View</button><button type="button" class="btn-track" title="Generate Invoice" onclick="generateInvoiceFromBooking('${l.id}')">🧾 Invoice</button>`}</td>
           </tr>`; }).join('')}
         </tbody></table>
+        </div>
       `}
       ${totalPages > 1 ? `<div class="pagination"><span>Showing ${(bookShipmentPage-1)*BOOK_SHIP_PAGE_SIZE+1}-${Math.min(bookShipmentPage*BOOK_SHIP_PAGE_SIZE, bookShipmentTotal)} of ${bookShipmentTotal}</span><div class="page-btns"><button class="page-btn" onclick="bookShipmentPage--;renderBookShipment()" ${bookShipmentPage===1?'disabled':''}>← Prev</button><span style="padding:6px 12px;font-size:13px;color:var(--gray)">Page ${bookShipmentPage} of ${totalPages}</span><button class="page-btn" onclick="bookShipmentPage++;renderBookShipment()" ${bookShipmentPage>=totalPages?'disabled':''}>Next →</button></div></div>` : ''}
     </div>`;
