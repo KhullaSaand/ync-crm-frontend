@@ -1267,6 +1267,7 @@ async function viewShipmentLead(id) {
       </div>
       <div class="dp-actions">
         ${t ? `<button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(t.timeline||[]).replace(/"/g,'&quot;')},'${l.id}','shipment')">📦 Manage Tracking</button>` : ''}
+        ${t && (l.delhiveryLr || l.delhiveryAwb || l.awbNumber) ? `<button class="btn-track" id="bk-sync-btn" onclick="syncLeadTracking('${l.id}',{wrapId:'vs-track-wrap'})">🔄 Refresh</button>` : ''}
         <button class="btn-edit" onclick="editShipmentLead(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏️ Edit</button>
         ${me.role==='admin'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteShipmentLead('${l.id}')">Delete</button>`:''}
       </div>
@@ -1289,8 +1290,10 @@ async function viewShipmentLead(id) {
       <div class="dp-field"><label>Created</label><span>${fmtDate(l.createdAt)}</span></div>
     </div>
     ${notesHtml('shipment', l.id, l.notes, 'd')}
-    ${t && t.timeline?.length ? `<div style="margin-top:20px"><div class="section-title">Tracking Timeline</div><div class="tracking-tl">${t.timeline.map((s,i)=>`<div class="tracking-tl-item"><div class="tl-status">${esc(s.status||s.status_text||'')}</div>${s.location?`<div class="tl-loc">📍 ${esc(s.location)}</div>`:''}<div class="tl-date">${fmtDate(s.timestamp||s.status_date)}</div></div>`).join('')}</div></div>` : ''}
+    <div id="vs-track-wrap">${vsTrackHtml(t)}</div>
   </div>`;
+
+  if (t && (l.delhiveryLr || l.delhiveryAwb || l.awbNumber)) syncLeadTracking(id, { silent: true, wrapId: 'vs-track-wrap' });
 }
 
 // ─── GET RATE ─────────────────────────────────────────────────────────────
@@ -2827,6 +2830,7 @@ function closeTrackingAndRefresh() {
     invalidateCache('/api/tracking/');
     if (fromList) renderPage(curPage); // opened from a list row — stay on the list
     else if (_trackLeadType === 'quote') viewQuoteLead(_trackLeadId);
+    else if (_trackLeadType === 'book') showBookShipmentDetail(_trackLeadId);
     else if (_trackLeadType === 'shipment') viewShipmentLead(_trackLeadId);
   }
 }
@@ -3235,11 +3239,93 @@ async function lookupLead() {
   el.innerHTML = `<span style="color:var(--green)">✓ Loaded from <strong>${esc(data.leadId)}</strong> (${esc(data.customerName || data.name)})</span>`;
 }
 
+// ─── TRACKING CARD (Book A Shipment detail) + AUTO-SYNC ─────────────────────
+let _bkTrackLead = null;
+
+function humanizeTl(s) { return String(s || '').replace(/_/g, ' ').replace(/\b[a-z]/g, c => c.toUpperCase()); }
+
+function trackStatusChip(status) {
+  const s = String(status || 'booked').toLowerCase();
+  let bg = '#f3f4f6', fg = '#374151', bd = '#d1d5db';
+  if (s.includes('undeliver') || s.includes('rto') || s.includes('exception') || s.includes('cancel')) { bg = '#fee2e2'; fg = '#b91c1c'; bd = '#fecaca'; }
+  else if (s.includes('out for')) { bg = '#ffedd5'; fg = '#c2410c'; bd = '#fdba74'; }
+  else if (s.includes('deliver')) { bg = '#d1fae5'; fg = '#047857'; bd = '#6ee7b7'; }
+  else if (s.includes('picked')) { bg = '#e0e7ff'; fg = '#4338ca'; bd = '#a5b4fc'; }
+  else if (s.includes('transit')) { bg = '#dbeafe'; fg = '#1d4ed8'; bd = '#93c5fd'; }
+  return `<span style="display:inline-block;background:${bg};color:${fg};border:1px solid ${bd};border-radius:99px;padding:2px 10px;font-size:11px;font-weight:800;margin-left:8px">${esc(humanizeTl(s))}</span>`;
+}
+
+function bkTimelineItems(tl) {
+  if (!tl || !tl.length) return `<div style="font-size:13px;color:var(--gray2);text-align:center;padding:10px">No tracking events yet.</div>`;
+  return `<div class="tracking-tl" style="margin-top:12px">${tl.map(s => {
+    const st = s.status || s.status_text || '';
+    const note = s.note || '';
+    return `<div class="tracking-tl-item"><div class="tl-status">${esc(humanizeTl(st))}</div>${s.location ? `<div class="tl-loc">📍 ${esc(s.location)}</div>` : ''}<div class="tl-date">${fmtDate(s.timestamp || s.status_date)}</div>${note && humanizeTl(note) !== humanizeTl(st) ? `<div class="tl-date">${esc(note)}</div>` : ''}</div>`;
+  }).join('')}</div>`;
+}
+
+function bkTrackCard(l, t) {
+  const carrier = (l.delhiveryLr || l.delhiveryAwb) ? 'Delhivery' : (l.awbNumber ? 'ShipGlobal' : '');
+  const head = `<div style="padding:10px 14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#2563eb;background:#2563eb11;border-bottom:2px solid #2563eb33">📡 Tracking${carrier ? ' — ' + carrier : ' — Manual'}</div>`;
+  if (!t) {
+    return `<div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">${head}
+      <div style="padding:14px;font-size:13px;color:var(--gray)">Tracking number status ko <strong>shipment_booked</strong> par set karte hi generate hoga (jaise other screens me). ${carrier ? `Ye shipment <strong>${carrier}</strong> API se book hua hai — status book hote hi timeline auto-sync chalu ho jayegi.` : 'Local vendor booking — events yahan manually add kar sakte hain.'}</div></div>`;
+  }
+  const tl = Array.isArray(t.timeline) ? t.timeline : [];
+  const last = tl[tl.length - 1];
+  const status = (last && (last.status || last.status_text)) || t.currentStatus || 'booked';
+  return `<div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">${head}
+    <div style="padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <div><span style="font-family:monospace;font-size:14px;font-weight:800;color:#15803d">${esc(t.trackingId)}</span>${trackStatusChip(status)}</div>
+        <div style="display:flex;gap:6px">
+          ${carrier ? `<button class="btn-track" id="bk-sync-btn" onclick="syncLeadTracking('${l.id}',{wrapId:'bk-track-wrap'})">🔄 Refresh</button>` : ''}
+          <button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(tl).replace(/"/g, '&quot;')},'${l.id}','book')">📦 Manage Tracking</button>
+        </div>
+      </div>
+      <div id="bk-track-err" style="font-size:11.5px;color:#b91c1c;margin-top:6px"></div>
+      ${bkTimelineItems(tl)}
+      <div style="font-size:11px;color:var(--gray2);margin-top:8px">${carrier ? `Vendor API se auto-sync (detail kholte hi + 🔄 Refresh) — live ${carrier} scans.` : 'Manual tracking — events Manage Tracking se add karein.'} Pipeline status hamesha manually badlein.</div>
+    </div></div>`;
+}
+
+function vsTrackHtml(t) {
+  const tl = t && Array.isArray(t.timeline) ? t.timeline : [];
+  if (!tl.length) return '';
+  return `<div style="margin-top:20px"><div class="section-title">Tracking Timeline</div>${bkTimelineItems(tl)}</div>`;
+}
+
+async function syncLeadTracking(leadId, opts = {}) {
+  const btn = document.getElementById('bk-sync-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Syncing…'; }
+  const r = await api('POST', `/api/tracking/${leadId}/sync`);
+  if (btn) { btn.disabled = false; btn.textContent = '🔄 Refresh'; }
+  if (!r) return;
+  const errEl = document.getElementById('bk-track-err');
+  if (!r.success) {
+    if (errEl) errEl.textContent = r.error || 'Sync failed';
+    if (!opts.silent) toast(r.error || 'Sync failed', 'error');
+    return;
+  }
+  if (errEl) errEl.textContent = '';
+  const wrap = document.getElementById(opts.wrapId || 'bk-track-wrap');
+  if (wrap) {
+    if (opts.wrapId === 'vs-track-wrap') wrap.innerHTML = vsTrackHtml(r.data);
+    else wrap.innerHTML = bkTrackCard(_bkTrackLead, r.data);
+  }
+  if (!opts.silent) toast(r.data.changed ? '✅ Tracking updated' : 'ℹ️ No new updates', r.data.changed ? 'success' : 'info');
+}
+
 async function showBookShipmentDetail(id) {
   _viewingDetail = true;
-  const r = await api('GET', `/api/shipment-leads/${id}`);
+  const [r, trackRes] = await Promise.all([
+    api('GET', `/api/shipment-leads/${id}`),
+    api('GET', `/api/tracking/${id}`).catch(() => null),
+  ]);
   if (!r?.success) { toast('Lead not found', 'error'); return; }
   const l = r.data;
+  const t = trackRes?.success ? trackRes.data : null;
+  _bkTrackLead = l;
 
   const _tr = (label, value, opts = {}) => {
     const bg = opts.bg || '';
@@ -3372,6 +3458,9 @@ async function showBookShipmentDetail(id) {
         </table>
       </div>
 
+      <!-- TRACKING (YNC number + auto/manual timeline) -->
+      <div id="bk-track-wrap">${bkTrackCard(l, t)}</div>
+
       <!-- RATE BREAKDOWN TABLE -->
       ${l.delhiveryRate ? `
       <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
@@ -3451,6 +3540,9 @@ async function showBookShipmentDetail(id) {
     apply(mq);
     mq.addEventListener('change', apply);
   }
+
+  // Auto-sync: API-booked shipment + tracking exists → pull live scans in background
+  if (t && (l.delhiveryLr || l.delhiveryAwb || l.awbNumber)) syncLeadTracking(id, { silent: true });
 }
 
 let _sbgLead = null, _sbgServices = [];
