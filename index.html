@@ -470,6 +470,7 @@ td.actions-col>*+*,th.actions-col>*+*{margin-left:6px}
         <div class="nav-section-title">Admin</div>
         <div class="nav-item" onclick="nav('users')" id="nav-users"><span class="ni">🏢</span>Team</div>
         <div class="nav-item" onclick="nav('reports')" id="nav-reports"><span class="ni">📈</span>Reports</div>
+        <div class="nav-item" onclick="nav('gst-invoices')" id="nav-gst-invoices" style="display:none"><span class="ni">📑</span>GST Invoice</div>
       </div>
     </div>
     <div class="sidebar-user">
@@ -581,6 +582,7 @@ function startAutoRefresh() {
       'book-shipment': ['/api/shipment-leads?page=1&limit=15&source=booking'],
       'tasks':         ['/api/tasks?page=1&limit=15'],
       'invoices':      ['/api/invoices?page=1&limit=15'],
+      'gst-invoices':  ['/api/invoices?paymentStatus=paid&limit=500'],
     };
     const urls = pageMap[curPage];
     if (urls) {
@@ -667,6 +669,7 @@ function initApp() {
   document.getElementById('su-role').textContent   = roleLabel(me.role);
   if (me.role === 'admin' || me.role === 'manager') {
     document.getElementById('nav-section-admin').style.display = '';
+    if (me.role === 'admin') document.getElementById('nav-gst-invoices').style.display = '';
   }
   nav(localStorage.getItem('ync_page') || 'dashboard');
   preloadAll();
@@ -692,7 +695,7 @@ const PAGE_TITLES = {
   dashboard: 'Dashboard', contacts: 'Contacts',
   'quote-leads': 'Leads', 'shipment-leads': 'Shipment',
   tasks: 'Tasks', users: 'Team Management', reports: 'Reports',
-  'get-rate': 'Get Rate', invoices: 'Invoices'
+  'get-rate': 'Get Rate', invoices: 'Invoices', 'gst-invoices': 'GST Invoice'
 };
 const ADD_LABELS = {
   contacts: '+ Contact', 'quote-leads': '+ Quote Lead',
@@ -712,7 +715,7 @@ function nav(page) {
   const srchWrap = document.getElementById('search-wrap');
   if (ADD_LABELS[page]) { addBtn.style.display = ''; addBtn.textContent = ADD_LABELS[page]; }
   else addBtn.style.display = 'none';
-  const searchPages = ['contacts','quote-leads','shipment-leads','tasks','users','invoices'];
+  const searchPages = ['contacts','quote-leads','shipment-leads','tasks','users','invoices','gst-invoices'];
   srchWrap.style.display = searchPages.includes(page) ? '' : 'none';
   document.getElementById('search-input').value = '';
   const catFilters = document.getElementById('cat-filters');
@@ -736,6 +739,7 @@ function renderPage(page) {
     case 'book-shipment':renderBookShipment(); break;
     case 'tasks':         renderTasks(); break;
     case 'invoices':      renderInvoices(); break;
+    case 'gst-invoices':  renderGstInvoices(); break;
     case 'users':         renderUsers(); break;
     case 'reports':       renderReports(); break;
     case 'get-rate':      renderGetRate(); break;
@@ -2242,6 +2246,51 @@ async function renderInvoices() {
     </tr>`).join('')}
     </tbody></table>` : emptyState('🧾', 'No invoices yet', 'Create your first invoice with the + Invoice button, or generate one from a booking')}
     ${pgHtml(pg)}
+  </div>`;
+}
+
+async function renderGstInvoices() {
+  if (me?.role !== 'admin') { toast('Admin access only', 'error'); nav('dashboard'); return; }
+  let url = '/api/invoices?paymentStatus=paid&limit=500';
+  if (curSearch) url += `&search=${encodeURIComponent(curSearch)}`;
+  const r = await api('GET', url);
+  const items = (Array.isArray(r?.data) ? r.data : []).filter(i => i.paymentStatus === 'paid');
+  let sumTax = 0, sumGst = 0, sumTot = 0;
+  const rows = items.map(inv => {
+    const paid = Math.round(((Number(inv.amountPaid) > 0 ? Number(inv.amountPaid) : Number(inv.total)) || 0) * 100) / 100;
+    const ownGst = (Number(inv.cgstAmount) || 0) + (Number(inv.sgstAmount) || 0);
+    let taxable, gst;
+    if (ownGst > 0) {
+      taxable = Math.round((paid - ownGst) * 100) / 100;
+      gst = Math.round(ownGst * 100) / 100;
+    } else {
+      taxable = Math.round((paid / 1.18) * 100) / 100;
+      gst = Math.round((paid - taxable) * 100) / 100;
+    }
+    sumTax += taxable; sumGst += gst; sumTot += paid;
+    return { inv, paid, taxable, gst };
+  });
+  sumTax = Math.round(sumTax * 100) / 100; sumGst = Math.round(sumGst * 100) / 100; sumTot = Math.round(sumTot * 100) / 100;
+  document.getElementById('content').innerHTML = `
+  <div class="table-card">
+    <div class="table-header">
+      <div><div class="table-title">GST Invoice ${rows.length ? '(' + rows.length + ' paid)' : ''}</div>
+      <div style="font-size:12px;color:var(--gray);margin-top:2px">Paid amounts reverse-split into taxable value + GST @18% (invoices with their own GST rates show those instead)</div></div>
+    </div>
+    ${rows.length ? `<table><thead><tr>
+      <th>Invoice #</th><th>Customer</th><th>Invoice Date</th><th>Taxable Value</th><th>GST @18%</th><th>Paid Amount</th>
+    </tr></thead><tbody>
+    ${rows.map(({inv, paid, taxable, gst}) => `<tr onclick="viewInvoice('${inv.id}')">
+      <td><code style="font-size:12px;background:var(--brand-bg);color:var(--brand);padding:2px 7px;border-radius:5px">${esc(inv.invoiceNo)}</code></td>
+      <td><div class="cell-name">${esc(inv.customerName)}</div><div class="cell-sub">${esc(inv.receiverName ? '→ ' + inv.receiverName : (inv.waybill || inv.sourceLeadId || '—'))}</div></td>
+      <td>${fmtINVDate(inv.invoiceDate)}</td>
+      <td style="font-weight:600">${invMoney(taxable)}</td>
+      <td style="font-weight:600;color:#b45309">${invMoney(gst)}</td>
+      <td style="font-weight:700">${invMoney(paid)}</td>
+    </tr>`).join('')}
+    </tbody><tfoot><tr style="background:var(--gray4);font-weight:700">
+      <td colspan="3" style="text-align:right">Total</td><td>${invMoney(sumTax)}</td><td>${invMoney(sumGst)}</td><td>${invMoney(sumTot)}</td>
+    </tr></tfoot></table>` : emptyState('📑', 'No paid invoices yet', 'GST invoices appear here once a payment is marked as Paid')}
   </div>`;
 }
 
