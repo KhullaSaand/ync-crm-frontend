@@ -3418,7 +3418,7 @@ async function getBookRates(id) {
     dimensions = [{ length_cm: dL, width_cm: dW, height_cm: dH, box_count: 1 }];
   }
 
-  toast('Fetching rates from Delhivery...', 'info');
+  toast('Getting Rates', 'info');
   const rateR = await api('POST', '/api/delhivery/rate', {
     source_pin: sourcePin,
     consignee_pin: destPin,
