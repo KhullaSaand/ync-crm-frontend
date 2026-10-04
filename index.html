@@ -3267,9 +3267,12 @@ async function showBookShipmentDetail(id) {
       </div>
     </div>
     <div class="dp-actions" style="flex-wrap:wrap">
-      ${!l.delhiveryLr ? `<button class="btn-get-rates" onclick="getBookRates('${l.id}')">💰 Get Rates</button>` : ''}
-      ${!l.delhiveryLr ? `<button class="btn-book" onclick="confirmBookShipment('${l.id}')">🚚 Book Shipment</button>` : ''}
+      ${!l.delhiveryLr && !l.awbNumber ? `<button class="btn-get-rates" onclick="getBookRates('${l.id}')">💰 Get Rates</button>` : ''}
+      ${!l.delhiveryLr && !l.awbNumber ? (l.shipmentType === 'international'
+        ? `<button class="btn-book" onclick="openSgBooking('${l.id}')">🚚 Book Shipment</button>`
+        : `<button class="btn-book" onclick="confirmBookShipment('${l.id}')">🚚 Book Shipment</button>`) : ''}
       ${l.delhiveryLr ? `<button class="btn-label" onclick="downloadLabel('${l.delhiveryLr}')">🏷️ Download Label</button>` : ''}
+      ${!l.delhiveryLr && l.awbNumber ? `<button class="btn-label" onclick="downloadSgLabel('${l.awbNumber}')">🏷️ Download Label</button>` : ''}
       <button class="btn-track" onclick="generateInvoiceFromBooking('${l.id}')">🧾 Generate Invoice</button>
       <button class="btn-edit" onclick="editBookShipmentById('${l.id}')">✏️ Edit</button>
       ${me?.role==='admin'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteBookShipment('${l.id}')">Delete</button>`:''}
@@ -3358,6 +3361,7 @@ async function showBookShipmentDetail(id) {
             ${_tr('Created', fmtDate(l.createdAt))}
             ${_tr('Delhivery LR', l.delhiveryLr ? `<code style="background:#fef2f2;color:#b91c1c;padding:2px 8px;border-radius:4px;font-size:13px;font-weight:700">${esc(l.delhiveryLr)}</code>` : '<span style="color:var(--gray2)">Not booked yet</span>')}
             ${_tr('AWB', esc(l.delhiveryAwb || '—'))}
+            ${l.shipmentType === 'international' && l.awbNumber ? _tr('ShipGlobal AWB', `<code style="background:#f0fdf4;color:#15803d;padding:2px 8px;border-radius:4px;font-size:13px;font-weight:700">${esc(l.awbNumber)}</code>`) : ''}
             ${_tr('Job ID', l.delhiveryJobId ? `<code style="font-family:monospace;font-size:12px">${esc(l.delhiveryJobId)}</code>` : '—')}
           </tbody>
         </table>
@@ -3501,6 +3505,206 @@ async function useBookingSgRate(rate) {
   toast(`Freight charge set to ₹${Number(rate).toLocaleString('en-IN')}`, 'success');
   closeModal();
   showBookShipmentDetail(_sbgLead.id);
+}
+
+// ─── BOOK ON SHIPGLOBAL (international) ────────────────────────────────────
+let _sgBook = null, _sgLastLabel = null;
+
+async function openSgBooking(id) {
+  const r = await api('GET', `/api/shipment-leads/${id}`);
+  if (!r?.success) { toast('Lead not found', 'error'); return; }
+  const l = r.data;
+  const w = parseFloat(l.weight);
+  const dest = String(l.destination || '');
+  const pc = extractIntlPostcode(dest);
+  const country = guessCountry(dest);
+  const email = l.receiverEmail || l.email || '';
+  const phone = l.receiverPhone || l.phone || '';
+  const rname = l.receiverName || l.customerName || '';
+  const missing = [];
+  if (!(w > 0)) missing.push('weight');
+  if (!pc) missing.push('destination postcode');
+  if (!country || country === 'IN') missing.push('destination country');
+  if (!rname) missing.push('receiver name');
+  if (!phone) missing.push('receiver phone');
+  if (!email) missing.push('email');
+  if (missing.length) { toast('Please fill ' + missing.join(', ') + ' first', 'error'); return; }
+
+  toast('Getting Rates', 'info');
+  const rr = await api('POST', '/api/shipglobal/rate', { package_weight: w, country_iso_code_2: country, postcode: pc });
+  const services = (rr?.success && rr.data?.services) || [];
+  _sgBook = { l, w, pc, country, services };
+
+  let defIdx = -1;
+  if (services.length) {
+    defIdx = services.reduce((bi, s, i, a) => (Number(s.finalRate) < Number(a[bi].finalRate) ? i : bi), 0);
+    if (l.freightCharge) { const m = services.findIndex(s => Number(s.finalRate) === Number(l.freightCharge)); if (m >= 0) defIdx = m; }
+  }
+  const svcHtml = services.length
+    ? `<select id="sgbk-service">${services.map((s, i) => `<option value="${esc(s.title)}" ${i === defIdx ? 'selected' : ''}>${esc(s.title)} — ₹${Number(s.finalRate).toLocaleString('en-IN')}${s.transitTime ? ' · ' + esc(s.transitTime) : ''}</option>`).join('')}</select>`
+    : `<input id="sgbk-service" placeholder="e.g. Shipglobal Direct" value=""/>`;
+
+  const invNo = l.leadId || ('INV-' + Date.now());
+  const today = new Date().toISOString().slice(0, 10);
+  const dimsTxt = (() => {
+    const p0 = Array.isArray(l.packingList) && l.packingList.length ? l.packingList[0] : null;
+    if (p0) return `${p0.length || 50}×${p0.width || 40}×${p0.height || 30} cm`;
+    if (l.dimensions) return String(l.dimensions);
+    return '50 × 40 × 30 cm';
+  })();
+
+  showModal('🚚 Book on YNCSG', `
+    <div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--gray);margin-bottom:12px">
+      <div style="font-weight:700;color:var(--black);margin-bottom:4px">📦 ${esc(rname)} → ${esc(dest)}</div>
+      Weight <strong>${w} kg</strong> · Dims <strong>${esc(dimsTxt)}</strong> · Postcode <strong>${esc(pc)}</strong> · Country <strong>${esc(country)}</strong><br/>
+      Order + label will be created directly on ShipGlobal — no manual booking needed.
+    </div>
+    <div class="fg"><label>Service *</label>${svcHtml}</div>
+    <div class="form-row">
+      <div class="fg"><label>Invoice No *</label><input id="sgbk-inv" value="${esc(invNo)}"/></div>
+      <div class="fg"><label>Invoice Date *</label><input id="sgbk-invdate" type="date" value="${today}"/></div>
+    </div>
+    <button class="btn-primary" id="sgbk-btn" onclick="executeSgBooking()" style="width:100%;margin-top:12px">🚚 Book on ShipGlobal</button>
+    <div id="sgbk-msg" style="margin-top:10px;font-size:12.5px;text-align:center"></div>
+  `);
+  const mb = document.getElementById('modal-save'); if (mb) mb.style.display = 'none';
+}
+
+async function executeSgBooking() {
+  if (!_sgBook) return;
+  const { l, w, pc, country } = _sgBook;
+  const svcEl = document.getElementById('sgbk-service');
+  const service = svcEl?.tagName === 'SELECT' ? svcEl.value : (svcEl?.value || '').trim();
+  const invNo = (document.getElementById('sgbk-inv')?.value || '').trim();
+  const invDate = (document.getElementById('sgbk-invdate')?.value || '').trim();
+  if (!service) { toast('Select or enter a service', 'error'); return; }
+  if (!invNo || !invDate) { toast('Invoice number and date are required', 'error'); return; }
+
+  const dest = String(l.destination || '');
+  const parts = dest.split(',').map(s => s.trim()).filter(Boolean);
+  const countryName = (SG_COUNTRIES.split(',').find(p => p.startsWith(country + ':')) || '').slice(3).toLowerCase();
+  const rest = parts.filter(p => p.toLowerCase() !== countryName && p !== pc);
+  let city = '', state = '', address = dest;
+  if (rest.length >= 3) { address = rest.slice(0, -2).join(', '); city = rest[rest.length - 2]; state = rest[rest.length - 1]; }
+  else if (rest.length === 2) { address = rest[0]; city = rest[1]; state = rest[1]; }
+  else if (rest.length === 1) { address = rest[0]; city = rest[0]; state = rest[0]; }
+
+  const nm = String(l.receiverName || l.customerName || '').trim().split(/\s+/).filter(Boolean);
+  const firstname = nm[0] || '';
+  const lastname = nm.slice(1).join(' ') || firstname;
+  const email = l.receiverEmail || l.email || '';
+  const phone = String(l.receiverPhone || l.phone || '');
+
+  const packing = Array.isArray(l.packingList) ? l.packingList : [];
+  let items = packing.map((p, i) => {
+    const qty = parseInt(p.qty) || 1;
+    const total = parseFloat(p.total) || parseFloat(p.declaredValue) || 0;
+    return {
+      vendor_order_item_name: p.description || l.cargoType || `Item ${i + 1}`,
+      vendor_order_item_sku: '',
+      vendor_order_item_quantity: String(qty),
+      vendor_order_item_unit_price: String(total > 0 ? +(total / qty).toFixed(2) : 1),
+      vendor_order_item_hsn: '0000',
+      vendor_order_item_tax_rate: '0',
+    };
+  });
+  if (!items.length) {
+    const qty = l.numberOfPackages || 1;
+    const val = parseFloat(l.declaredValue) || parseFloat(l.freightCharge) || 1;
+    items = [{ vendor_order_item_name: l.cargoType || 'Parcel', vendor_order_item_sku: '', vendor_order_item_quantity: String(qty), vendor_order_item_unit_price: String(+(val / qty).toFixed(2)), vendor_order_item_hsn: '0000', vendor_order_item_tax_rate: '0' }];
+  }
+
+  let L = 50, B = 40, H = 30;
+  if (packing.length) {
+    L = parseFloat(packing[0].length) || L; B = parseFloat(packing[0].width) || B; H = parseFloat(packing[0].height) || H;
+  } else if (l.dimensions) {
+    const p = String(l.dimensions).toLowerCase().split('x').map(n => parseFloat(n));
+    if (p.length === 3 && p.every(n => n > 0)) { L = p[0]; B = p[1]; H = p[2]; }
+  }
+
+  const supported = ['AED', 'AUD', 'CAD', 'EUR', 'GBP', 'INR', 'SAR', 'USD'];
+  const currency = supported.includes(String(l.currency || '').toUpperCase()) ? String(l.currency).toUpperCase() : 'INR';
+
+  const payload = {
+    invoice_no: invNo,
+    invoice_date: invDate,
+    order_reference: l.leadId || invNo,
+    service,
+    package_weight: String(w),
+    package_length: String(L),
+    package_breadth: String(B),
+    package_height: String(H),
+    currency_code: currency,
+    csb5_status: 1,
+    customer_shipping_firstname: firstname,
+    customer_shipping_lastname: lastname,
+    customer_shipping_mobile: phone,
+    customer_shipping_email: email,
+    customer_shipping_company: l.company || '',
+    customer_shipping_address: address,
+    customer_shipping_address_2: '',
+    customer_shipping_address_3: '',
+    customer_shipping_city: city,
+    customer_shipping_postcode: pc,
+    customer_shipping_country_code: country,
+    customer_shipping_state: state,
+    ioss_number: '',
+    customer_nickname: '',
+    vendor_order_items: items,
+  };
+
+  const btn = document.getElementById('sgbk-btn');
+  const msg = document.getElementById('sgbk-msg');
+  if (btn) { btn.disabled = true; btn.textContent = 'Booking with ShipGlobal...'; }
+  if (msg) msg.innerHTML = `<span style="color:var(--gray)">⏳ Creating order + label on ShipGlobal…</span>`;
+
+  const r = await api('POST', '/api/shipglobal/order', payload);
+
+  if (btn) { btn.disabled = false; btn.textContent = '🚚 Book on ShipGlobal'; }
+  if (!r) { if (msg) msg.innerHTML = ''; toast('Session expired. Please log in again.', 'error'); return; }
+  if (!r.success) {
+    if (msg) msg.innerHTML = `<span style="color:var(--red)">${esc(r.error || 'Booking failed')}</span>`;
+    toast(r.error || 'Booking failed', 'error');
+    return;
+  }
+
+  const tracking = r.data?.tracking || '';
+  if (tracking) await api('PATCH', `/api/shipment-leads/${l.id}`, { awbNumber: tracking });
+  _sgLastLabel = r.data?.label || null;
+  showSgBookedModal(l.id, tracking);
+}
+
+function showSgBookedModal(id, tracking) {
+  showModal('✅ Booked on ShipGlobal', `
+    <div style="text-align:center;padding:6px 0 2px">
+      <div style="font-size:42px">📦</div>
+      <div style="font-size:12px;color:var(--gray);margin-top:8px;text-transform:uppercase;letter-spacing:.5px;font-weight:700">Tracking / AWB</div>
+      <div style="font-family:ui-monospace,Menlo,monospace;font-size:20px;font-weight:800;color:#15803d;margin-top:4px">${esc(tracking || '—')}</div>
+    </div>
+    ${_sgLastLabel
+      ? `<button class="btn-primary" onclick="openSgLabel(_sgLastLabel)" style="width:100%;margin-top:14px">🏷️ View / Print Label</button>`
+      : `<div style="font-size:12px;color:var(--gray);text-align:center;margin-top:12px">Label not ready yet — use 🏷️ Download Label after some time.</div>`}
+  `, () => { closeModal(); showBookShipmentDetail(id); });
+  const sb = document.getElementById('modal-save'); if (sb) sb.textContent = 'Done';
+}
+
+function openSgLabel(b64) {
+  try {
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([arr], { type: 'application/pdf' }));
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { toast('Could not open label', 'error'); }
+}
+
+async function downloadSgLabel(tracking) {
+  toast('Fetching label…', 'info');
+  const r = await api('POST', '/api/shipglobal/order', { tracking });
+  if (!r?.success) { toast(r?.error || 'Label not available yet', 'error'); return; }
+  if (r.data?.label) openSgLabel(r.data.label);
+  else toast('Label not ready yet', 'error');
 }
 
 async function getBookRates(id) {
