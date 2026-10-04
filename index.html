@@ -331,13 +331,14 @@ td.actions-col>*+*,th.actions-col>*+*{margin-left:6px}
 .inv-meta .row{display:flex;justify-content:space-between;gap:10px;padding:2.5px 0}
 .inv-meta .row span{color:#64748b;font-weight:500;white-space:nowrap}
 .inv-meta .row b{color:#0f172a;text-align:right;font-weight:600}
-.inv-billto{background:#edf5fd;border:1px solid #dbeafe;border-radius:9px;padding:12px 16px;margin-top:20px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
-.inv-billto .who{display:flex;align-items:center;gap:12px}
-.inv-avatar{width:34px;height:34px;border-radius:9px;background:#dbeafe;color:#2563eb;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.inv-parties{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px}
+.inv-party{background:#edf5fd;border:1px solid #dbeafe;border-radius:9px;padding:12px 16px}
 .inv-klabel{font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#64748b;display:block}
-.inv-billto h2{font-size:16.5px;font-weight:600;margin:1px 0 0;color:#111}
-.inv-waybill{text-align:right;font-size:11.5px;font-weight:600;color:#0f172a}
-.inv-waybill .sub{font-size:10.5px;font-weight:500;color:#64748b;margin-top:3px}
+.inv-party h2{font-size:16.5px;font-weight:600;margin:3px 0 0;color:#111}
+.inv-party-row{display:flex;gap:7px;align-items:flex-start;font-size:11.5px;color:#475569;margin-top:5px;line-height:1.5}
+.inv-waybill-strip{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:11.5px;color:#475569;margin-top:10px;padding:0 2px}
+.inv-waybill-strip b{color:#0f172a;font-weight:600}
+.paid-stamp{align-self:center;margin-top:8px;padding:7px 22px;border:3px double #dc2626;border-radius:9px;color:#dc2626;font-size:24px;font-weight:800;letter-spacing:6px;text-transform:uppercase;transform:rotate(-7deg);opacity:.85;white-space:nowrap;user-select:none}
 .inv-num{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.03em}
 .inv-table{width:100%;border-collapse:collapse;margin-top:18px}
 .inv-table th{background:#e2edf8;color:#475569;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;padding:9px 12px;text-align:left}
@@ -1910,7 +1911,7 @@ async function renderInvoices() {
     </tr></thead><tbody>
     ${items.map(inv => `<tr>
       <td><code style="font-size:12px;background:var(--brand-bg);color:var(--brand);padding:2px 7px;border-radius:5px">${esc(inv.invoiceNo)}</code></td>
-      <td><div class="cell-name">${esc(inv.customerName)}</div><div class="cell-sub">${esc(inv.email || inv.customerAddress || '')}</div></td>
+      <td><div class="cell-name">${esc(inv.customerName)}</div><div class="cell-sub">${esc(inv.receiverName ? '→ ' + inv.receiverName : (inv.customerAddress || ''))}</div></td>
       <td><span style="font-family:monospace;font-size:12px;color:var(--gray)">${esc(inv.waybill || inv.sourceLeadId || '—')}</span></td>
       <td>${fmtINVDate(inv.invoiceDate)}</td>
       <td>${fmtINVDate(inv.dueDate)}</td>
@@ -1961,6 +1962,7 @@ async function viewInvoice(id) {
           <p style="font-size:11px;font-weight:600;color:#334155">GSTIN: <span class="inv-num">24AAACK1234F1Z5</span></p>
         </div>
       </div>
+      ${inv.paymentStatus === 'paid' ? `<div class="paid-stamp">Paid</div>` : ''}
       <div class="inv-title">
         <h1>Tax Invoice</h1>
         <div class="bar"></div>
@@ -1974,23 +1976,24 @@ async function viewInvoice(id) {
       </div>
     </header>
 
-    <section class="inv-billto">
-      <div class="who">
-        <div class="inv-avatar">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </div>
-        <div>
-          <span class="inv-klabel">Bill To Customer</span>
-          <h2>${esc(inv.customerName)}</h2>
-          ${inv.customerAddress ? `<div style="font-size:11.5px;color:#475569;margin-top:2px">${esc(inv.customerAddress)}</div>` : ''}
-          ${inv.email ? `<div style="font-size:11.5px;color:#475569">${esc(inv.email)}</div>` : ''}
-        </div>
+    <section class="inv-parties">
+      <div class="inv-party">
+        <span class="inv-klabel">Sender</span>
+        <h2>${esc(inv.customerName)}</h2>
+        ${inv.senderPhone ? `<div class="inv-party-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>${esc(inv.senderPhone)}</span></div>` : ''}
+        ${inv.customerAddress ? `<div class="inv-party-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span>${esc(inv.customerAddress)}</span></div>` : ''}
       </div>
-      <div>
-        <div class="inv-waybill">Consignment Waybill: <span class="inv-num">#${esc(inv.waybill || '—')}</span></div>
-        <div class="inv-waybill sub">${esc(inv.serviceDesc || '')}</div>
+      <div class="inv-party">
+        <span class="inv-klabel">Receiver</span>
+        <h2>${esc(inv.receiverName || '—')}</h2>
+        ${inv.receiverPhone ? `<div class="inv-party-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>${esc(inv.receiverPhone)}</span></div>` : ''}
+        ${inv.receiverAddress ? `<div class="inv-party-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span>${esc(inv.receiverAddress)}</span></div>` : ''}
       </div>
     </section>
+    <div class="inv-waybill-strip">
+      <span>Consignment Waybill: <b class="inv-num">#${esc(inv.waybill || '—')}</b></span>
+      ${inv.serviceDesc ? `<span>${esc(inv.serviceDesc)}</span>` : ''}
+    </div>
 
     <table class="inv-table">
       <thead><tr><th class="c">#</th><th>Description</th><th class="r">Qty</th><th class="r">Rate (₹)</th><th class="r">Amount (₹)</th></tr></thead>
@@ -2076,10 +2079,15 @@ function openInvoiceModal(inv, prefill) {
     <div class="fg"><label>Due Date</label><input type="date" id="inv-duedate" value="${dueDate}"/></div>
   </div>
   <div class="form-row">
-    <div class="fg"><label>Bill To Customer *</label><input id="inv-customer" value="${esc(inv?.customerName || prefill.customerName || '')}"/></div>
-    <div class="fg"><label>Email</label><input id="inv-email" type="email" value="${esc(inv?.email || prefill.email || '')}"/></div>
+    <div class="fg"><label>Sender Name *</label><input id="inv-customer" value="${esc(inv?.customerName || prefill.customerName || '')}"/></div>
+    <div class="fg"><label>Sender Mobile Number</label><input id="inv-sphone" value="${esc(inv?.senderPhone || prefill.senderPhone || '')}"/></div>
   </div>
-  <div class="fg"><label>Customer Address</label><input id="inv-address" value="${esc(inv?.customerAddress || prefill.customerAddress || '')}"/></div>
+  <div class="fg"><label>Sender Address</label><input id="inv-address" value="${esc(inv?.customerAddress || prefill.customerAddress || '')}"/></div>
+  <div class="form-row">
+    <div class="fg"><label>Receiver Name</label><input id="inv-rname" value="${esc(inv?.receiverName || prefill.receiverName || '')}"/></div>
+    <div class="fg"><label>Receiver Mobile Number</label><input id="inv-rphone" value="${esc(inv?.receiverPhone || prefill.receiverPhone || '')}"/></div>
+  </div>
+  <div class="fg"><label>Receiver Address</label><input id="inv-raddr" value="${esc(inv?.receiverAddress || prefill.receiverAddress || '')}"/></div>
   <div class="form-row">
     <div class="fg"><label>Place of Supply</label><input id="inv-pos" value="${esc(inv?.placeOfSupply || 'Gujarat (24)')}"/></div>
     <div class="fg"><label>Waybill / Consignment #</label><input id="inv-waybill" value="${esc(inv?.waybill || prefill.waybill || '')}"/></div>
@@ -2104,7 +2112,7 @@ function openInvoiceModal(inv, prefill) {
   <div class="fg" style="margin-top:12px"><label>Notes (optional)</label><textarea id="inv-notes" style="min-height:60px" placeholder="Payment remarks, PO reference...">${esc(inv?.notes || '')}</textarea></div>
   `, async () => {
     const items = _invLines.filter(l => (l.description && l.description.trim()) || Number(l.rate));
-    if (!document.getElementById('inv-customer').value.trim()) { toast('Customer name is required', 'error'); return; }
+    if (!document.getElementById('inv-customer').value.trim()) { toast('Sender name is required', 'error'); return; }
     if (!items.length || !items.every(l => l.description && l.description.trim())) { toast('Each line needs a description', 'error'); return; }
     const leadId = document.getElementById('inv-lead').textContent.trim();
     const body = {
@@ -2113,8 +2121,11 @@ function openInvoiceModal(inv, prefill) {
       terms: document.getElementById('inv-terms').value,
       placeOfSupply: document.getElementById('inv-pos').value,
       customerName: document.getElementById('inv-customer').value,
-      email: document.getElementById('inv-email').value,
       customerAddress: document.getElementById('inv-address').value,
+      senderPhone: document.getElementById('inv-sphone').value,
+      receiverName: document.getElementById('inv-rname').value,
+      receiverPhone: document.getElementById('inv-rphone').value,
+      receiverAddress: document.getElementById('inv-raddr').value,
       waybill: document.getElementById('inv-waybill').value,
       serviceDesc: document.getElementById('inv-service').value,
       items: items.map(l => ({ description: l.description.trim(), details: (l.details || '').trim(), qty: Number(l.qty) || 1, rate: Number(l.rate) || 0 })),
@@ -2196,11 +2207,15 @@ async function invLookupLead() {
   document.getElementById('inv-lead').textContent = data.leadId || '';
   const setVal = (id, v) => { const e = document.getElementById(id); if (e && v != null) e.value = v || ''; };
   setVal('inv-customer', data.customerName || data.name);
-  setVal('inv-email', data.email);
+  setVal('inv-sphone', data.phone);
   const addr = [data.address1, data.address2, data.address3].filter(Boolean).join(', ');
   if (addr) setVal('inv-address', addr);
   const route = [data.origin, data.destination].filter(Boolean).join(' → ');
   if (type === 'shipment-leads') {
+    setVal('inv-rname', data.receiverName);
+    setVal('inv-rphone', data.receiverPhone);
+    const daddr = [data.destAddress1, data.destAddress2, data.destAddress3].filter(Boolean).join(', ');
+    if (daddr) setVal('inv-raddr', daddr);
     setVal('inv-waybill', data.awbNumber || data.bookingRef);
     if (data.freightCharge) {
       _invLines = [{ description: 'Shipping Charges', details: (route || 'Shipment freight') + ' shipment freight charges', qty: 1, rate: data.freightCharge }];
@@ -2287,8 +2302,11 @@ async function generateInvoiceFromBooking(id) {
   const route = [l.origin, l.destination].filter(Boolean).join(' → ');
   const prefill = {
     customerName: l.customerName,
-    email: l.email,
+    senderPhone: l.phone,
     customerAddress: [l.address1, l.address2, l.address3].filter(Boolean).join(', '),
+    receiverName: l.receiverName || '',
+    receiverPhone: l.receiverPhone || '',
+    receiverAddress: [l.destAddress1, l.destAddress2, l.destAddress3].filter(Boolean).join(', '),
     waybill: l.awbNumber || l.bookingRef || '',
     serviceDesc: `${domestic ? 'Domestic' : 'International'} Express Courier Service • ${modeLabel} Network`,
     sourceLeadId: l.leadId,
