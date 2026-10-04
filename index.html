@@ -2912,10 +2912,10 @@ async function renderBookShipment() {
       ` : `
         <div class="table-scroll">
         <table><thead><tr>
-          <th>Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Shipment Type</th><th>Mode</th><th>Status</th><th>Amount</th><th>Assigned</th><th>Created</th><th class="actions-col">Actions</th>
+          <th style="white-space:nowrap">Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Shipment Type</th><th>Mode</th><th>Status</th><th>Amount</th><th>Assigned</th><th>Created</th><th class="actions-col">Actions</th>
         </tr></thead><tbody>
           ${leads.map(l => { const lk = rowLocked(l); return `<tr>
-            <td><code style="font-size:12px;background:var(--blue-bg);color:var(--blue);padding:2px 7px;border-radius:5px">${esc(l.leadId)}</code></td>
+            <td style="white-space:nowrap"><code style="font-size:12px;background:var(--blue-bg);color:var(--blue);padding:2px 7px;border-radius:5px">${esc(l.leadId)}</code></td>
             <td><strong>${esc(l.customerName)}</strong><br><span class="sub">${esc(l.company||'')}</span></td>
             <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.origin||'-')}</td>
             <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.destination||'-')}</td>
@@ -3316,6 +3316,14 @@ async function syncLeadTracking(leadId, opts = {}) {
   if (!opts.silent) toast(r.data.changed ? '✅ Tracking updated' : 'ℹ️ No new updates', r.data.changed ? 'success' : 'info');
 }
 
+function copyTrackingId(id) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(id).then(() => toast(`Tracking ID copied: ${id}`, 'success')).catch(() => toast('Could not copy — ' + id, 'error'));
+  } else {
+    toast('Tracking ID: ' + id, 'info');
+  }
+}
+
 async function showBookShipmentDetail(id) {
   _viewingDetail = true;
   const [r, trackRes] = await Promise.all([
@@ -3347,7 +3355,7 @@ async function showBookShipmentDetail(id) {
     <div style="display:flex;align-items:center;gap:16px">
       <div style="width:48px;height:48px;border-radius:50%;background:var(--brand-bg);border:2px solid var(--brand-border);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:var(--brand)">${l.customerName?.slice(0,2).toUpperCase()||'??'}</div>
       <div>
-        <div style="font-size:18px;font-weight:800;color:var(--black)">${esc(l.customerName)} <span style="font-family:monospace;font-size:13px;color:var(--gray2);margin-left:6px">${esc(l.leadId)}</span></div>
+        <div style="font-size:18px;font-weight:800;color:var(--black)">${esc(l.customerName)} <span style="font-family:monospace;font-size:13px;color:var(--gray2);margin-left:6px">${esc(l.leadId)}</span>${t ? ` <span style="font-family:monospace;font-size:13px;font-weight:700;color:#15803d;margin-left:8px;cursor:pointer;background:#f0fdf4;border:1px solid #bbf7d0;padding:2px 8px;border-radius:6px" title="Click to copy tracking ID" onclick="copyTrackingId('${esc(t.trackingId)}')">📡 ${esc(t.trackingId)}</span>` : ''}</div>
         <div style="font-size:13px;color:var(--gray);margin-top:2px">${esc(l.company||'')}${l.email?' · '+esc(l.email):''}${l.phone?' · '+esc(l.phone):''}</div>
         <div style="margin-top:6px;display:flex;gap:6px">${badge(l.status)}${l.shipmentMode?badge(l.shipmentMode):''}</div>
       </div>
