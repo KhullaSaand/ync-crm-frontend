@@ -924,6 +924,7 @@ async function viewQuoteLead(id) {
         <div style="margin-top:8px;display:flex;gap:8px">${l.category?`<span class="badge badge-${l.category}">${fmtStatus(l.category)}</span>`:''}${badge(l.status)}${l.shipmentMode?badge(l.shipmentMode):''}</div>
       </div>
       <div class="dp-actions">
+        <button class="btn-get-rates" onclick="getQuoteLeadRates()">🔍 Get Rate</button>
         ${t ? `<button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(t.timeline||[]).replace(/"/g,'&quot;')},'${l.id}','quote')">📦 Manage Tracking</button>` : ''}
         <button class="btn-edit" onclick="editQuoteLead(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏️ Edit</button>
         ${me.role==='admin'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteQuoteLead('${l.id}')">Delete</button>`:''}
@@ -950,7 +951,7 @@ async function viewQuoteLead(id) {
     <div class="table-header">
       <div class="table-title">Vendor Rates</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-add" onclick="vrToggleLive()" style="font-size:12px;padding:6px 14px">🔍 Get Rates</button>
+        <button class="btn-add" onclick="getQuoteLeadRates()" style="font-size:12px;padding:6px 14px">🔍 Get Rates</button>
         <button class="btn-add" onclick="vrAddManual()" style="font-size:12px;padding:6px 14px;background:var(--gray4);border:1px solid var(--gray3);color:var(--black)">+ Manual</button>
         <button class="btn-add" onclick="vrSaveRates()" style="font-size:12px;padding:6px 14px">💾 Save</button>
       </div>
@@ -1007,7 +1008,7 @@ function renderVendorRates() {
   const c = document.getElementById('vendor-rates-container'); if (!c) return;
   const list = _vrRates.length
     ? _vrRates.map(vrRowHtml).join('')
-    : `<div class="empty-sub" style="color:var(--gray2);font-size:13px;text-align:center;padding:18px 0">No rates yet — fetch live with 🔍 Get Rates or add manually</div>`;
+    : `<div class="empty-sub" style="color:var(--gray2);font-size:13px;text-align:center;padding:18px 0">No rates yet — click 🔍 Get Rate (top) to fetch live rates, or add manually</div>`;
   c.innerHTML = (_vrLiveOpen ? vrLiveHtml() : '') + list +
     (_vrRates.length ? `<div style="font-size:11px;color:var(--gray2);margin-top:6px">Draft rows — click 💾 Save to store them for this lead.</div>` : '');
 }
@@ -1073,6 +1074,130 @@ async function vrFetchDelhivery() {
   if (!r.success) { toast(r.error || 'Delhivery failed', 'error'); return; }
   vrAddRows([{ vendor: 'delhivery', service: 'Surface', rate: r.data.finalRate, currency: 'INR', estimatedDays: '' }]);
   toast('Delhivery rate added — click 💾 Save', 'success');
+}
+
+// ─── GET RATE (Quote Lead top button) ──────────────────────────────────────
+let _qsgServices = [], _qdhRate = 0;
+async function getQuoteLeadRates() {
+  const l = _vrLead; if (!l) return;
+  const w = parseFloat(l.weight);
+  const country = guessCountry(l.destination);
+  if (country && country !== 'IN') {
+    const pc = l.destinationPincode || extractIntlPostcode(l.destination);
+    if (w > 0 && pc) { toast('Getting Rates', 'info'); showQuoteSgRates(l, { w, pc, c: country, auto: true }); }
+    else showQuoteSgRates(l, { w: w > 0 ? w : '', pc: pc || '', c: country });
+    return;
+  }
+  const pin6 = (s) => { const m = String(s || '').match(/\b\d{6}\b/); return m ? m[0] : ''; };
+  const o = l.originPincode || pin6(l.origin);
+  const d = l.destinationPincode || pin6(l.destination);
+  const missing = [];
+  if (!(w > 0)) missing.push('weight');
+  if (!o) missing.push('origin pincode');
+  if (!d) missing.push('destination pincode');
+  if (missing.length) { toast('Please fill ' + missing.join(', ') + ' first', 'error'); return; }
+  let dims = [{ length_cm: 50, width_cm: 40, height_cm: 30, box_count: 1 }];
+  if (l.dimensions) {
+    const p = String(l.dimensions).toLowerCase().split('x').map(n => parseFloat(n));
+    if (p.length === 3 && p.every(n => n > 0)) dims = [{ length_cm: p[0], width_cm: p[1], height_cm: p[2], box_count: 1 }];
+  }
+  toast('Getting Rates', 'info');
+  const r = await api('POST', '/api/delhivery/rate', { source_pin: o, consignee_pin: d, weight_g: Math.round(w * 1000), inv_amount: l.estimatedValue || 1000, dimensions: dims, payment_mode: 'prepaid' });
+  if (!r) { toast('Session expired. Please log in again.', 'error'); return; }
+  if (!r.success) { toast(r.error || 'Failed to get rate', 'error'); return; }
+  showQuoteDhResult(r.data, o, d);
+}
+
+function showQuoteSgRates(l, pre = {}) {
+  const pc = pre.pc || '', c = pre.c || guessCountry(l.destination) || '', w = pre.w || l.weight || '';
+  showModal('🌍 YNCSG Rates', `
+    <div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--gray);margin-bottom:12px">🌍 Live rates from ShipGlobal (India → ${esc(l.destination || 'world')}). YNC rate includes 30% margin.</div>
+    <div class="form-row">
+      <div class="fg"><label>Weight (kg) *</label><input id="qsg-w" type="number" step="0.01" min="0.01" value="${esc(w)}"/></div>
+      <div class="fg"><label>Dest. Postcode *</label><input id="qsg-pc" placeholder="e.g. AB32" value="${esc(pc)}"/></div>
+    </div>
+    <div class="fg"><label>Destination Country *</label><select id="qsg-c">${sgCountryOptions(c)}</select></div>
+    <button class="btn-primary" id="qsg-btn" onclick="fetchQuoteSgRates()" style="width:100%;margin-top:12px">🔍 Get Rates</button>
+    <div id="qsg-results" style="margin-top:14px"></div>
+  `);
+  const mb = document.getElementById('modal-save'); if (mb) mb.style.display = 'none';
+  if (pre.auto) fetchQuoteSgRates();
+}
+
+async function fetchQuoteSgRates() {
+  const w = parseFloat(document.getElementById('qsg-w').value);
+  const pc = document.getElementById('qsg-pc').value.trim();
+  const c = document.getElementById('qsg-c').value;
+  if (!c) { toast('Select destination country', 'error'); return; }
+  if (!pc) { toast('Enter destination postcode', 'error'); return; }
+  if (!w || w <= 0) { toast('Enter valid weight (kg)', 'error'); return; }
+  const btn = document.getElementById('qsg-btn');
+  btn.disabled = true; btn.textContent = 'Fetching...';
+  const el0 = document.getElementById('qsg-results');
+  if (el0) el0.innerHTML = `<div style="text-align:center;padding:16px;font-size:13px;color:var(--gray)">⏳ Fetching live YNCSG rates…</div>`;
+  const r = await api('POST', '/api/shipglobal/rate', { package_weight: w, country_iso_code_2: c, postcode: pc });
+  btn.disabled = false; btn.textContent = '🔍 Get Rates';
+  const el = document.getElementById('qsg-results');
+  if (!r) { if (el) el.innerHTML = ''; toast('Session expired. Please log in again.', 'error'); return; }
+  if (!r.success) { if (el) el.innerHTML = ''; toast(r.error || 'ShipGlobal failed', 'error'); return; }
+  _qsgServices = r.data.services || [];
+  if (!_qsgServices.length) { if (el) el.innerHTML = `<div style="font-size:13px;color:var(--gray);text-align:center;padding:12px">No services found for this destination.</div>`; return; }
+  const best = Math.min(..._qsgServices.map(s => s.finalRate));
+  el.innerHTML = _qsgServices.map((s, i) => `
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--white);border:1px solid var(--gray3);border-radius:8px;padding:10px 12px;margin-bottom:8px">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--black)">${esc(s.title)}${s.finalRate === best ? ' <span style="background:var(--green-bg);color:#047857;border:1px solid #a7f3d0;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:700">LOWEST</span>' : ''}</div>
+      <div style="font-size:11.5px;color:var(--gray);margin-top:2px">⏱ ${esc(s.transitTime)}${s.notes ? ' · ' + esc(s.notes) : ''}</div>
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div style="font-size:16px;font-weight:800;color:var(--brand-dark)">₹${Number(s.finalRate).toLocaleString('en-IN')}</div>
+      <button onclick="quoteSgAdd(${i})" style="margin-top:4px;background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--brand);cursor:pointer">➕ Add</button>
+    </div>
+  </div>`).join('') + `<button onclick="quoteSgAddAll()" style="width:100%;background:var(--gray4);border:1.5px solid var(--gray3);border-radius:8px;padding:8px;font-size:12.5px;font-weight:700;color:var(--black);cursor:pointer">➕ Add All (${_qsgServices.length})</button>`;
+}
+
+function quoteSgAdd(i) {
+  const s = _qsgServices[i]; if (!s) return;
+  vrAddRows([{ vendor: 'shipglobal', service: s.title, rate: Number(s.finalRate) || 0, currency: 'INR', estimatedDays: s.transitTime || '' }]);
+  closeModal();
+  toast(`"${s.title}" added to Vendor Rates — click 💾 Save`, 'success');
+}
+function quoteSgAddAll() {
+  if (!_qsgServices.length) return;
+  vrAddRows(_qsgServices.map(s => ({ vendor: 'shipglobal', service: s.title, rate: Number(s.finalRate) || 0, currency: 'INR', estimatedDays: s.transitTime || '' })));
+  closeModal();
+  toast(`${_qsgServices.length} rates added to Vendor Rates — click 💾 Save`, 'success');
+}
+
+function showQuoteDhResult(d, o, dest) {
+  _qdhRate = Number(d.finalRate) || 0;
+  const SKIP = ['pre_tax_freight_charges','gst_percent','meta_charges','markup','green','lm','appointment_charges','other_handling_charges'];
+  const LABELS = { base_freight_charge:'Base Freight', fuel_surcharge:'Fuel Surcharge', fuel_hike:'Fuel Hike', insurance_rov:'Insurance / ROV', oda:'ODA Charges', fm:'FM Charges', gst:'GST (18%)' };
+  const breakup = d.priceBreakup ? Object.entries(d.priceBreakup)
+    .filter(([k,v]) => !SKIP.includes(k) && v != null && !isNaN(Number(v)) && Number(v) > 0)
+    .map(([k,v]) => ({ label: LABELS[k] || k.replace(/_/g,' '), amount: Number(v) })) : [];
+  showModal('🚚 YNCDL Rate', `
+    <div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--gray);margin-bottom:12px">🚚 Live rate via YNCDL — ${esc(o)} → ${esc(dest)} · Chargeable ${d.chargedWeight || '—'} kg</div>
+    ${me?.role === 'admin' && breakup.length ? `
+    <div style="background:var(--gray4);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+      ${breakup.map(item => `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px solid var(--gray3)"><span style="color:var(--gray)">${item.label}</span><span style="color:var(--black);font-weight:500">₹${item.amount.toLocaleString()}</span></div>`).join('')}
+      <div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:14px;font-weight:700;border-top:2px solid var(--gray3);margin-top:4px"><span>Vendor Total</span><span>₹${Number(d.delhiveryRate || 0).toLocaleString()}</span></div>
+    </div>` : ''}
+    <div style="background:var(--brand-bg);border:2px solid var(--brand-border);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--brand)">YNC Rate</div>
+        <div style="font-size:10px;color:var(--gray);margin-top:2px">Inclusive of all charges</div>
+      </div>
+      <div style="font-size:22px;font-weight:800;color:var(--brand-dark)">₹${_qdhRate.toLocaleString('en-IN')}</div>
+    </div>
+    <button class="btn-primary" onclick="quoteDhAdd()" style="width:100%;margin-top:12px">➕ Add to Vendor Rates</button>
+  `);
+  const mb = document.getElementById('modal-save'); if (mb) mb.style.display = 'none';
+}
+function quoteDhAdd() {
+  vrAddRows([{ vendor: 'delhivery', service: 'Surface', rate: _qdhRate, currency: 'INR', estimatedDays: '' }]);
+  closeModal();
+  toast('Rate added to Vendor Rates — click 💾 Save', 'success');
 }
 
 // ─── SHIPMENT LEADS ────────────────────────────────────────────────────────
