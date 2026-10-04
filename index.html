@@ -1184,80 +1184,73 @@ function guessCountry(s) {
   return entry ? entry.slice(0, 2) : '';
 }
 
-let _grVendor = 'delhivery';
+function grCountryOptions() {
+  const rest = SG_COUNTRIES.split(',').filter(p => !p.startsWith('IN:')).map(p => { const i = p.indexOf(':'); const c = p.slice(0, i); return `<option value="${c}">${p.slice(i + 1)} (${c})</option>`; }).join('');
+  return `<option value="IN" selected>India (IN)</option>` + rest;
+}
+function grCountryChange() {
+  const sel = document.getElementById('gr-country'); if (!sel) return;
+  const intl = sel.value !== 'IN';
+  const set = (id, show) => { const e = document.getElementById(id); if (e) e.style.display = show ? '' : 'none'; };
+  set('gr-origin-fg', !intl);
+  set('gr-dom-extra', !intl);
+  const d = document.getElementById('gr-dest'), lbl = document.getElementById('gr-dest-label');
+  if (lbl) lbl.textContent = intl ? 'Destination Postcode *' : 'Destination PIN *';
+  if (d) { d.placeholder = intl ? 'e.g. AB32' : 'e.g. 400001'; if (intl) d.removeAttribute('maxlength'); else d.setAttribute('maxlength', '6'); }
+  const hint = document.getElementById('gr-hint');
+  if (hint) hint.textContent = intl ? 'International rates via YNCSG (ShipGlobal) — duties/taxes extra where applicable.' : 'Domestic rates via YNCDL (Delhivery network) — pincode to pincode.';
+}
 function renderGetRate() {
   document.getElementById('content').innerHTML = `
   <div style="max-width:700px;margin:0 auto">
     <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
       <div style="padding:20px 24px;border-bottom:1px solid var(--gray3)">
         <div style="font-size:16px;font-weight:700;color:var(--black)">💰 Rate Calculator</div>
-        <div id="gr-sub" style="font-size:12px;color:var(--gray);margin-top:4px">${_grVendor === 'delhivery' ? 'Check Delhivery shipping rates pincode to pincode' : 'Live ShipGlobal rates for international shipments — India to 220+ countries'}</div>
+        <div style="font-size:12px;color:var(--gray);margin-top:4px">Enter shipment details — pricing is fetched automatically from YNCDL (India) or YNCSG (international)</div>
       </div>
-      <div style="padding:16px 24px 0">
-        <div class="vt-tabs">
-          <button class="vt-tab ${_grVendor === 'delhivery' ? 'on' : ''}" onclick="setGrVendor('delhivery')">🚚 Delhivery · India</button>
-          <button class="vt-tab ${_grVendor === 'shipglobal' ? 'on' : ''}" onclick="setGrVendor('shipglobal')">🌍 ShipGlobal · International</button>
-        </div>
-      </div>
-      <div id="gr-delhivery-form" style="padding:16px 24px 20px;${_grVendor === 'delhivery' ? '' : 'display:none'}">
+      <div style="padding:20px 24px">
         <div class="form-row">
-          <div class="fg"><label>Origin Pincode *</label><input id="gr-origin" placeholder="e.g. 380054" maxlength="6"/></div>
-          <div class="fg"><label>Destination Pincode *</label><input id="gr-dest" placeholder="e.g. 400001" maxlength="6"/></div>
+          <div class="fg" id="gr-origin-fg"><label>Origin Pincode *</label><input id="gr-origin" placeholder="e.g. 380054" maxlength="6"/></div>
+          <div class="fg"><label>Destination Country *</label><select id="gr-country" onchange="grCountryChange()">${grCountryOptions()}</select></div>
         </div>
         <div class="form-row">
+          <div class="fg"><label id="gr-dest-label">Destination PIN *</label><input id="gr-dest" placeholder="e.g. 400001" maxlength="6"/></div>
           <div class="fg"><label>Weight (kg) *</label><input id="gr-weight" type="number" step="0.01" min="0.1" placeholder="e.g. 10"/></div>
-          <div class="fg"><label>Declared Value (₹) *</label><input id="gr-value" type="number" min="1" placeholder="e.g. 5000"/></div>
         </div>
-        <div style="font-size:12px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">Package Dimensions (cm)</div>
-        <div id="gr-dimensions">
-          <div class="form-row" style="align-items:end">
-            <div class="fg"><label>Length</label><input class="gr-len" type="number" step="0.1" min="1" placeholder="L"/></div>
-            <div class="fg"><label>Width</label><input class="gr-wid" type="number" step="0.1" min="1" placeholder="W"/></div>
-            <div class="fg"><label>Height</label><input class="gr-hgt" type="number" step="0.1" min="1" placeholder="H"/></div>
-            <div class="fg" style="max-width:80px"><label>Qty</label><input class="gr-qty" type="number" min="1" value="1"/></div>
+        <div id="gr-dom-extra">
+          <div class="form-row">
+            <div class="fg"><label>Declared Value (₹) *</label><input id="gr-value" type="number" min="1" placeholder="e.g. 5000"/></div>
+            <div class="fg" aria-hidden="true"></div>
           </div>
+          <div style="font-size:12px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.4px;margin:6px 0 8px">Package Dimensions (cm)</div>
+          <div id="gr-dimensions">
+            <div class="form-row" style="align-items:end">
+              <div class="fg"><label>Length</label><input class="gr-len" type="number" step="0.1" min="1" placeholder="L"/></div>
+              <div class="fg"><label>Width</label><input class="gr-wid" type="number" step="0.1" min="1" placeholder="W"/></div>
+              <div class="fg"><label>Height</label><input class="gr-hgt" type="number" step="0.1" min="1" placeholder="H"/></div>
+              <div class="fg" style="max-width:80px"><label>Qty</label><input class="gr-qty" type="number" min="1" value="1"/></div>
+            </div>
+          </div>
+          <button onclick="addGetRateDimRow()" style="margin-top:6px;background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--brand);cursor:pointer">+ Add Box</button>
         </div>
-        <button onclick="addGetRateDimRow()" style="margin-top:6px;background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--brand);cursor:pointer">+ Add Box</button>
-        <div style="margin-top:16px;display:flex;gap:10px">
+        <div id="gr-hint" style="font-size:11.5px;color:var(--gray2);margin-top:12px">Domestic rates via YNCDL (Delhivery network) — pincode to pincode.</div>
+        <div style="margin-top:14px;display:flex;gap:10px">
           <button class="btn-primary" onclick="fetchGetRate()" id="gr-fetch-btn" style="flex:1">Get Rate</button>
-        </div>
-      </div>
-      <div id="gr-shipglobal-form" style="padding:16px 24px 20px;${_grVendor === 'shipglobal' ? '' : 'display:none'}">
-        <div class="form-row">
-          <div class="fg"><label>Weight (kg) *</label><input id="sg-weight" type="number" step="0.01" min="0.01" placeholder="e.g. 2"/></div>
-          <div class="fg"><label>Destination Postcode *</label><input id="sg-postcode" placeholder="e.g. AB32"/></div>
-        </div>
-        <div class="fg"><label>Destination Country *</label><select id="sg-country">${sgCountryOptions('')}</select></div>
-        <div style="font-size:11.5px;color:var(--gray2);margin-top:10px">Live rates from ShipGlobal — YNC rate includes 30% margin. Duties/taxes extra where applicable.</div>
-        <div style="margin-top:12px;display:flex;gap:10px">
-          <button class="btn-primary" onclick="fetchShipGlobalRate()" id="sg-fetch-btn" style="flex:1">Get Rate</button>
         </div>
       </div>
     </div>
     <div id="gr-result" style="margin-top:16px"></div>
-    <div id="sg-result" style="margin-top:16px"></div>
   </div>`;
+  grCountryChange();
 }
-function setGrVendor(v) {
-  _grVendor = v;
-  const dEl = document.getElementById('gr-delhivery-form'), sEl = document.getElementById('gr-shipglobal-form');
-  if (!dEl || !sEl) return;
-  dEl.style.display = v === 'delhivery' ? '' : 'none';
-  sEl.style.display = v === 'shipglobal' ? '' : 'none';
-  const sub = document.getElementById('gr-sub');
-  if (sub) sub.textContent = v === 'delhivery' ? 'Check Delhivery shipping rates pincode to pincode' : 'Live ShipGlobal rates for international shipments — India to 220+ countries';
-  document.querySelectorAll('.vt-tab').forEach((b, i) => b.classList.toggle('on', (i === 0) === (v === 'delhivery')));
-  const a = document.getElementById('gr-result'), b2 = document.getElementById('sg-result');
-  if (a) a.innerHTML = ''; if (b2) b2.innerHTML = '';
-}
-async function fetchShipGlobalRate() {
-  const w = parseFloat(document.getElementById('sg-weight').value);
-  const c = document.getElementById('sg-country').value;
-  const p = document.getElementById('sg-postcode').value.trim();
+async function fetchShipGlobalGetRate() {
+  const w = parseFloat(document.getElementById('gr-weight').value);
+  const c = document.getElementById('gr-country').value;
+  const p = document.getElementById('gr-dest').value.trim();
   if (!c) { toast('Select destination country', 'error'); return; }
   if (!p) { toast('Enter destination postcode', 'error'); return; }
   if (!w || w <= 0) { toast('Enter valid weight (kg)', 'error'); return; }
-  const btn = document.getElementById('sg-fetch-btn');
+  const btn = document.getElementById('gr-fetch-btn');
   btn.disabled = true; btn.textContent = 'Fetching...';
   const r = await api('POST', '/api/shipglobal/rate', { package_weight: w, country_iso_code_2: c, postcode: p });
   btn.disabled = false; btn.textContent = 'Get Rate';
@@ -1266,17 +1259,16 @@ async function fetchShipGlobalRate() {
   renderSgResult(r.data, w);
 }
 function renderSgResult(d, weight) {
-  const gr = document.getElementById('gr-result'); if (gr) gr.innerHTML = '';
+  const el = document.getElementById('gr-result'); if (!el) return;
   const rows = d.services || [];
   const best = rows.length ? Math.min(...rows.map(s => s.finalRate)) : null;
   const billedKg = d.billedWeightUnit === 'GM' ? (Number(d.billedWeight) / 1000).toFixed(2) + ' kg' : `${d.billedWeight ?? '—'} ${d.billedWeightUnit || ''}`;
-  const el = document.getElementById('sg-result'); if (!el) return;
   if (!rows.length) { el.innerHTML = `<div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;text-align:center;color:var(--gray);font-size:13px">No services found for this destination.</div>`; return; }
   el.innerHTML = `
   <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
     <div style="padding:16px 20px;border-bottom:1px solid var(--gray3);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
       <div>
-        <div style="font-size:15px;font-weight:700;color:var(--black)">🌍 International Shipping</div>
+        <div style="font-size:15px;font-weight:700;color:var(--black)">🌍 YNCSG</div>
         <div style="font-size:11px;color:var(--gray);margin-top:2px">India → ${esc(d.country)} • ${esc(d.postcode)}</div>
       </div>
       <div style="display:flex;gap:20px;font-size:12px">
@@ -1296,7 +1288,7 @@ function renderSgResult(d, weight) {
         <div style="font-size:19px;font-weight:800;color:var(--brand-dark)">₹${Number(s.finalRate).toLocaleString('en-IN')}</div>
       </div>
     </div>`).join('')}
-    <div style="padding:10px 20px;font-size:11px;color:var(--gray2)">Live rates from ShipGlobal • duties/taxes charged separately where applicable</div>
+    <div style="padding:10px 20px;font-size:11px;color:var(--gray2)">Live rates via YNCSG • duties/taxes charged separately where applicable</div>
   </div>`;
 }
 
@@ -1316,7 +1308,12 @@ function addGetRateDimRow() {
 }
 
 async function fetchGetRate() {
-  const sgr = document.getElementById('sg-result'); if (sgr) sgr.innerHTML = '';
+  const gr = document.getElementById('gr-result'); if (gr) gr.innerHTML = '';
+  const country = (document.getElementById('gr-country') || {}).value || 'IN';
+  if (country === 'IN') return fetchDelhiveryGetRate();
+  return fetchShipGlobalGetRate();
+}
+async function fetchDelhiveryGetRate() {
   const origin = document.getElementById('gr-origin').value.trim();
   const dest = document.getElementById('gr-dest').value.trim();
   const weight = parseFloat(document.getElementById('gr-weight').value);
@@ -1392,7 +1389,7 @@ async function fetchGetRate() {
     <!-- Header -->
     <div style="padding:16px 20px;border-bottom:1px solid var(--gray3);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
       <div>
-        <div style="font-size:15px;font-weight:700;color:var(--black)">🚚 Surface Shipping</div>
+        <div style="font-size:15px;font-weight:700;color:var(--black)">🚚 YNCDL</div>
         <div style="font-size:11px;color:var(--gray);margin-top:2px">${origin} → ${dest}</div>
       </div>
       <div style="display:flex;gap:20px;font-size:12px">
