@@ -1184,6 +1184,22 @@ function guessCountry(s) {
   const entry = SG_COUNTRIES.split(',').find(p => { const n = p.slice(p.indexOf(':') + 1).toLowerCase(); return t.includes(n); });
   return entry ? entry.slice(0, 2) : '';
 }
+function extractIntlPostcode(s) {
+  if (!s) return '';
+  const t = String(s);
+  const uk = t.match(/\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/i);
+  if (uk) return uk[1].toUpperCase().replace(/\s+/, ' ');
+  const parts = t.split(',').map(p => p.trim()).filter(Boolean);
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    if (p.length < 3 || p.length > 12 || !/^[A-Za-z0-9][A-Za-z0-9 -]*$/.test(p)) continue;
+    const digits = (p.match(/\d/g) || []).length;
+    const letters = (p.match(/[A-Za-z]/g) || []).length;
+    if (letters > 0 && digits > 0 && p === p.toUpperCase()) return p;
+    if (letters === 0 && /^\d{4,8}$/.test(p.replace(/ /g, ''))) return p;
+  }
+  return '';
+}
 
 function grCountryOptions() {
   const rest = SG_COUNTRIES.split(',').filter(p => !p.startsWith('IN:')).map(p => { const i = p.indexOf(':'); const c = p.slice(0, i); return `<option value="${c}">${p.slice(i + 1)} (${c})</option>`; }).join('');
@@ -3304,19 +3320,23 @@ async function showBookShipmentDetail(id) {
 }
 
 let _sbgLead = null;
-function showShipGlobalBookingRates(l) {
+function showShipGlobalBookingRates(l, pre = {}) {
   _sbgLead = l;
-  showModal('ShipGlobal Rate Card', `
+  const pc = pre.pc || '';
+  const c = pre.c || guessCountry(l.destination) || '';
+  const w = pre.w || l.weight || '';
+  showModal('🌍 YNCSG Rates', `
     <div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--gray);margin-bottom:12px">🌍 International shipment — live rates from ShipGlobal (India → ${esc(l.destination || 'world')}). YNC rate includes 30% margin.</div>
     <div class="form-row">
-      <div class="fg"><label>Weight (kg) *</label><input id="sbg-w" type="number" step="0.01" min="0.01" value="${l.weight || ''}"/></div>
-      <div class="fg"><label>Dest. Postcode *</label><input id="sbg-pc" placeholder="e.g. AB32"/></div>
+      <div class="fg"><label>Weight (kg) *</label><input id="sbg-w" type="number" step="0.01" min="0.01" value="${esc(w)}"/></div>
+      <div class="fg"><label>Dest. Postcode *</label><input id="sbg-pc" placeholder="e.g. AB32" value="${esc(pc)}"/></div>
     </div>
-    <div class="fg"><label>Destination Country *</label><select id="sbg-c">${sgCountryOptions(guessCountry(l.destination))}</select></div>
+    <div class="fg"><label>Destination Country *</label><select id="sbg-c">${sgCountryOptions(c)}</select></div>
     <button class="btn-primary" id="sbg-btn" onclick="fetchBookingSgRates()" style="width:100%;margin-top:12px">🔍 Get Rates</button>
     <div id="sbg-results" style="margin-top:14px"></div>
   `);
   const mb = document.getElementById('modal-save'); if (mb) mb.style.display = 'none';
+  if (pre.auto) fetchBookingSgRates();
 }
 async function fetchBookingSgRates() {
   const w = parseFloat(document.getElementById('sbg-w').value);
@@ -3327,10 +3347,12 @@ async function fetchBookingSgRates() {
   if (!w || w <= 0) { toast('Enter valid weight (kg)', 'error'); return; }
   const btn = document.getElementById('sbg-btn');
   btn.disabled = true; btn.textContent = 'Fetching...';
+  const el0 = document.getElementById('sbg-results');
+  if (el0) el0.innerHTML = `<div style="text-align:center;padding:16px;font-size:13px;color:var(--gray)">⏳ Fetching live YNCSG rates…</div>`;
   const r = await api('POST', '/api/shipglobal/rate', { package_weight: w, country_iso_code_2: c, postcode: pc });
   btn.disabled = false; btn.textContent = '🔍 Get Rates';
-  if (!r) { toast('Session expired. Please log in again.', 'error'); return; }
-  if (!r.success) { toast(r.error || 'ShipGlobal failed', 'error'); return; }
+  if (!r) { const e = document.getElementById('sbg-results'); if (e) e.innerHTML = ''; toast('Session expired. Please log in again.', 'error'); return; }
+  if (!r.success) { const e = document.getElementById('sbg-results'); if (e) e.innerHTML = ''; toast(r.error || 'ShipGlobal failed', 'error'); return; }
   const services = r.data.services || [];
   const el = document.getElementById('sbg-results'); if (!el) return;
   if (!services.length) { el.innerHTML = `<div style="font-size:13px;color:var(--gray);text-align:center;padding:12px">No services found for this destination.</div>`; return; }
@@ -3361,7 +3383,19 @@ async function getBookRates(id) {
   if (!r?.success) { toast('Lead not found', 'error'); return; }
   const l = r.data;
 
-  if (l.shipmentType === 'international') { showShipGlobalBookingRates(l); return; }
+  if (l.shipmentType === 'international') {
+    const pc = extractIntlPostcode(l.destination);
+    const c = guessCountry(l.destination);
+    const w = parseFloat(l.weight);
+    const ready = w > 0 && pc && c && c !== 'IN';
+    if (ready) {
+      toast('Getting Rates', 'info');
+      showShipGlobalBookingRates(l, { w, pc, c, auto: true });
+    } else {
+      showShipGlobalBookingRates(l, { w: w > 0 ? w : '', pc: pc || '', c: c || '' });
+    }
+    return;
+  }
 
   const missing = [];
   if (!l.origin) missing.push('origin address');
