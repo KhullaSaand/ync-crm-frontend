@@ -108,6 +108,9 @@ a{text-decoration:none;color:inherit}
 /* TABLE */
 .table-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
 .table-scroll{overflow-x:auto}
+.book-tbl th,.book-tbl td{padding:9px 8px}
+.book-tbl td{font-size:13px}
+.book-tbl .row-status{max-width:145px}
 .table-header{padding:16px 20px;border-bottom:1px solid var(--gray3);display:flex;align-items:center;justify-content:space-between}
 .table-title{font-size:15px;font-weight:700}
 .table-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -2911,14 +2914,14 @@ async function renderBookShipment() {
         <div class="empty"><div class="empty-icon">📦</div><div class="empty-title">No Bookings Yet</div><div class="empty-sub">Click "+ New Booking" to create a shipment</div></div>
       ` : `
         <div class="table-scroll">
-        <table><thead><tr>
+        <table class="book-tbl"><thead><tr>
           <th style="white-space:nowrap">Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Shipment Type</th><th>Mode</th><th>Status</th><th>Amount</th><th>Assigned</th><th>Created</th><th class="actions-col">Actions</th>
         </tr></thead><tbody>
           ${leads.map(l => { const lk = rowLocked(l); return `<tr>
             <td style="white-space:nowrap"><code style="font-size:12px;background:var(--blue-bg);color:var(--blue);padding:2px 7px;border-radius:5px">${esc(l.leadId)}</code></td>
-            <td><strong>${esc(l.customerName)}</strong><br><span class="sub">${esc(l.company||'')}</span></td>
-            <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.origin||'-')}</td>
-            <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.destination||'-')}</td>
+            <td style="max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><strong>${esc(l.customerName)}</strong><br><span class="sub">${esc(l.company||'')}</span></td>
+            <td style="max-width:108px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.origin||'-')}</td>
+            <td style="max-width:108px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.destination||'-')}</td>
             <td>${l.shipmentType?l.shipmentType.charAt(0).toUpperCase()+l.shipmentType.slice(1):'-'}</td>
             <td>${l.shipmentMode?badge(l.shipmentMode):'-'}</td>
             <td>${statusSelectHtml('shipment', l.status, l.id, lk)}</td>
