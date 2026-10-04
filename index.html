@@ -1188,18 +1188,6 @@ function grCountryOptions() {
   const rest = SG_COUNTRIES.split(',').filter(p => !p.startsWith('IN:')).map(p => { const i = p.indexOf(':'); const c = p.slice(0, i); return `<option value="${c}">${p.slice(i + 1)} (${c})</option>`; }).join('');
   return `<option value="IN" selected>India (IN)</option>` + rest;
 }
-function grCountryChange() {
-  const sel = document.getElementById('gr-country'); if (!sel) return;
-  const intl = sel.value !== 'IN';
-  const set = (id, show) => { const e = document.getElementById(id); if (e) e.style.display = show ? '' : 'none'; };
-  set('gr-origin-fg', !intl);
-  set('gr-dom-extra', !intl);
-  const d = document.getElementById('gr-dest'), lbl = document.getElementById('gr-dest-label');
-  if (lbl) lbl.textContent = intl ? 'Destination Postcode *' : 'Destination PIN *';
-  if (d) { d.placeholder = intl ? 'e.g. AB32' : 'e.g. 400001'; if (intl) d.removeAttribute('maxlength'); else d.setAttribute('maxlength', '6'); }
-  const hint = document.getElementById('gr-hint');
-  if (hint) hint.textContent = intl ? 'International rates via YNCSG (ShipGlobal) — duties/taxes extra where applicable.' : 'Domestic rates via YNCDL (Delhivery network) — pincode to pincode.';
-}
 function renderGetRate() {
   document.getElementById('content').innerHTML = `
   <div style="max-width:700px;margin:0 auto">
@@ -1210,30 +1198,28 @@ function renderGetRate() {
       </div>
       <div style="padding:20px 24px">
         <div class="form-row">
-          <div class="fg" id="gr-origin-fg"><label>Origin Pincode *</label><input id="gr-origin" placeholder="e.g. 380054" maxlength="6"/></div>
-          <div class="fg"><label>Destination Country *</label><select id="gr-country" onchange="grCountryChange()">${grCountryOptions()}</select></div>
+          <div class="fg"><label>Origin Pincode *</label><input id="gr-origin" placeholder="e.g. 380054"/></div>
+          <div class="fg"><label>Destination Country *</label><select id="gr-country">${grCountryOptions()}</select></div>
         </div>
         <div class="form-row">
-          <div class="fg"><label id="gr-dest-label">Destination PIN *</label><input id="gr-dest" placeholder="e.g. 400001" maxlength="6"/></div>
+          <div class="fg"><label>Destination PIN / Postcode *</label><input id="gr-dest" placeholder="e.g. 400001 or AB32"/></div>
           <div class="fg"><label>Weight (kg) *</label><input id="gr-weight" type="number" step="0.01" min="0.1" placeholder="e.g. 10"/></div>
         </div>
-        <div id="gr-dom-extra">
-          <div class="form-row">
-            <div class="fg"><label>Declared Value (₹) *</label><input id="gr-value" type="number" min="1" placeholder="e.g. 5000"/></div>
-            <div class="fg" aria-hidden="true"></div>
-          </div>
-          <div style="font-size:12px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.4px;margin:6px 0 8px">Package Dimensions (cm)</div>
-          <div id="gr-dimensions">
-            <div class="form-row" style="align-items:end">
-              <div class="fg"><label>Length</label><input class="gr-len" type="number" step="0.1" min="1" placeholder="L"/></div>
-              <div class="fg"><label>Width</label><input class="gr-wid" type="number" step="0.1" min="1" placeholder="W"/></div>
-              <div class="fg"><label>Height</label><input class="gr-hgt" type="number" step="0.1" min="1" placeholder="H"/></div>
-              <div class="fg" style="max-width:80px"><label>Qty</label><input class="gr-qty" type="number" min="1" value="1"/></div>
-            </div>
-          </div>
-          <button onclick="addGetRateDimRow()" style="margin-top:6px;background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--brand);cursor:pointer">+ Add Box</button>
+        <div class="form-row">
+          <div class="fg"><label>Declared Value (₹) *</label><input id="gr-value" type="number" min="1" placeholder="e.g. 5000"/></div>
+          <div class="fg" aria-hidden="true"></div>
         </div>
-        <div id="gr-hint" style="font-size:11.5px;color:var(--gray2);margin-top:12px">Domestic rates via YNCDL (Delhivery network) — pincode to pincode.</div>
+        <div style="font-size:12px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.4px;margin:6px 0 8px">Package Dimensions (cm)</div>
+        <div id="gr-dimensions">
+          <div class="form-row" style="align-items:end">
+            <div class="fg"><label>Length</label><input class="gr-len" type="number" step="0.1" min="1" placeholder="L"/></div>
+            <div class="fg"><label>Width</label><input class="gr-wid" type="number" step="0.1" min="1" placeholder="W"/></div>
+            <div class="fg"><label>Height</label><input class="gr-hgt" type="number" step="0.1" min="1" placeholder="H"/></div>
+            <div class="fg" style="max-width:80px"><label>Qty</label><input class="gr-qty" type="number" min="1" value="1"/></div>
+          </div>
+        </div>
+        <button onclick="addGetRateDimRow()" style="margin-top:6px;background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--brand);cursor:pointer">+ Add Box</button>
+        <div id="gr-hint" style="font-size:11.5px;color:var(--gray2);margin-top:12px">Domestic destination (India) → YNCDL • International → YNCSG — detected automatically from the country selected.</div>
         <div style="margin-top:14px;display:flex;gap:10px">
           <button class="btn-primary" onclick="fetchGetRate()" id="gr-fetch-btn" style="flex:1">Get Rate</button>
         </div>
@@ -1241,7 +1227,6 @@ function renderGetRate() {
     </div>
     <div id="gr-result" style="margin-top:16px"></div>
   </div>`;
-  grCountryChange();
 }
 async function fetchShipGlobalGetRate() {
   const w = parseFloat(document.getElementById('gr-weight').value);
