@@ -1418,7 +1418,7 @@ function renderSgResult(d, weight) {
       <div>
         <div style="font-size:13.5px;font-weight:700;color:var(--black)">${esc(s.title)}${s.finalRate === best ? ' <span style="background:var(--green-bg);color:#047857;border:1px solid #a7f3d0;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:700;vertical-align:middle">LOWEST</span>' : ''}</div>
         <div style="font-size:11.5px;color:var(--gray);margin-top:2px">⏱ ${esc(s.transitTime)}${s.notes ? ' · ' + esc(s.notes) : ''}</div>
-        ${me?.role === 'admin' ? `<div style="font-size:11px;color:var(--gray2);margin-top:2px">Vendor: ₹${Number(s.basePrice).toLocaleString('en-IN')} + 30% margin</div>` : ''}
+        ${me?.role === 'admin' ? `<div style="font-size:11px;color:var(--gray2);margin-top:2px">Vendor: ₹${Number(s.basePrice).toLocaleString('en-IN')}</div>` : ''}
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:var(--brand);text-transform:uppercase">YNC Rate</div>
@@ -3633,10 +3633,8 @@ async function showBookShipmentDetail(id) {
             ${me?.role === 'admin' ? `
               ${(() => {
                 const baseRate = Math.round(l.delhiveryRate / 1.30);
-                const margin = l.delhiveryRate - baseRate;
                 return `
                 ${_tr('Delhivery Base Rate', `<span style="font-weight:600">${fmtCur(baseRate, 'INR')}</span>`)}
-                ${_tr('YNC Margin (30%)', `<span style="color:var(--green);font-weight:600">+${fmtCur(margin, 'INR')}</span>`)}
                 ${_tr('Final Rate', `<span style="font-size:16px;font-weight:800;color:var(--brand)">${fmtCur(l.delhiveryRate, 'INR')}</span>`, { bold: true })}
                 `;
               })()}
