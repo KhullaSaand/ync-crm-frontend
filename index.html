@@ -90,9 +90,19 @@ a{text-decoration:none;color:inherit}
 .btn-add{background:var(--brand);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;transition:background .2s}
 .btn-add:hover{background:var(--brand-dark)}
 .search-box{position:relative}
-.search-box input{padding:8px 12px 8px 34px;border:1.5px solid var(--gray3);border-radius:8px;font-size:13px;width:220px;transition:border .2s}
+.search-box input{padding:8px 12px 8px 34px;border:1.5px solid var(--gray3);border-radius:8px;font-size:13px;width:280px;transition:border .2s}
 .search-box input:focus{border-color:var(--brand)}
 .search-box .si{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--gray2);font-size:15px}
+/* universal (global) search dropdown */
+.global-results{position:absolute;top:calc(100% + 8px);right:0;width:440px;max-width:min(440px,92vw);max-height:72vh;overflow:auto;background:var(--white);border:1px solid var(--gray3);border-radius:12px;box-shadow:0 14px 34px rgba(15,23,42,.16);z-index:90;padding:6px}
+.gr-group{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--gray2);padding:10px 10px 4px;display:flex;justify-content:space-between}
+.gr-item{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer}
+.gr-item:hover{background:var(--gray4)}
+.gr-item .gr-ico{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.gr-item .gr-title{font-size:13px;font-weight:700;color:var(--black);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gr-item .gr-sub{font-size:11.5px;color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gr-empty{padding:14px;font-size:12.5px;color:var(--gray);text-align:center}
+.gr-loading{padding:12px;font-size:12.5px;color:var(--gray);text-align:center}
 
 /* CARDS */
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
@@ -489,9 +499,10 @@ td.actions-col>*+*,th.actions-col>*+*{margin-left:6px}
     <div id="topbar">
       <div class="topbar-title" id="page-title">Dashboard</div>
       <div class="topbar-right">
-        <div class="search-box" id="search-wrap" style="display:none">
+        <div class="search-box" id="search-wrap">
           <span class="si">🔍</span>
-          <input type="text" id="search-input" placeholder="Search by name, phone, ID..." oninput="onSearch(this.value)"/>
+          <input type="text" id="search-input" placeholder="Search leads, shipments, contacts, invoices..." oninput="onSearch(this.value)" onkeydown="onSearchKey(event)" autocomplete="off"/>
+          <div class="global-results" id="global-results" style="display:none"></div>
         </div>
         <button class="btn-add" id="btn-add" style="display:none" onclick="openAddModal()">+ Add</button>
       </div>
@@ -707,8 +718,8 @@ const ADD_LABELS = {
   invoices: '+ Invoice'
 };
 
-function nav(page) {
-  curPage = page; curSearch = ''; curPageNum = 1; curFilter = {};
+function setActivePage(page) {
+  curPage = page; curPageNum = 1; curFilter = {};
   _viewingDetail = false;
   localStorage.setItem('ync_page', page);
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
@@ -716,22 +727,104 @@ function nav(page) {
   if (ni) ni.classList.add('active');
   document.getElementById('page-title').textContent = PAGE_TITLES[page] || page;
   const addBtn = document.getElementById('btn-add');
-  const srchWrap = document.getElementById('search-wrap');
   if (ADD_LABELS[page]) { addBtn.style.display = ''; addBtn.textContent = ADD_LABELS[page]; }
   else addBtn.style.display = 'none';
-  const searchPages = ['contacts','quote-leads','shipment-leads','tasks','users','invoices','gst-invoices'];
-  srchWrap.style.display = searchPages.includes(page) ? '' : 'none';
-  document.getElementById('search-input').value = '';
   const catFilters = document.getElementById('cat-filters');
   if (catFilters) catFilters.style.display = page === 'quote-leads' ? '' : 'none';
   if (page !== 'quote-leads') { curCategoryFilter = ''; }
+}
+
+function nav(page) {
+  setActivePage(page);
+  curSearch = '';
+  document.getElementById('search-input').value = '';
+  hideGlobalResults();
   renderPage(page);
 }
 
 function onSearch(v) {
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => { curSearch = v; curPageNum = 1; renderPage(curPage); }, 350);
+  searchTimer = setTimeout(() => {
+    curSearch = v.trim();
+    curPageNum = 1;
+    if (curPage === 'book-shipment') bookShipmentPage = 1;
+    const listPages = ['contacts','quote-leads','shipment-leads','book-shipment','tasks','users','invoices','gst-invoices'];
+    if (listPages.includes(curPage)) renderPage(curPage);
+    if (curSearch.length >= 2) globalSearch(curSearch); else hideGlobalResults();
+  }, 350);
 }
+
+function onSearchKey(e) {
+  if (e.key === 'Escape') { hideGlobalResults(); return; }
+  if (e.key === 'Enter') {
+    const first = document.querySelector('#global-results .gr-item');
+    if (first) { e.preventDefault(); first.click(); }
+  }
+}
+
+// ─── UNIVERSAL SEARCH — one bar searches across every module ───────────────
+let _gsToken = 0, _gsFlat = [];
+function hideGlobalResults() { const el = document.getElementById('global-results'); if (el) { el.style.display = 'none'; el.innerHTML = ''; } _gsFlat = []; }
+
+function globalSearchGroups(q) {
+  const qs = 'search=' + encodeURIComponent(q) + '&limit=6';
+  return [
+    { icon: '💬', label: 'Quote Leads', url: '/api/quote-leads?' + qs, page: 'quote-leads',
+      map: x => ({ id: x.id, title: x.customerName || x.leadId || 'Lead', sub: [x.leadId, x.company, x.destination].filter(Boolean).join(' · '), open: () => viewQuoteLead(x.id) }) },
+    { icon: '🚢', label: 'Shipments & Bookings', url: '/api/shipment-leads?' + qs, page: 'shipment-leads',
+      map: x => ({ id: x.id, page: x.source === 'booking' ? 'book-shipment' : 'shipment-leads', title: x.customerName || x.leadId || 'Shipment', sub: [x.leadId, [x.origin, x.destination].filter(Boolean).join(' → '), fmtStatus(x.status)].filter(Boolean).join(' · '), open: () => x.source === 'booking' ? showBookShipmentDetail(x.id) : viewShipmentLead(x.id) }) },
+    { icon: '👥', label: 'Contacts', url: '/api/contacts?' + qs, page: 'contacts',
+      map: x => ({ id: x.id, title: x.name || 'Contact', sub: [x.leadId, x.phone, x.email].filter(Boolean).join(' · '), open: () => viewContact(x.id) }) },
+    { icon: '🧾', label: 'Invoices', url: '/api/invoices?' + qs, page: 'invoices',
+      map: x => ({ id: x.id, title: x.invoiceNo || 'Invoice', sub: [x.customerName, invMoney(x.total), payBadgeText(x.paymentStatus)].filter(Boolean).join(' · '), open: () => viewInvoice(x.id, 'invoices') }) },
+    { icon: '✅', label: 'Tasks', url: '/api/tasks?' + qs, page: 'tasks',
+      map: x => ({ id: x.id, title: x.title || 'Task', sub: [fmtStatus(x.status), x.priority ? x.priority + ' priority' : ''].filter(Boolean).join(' · '), open: () => { setActivePage('tasks'); renderPage('tasks'); openTaskModal(x); } }) },
+  ];
+}
+function payBadgeText(s) { return s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : ''; }
+
+async function globalSearch(q) {
+  const token = ++_gsToken;
+  const el = document.getElementById('global-results'); if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML = `<div class="gr-loading">⏳ Searching everywhere...</div>`;
+  const groups = globalSearchGroups(q);
+  const results = await Promise.all(groups.map(g => api('GET', g.url)));
+  if (token !== _gsToken) return;
+  let html = '', flat = [];
+  groups.forEach((g, gi) => {
+    const r = results[gi];
+    const items = (r?.success && Array.isArray(r.data) ? r.data : []).slice(0, 6).map(g.map);
+    if (!items.length) return;
+    html += `<div class="gr-group"><span>${g.icon} ${g.label}</span><span>${items.length}</span></div>`;
+    items.forEach(it => {
+      flat.push({ page: g.page, item: it });
+      html += `<div class="gr-item" onclick="openGlobalResult(${flat.length - 1})">
+        <span class="gr-ico">${g.icon}</span>
+        <span style="min-width:0;flex:1">
+          <span class="gr-title" style="display:block">${esc(it.title)}</span>
+          <span class="gr-sub" style="display:block">${esc(it.sub || '')}</span>
+        </span>
+        <span style="color:var(--gray2);font-size:13px">→</span>
+      </div>`;
+    });
+  });
+  _gsFlat = flat;
+  el.innerHTML = html || `<div class="gr-empty">No matches for “${esc(q)}” in leads, shipments, contacts, invoices or tasks.</div>`;
+  el.style.display = 'block';
+}
+
+function openGlobalResult(i) {
+  const hit = _gsFlat[i]; if (!hit) return;
+  hideGlobalResults();
+  setActivePage(hit.item.page || hit.page);
+  hit.item.open();
+}
+
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('search-wrap');
+  if (wrap && !wrap.contains(e.target)) hideGlobalResults();
+});
 
 // ─── RENDER ROUTER ────────────────────────────────────────────────────────
 function renderPage(page) {
@@ -3186,7 +3279,9 @@ function _parseAddress(s) {
 }
 
 async function renderBookShipment() {
-  const r = await api('GET', `/api/shipment-leads?page=${bookShipmentPage}&limit=${BOOK_SHIP_PAGE_SIZE}&source=booking`);
+  let url = `/api/shipment-leads?page=${bookShipmentPage}&limit=${BOOK_SHIP_PAGE_SIZE}&source=booking`;
+  if (curSearch) url += `&search=${encodeURIComponent(curSearch)}`;
+  const r = await api('GET', url);
   const leads = r?.data || [];
   bookShipmentTotal = r?.pagination?.total || 0;
   const totalPages = Math.ceil(bookShipmentTotal / BOOK_SHIP_PAGE_SIZE);
@@ -3197,9 +3292,11 @@ async function renderBookShipment() {
         <div class="table-title">📦 Shipments</div>
         <button class="btn-primary" style="width:auto;padding:8px 16px" onclick="openBookShipmentModal(null)">+ New Booking</button>
       </div>
-      ${leads.length === 0 ? `
-        <div class="empty"><div class="empty-icon">📦</div><div class="empty-title">No Bookings Yet</div><div class="empty-sub">Click "+ New Booking" to create a shipment</div></div>
+      ${leads.length === 0 ? (curSearch ? `
+        <div class="empty"><div class="empty-icon">🔎</div><div class="empty-title">No bookings match “${esc(curSearch)}”</div><div class="empty-sub">Try a different name, phone, lead ID or destination</div></div>
       ` : `
+        <div class="empty"><div class="empty-icon">📦</div><div class="empty-title">No Bookings Yet</div><div class="empty-sub">Click "+ New Booking" to create a shipment</div></div>
+      `) : `
         <div class="table-scroll">
         <table class="book-tbl"><thead><tr>
           <th style="white-space:nowrap">Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Shipment Type</th><th>Mode</th><th>Status</th><th>Amount</th><th>Assigned</th><th>Created</th><th class="actions-col">Actions</th>
