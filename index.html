@@ -562,6 +562,9 @@ async function api(method, path, body) {
   if (!j.success && r.status === 401) { doLogout(); return null; }
   if (method === 'GET' && j.success) _apiCache.set(cacheKey(method, path), { data: j, ts: Date.now() });
   if (method !== 'GET' && j.success) { invalidateCache(path.split('?')[0].replace(/\/[^/]*$/, '')); }
+  if (!j.success && typeof j.error === 'string' && me && me.role !== 'admin') {
+    j.error = j.error.replace(/shipglobal/ig, 'our intl partner').replace(/delhivery/ig, 'our courier partner');
+  }
   return j;
 }
 
@@ -974,10 +977,75 @@ async function viewQuoteLead(id) {
 const VR_VENDORS = ['shipglobal', 'delhivery', 'bigship', 'ekart', 'xpressbees', 'other'];
 let _vrLead = null, _vrRates = [], _vrLiveOpen = false, _vrLiveTab = 'shipglobal';
 
+// ─── VENDOR CODE NAMES (nicknames) — only admin sees real vendor identity ──
+const VENDOR_CODE_NAMES = { shipglobal: 'YNC Global', delhivery: 'YNC Surface', bigship: 'YNC Line', ekart: 'YNC Swift', xpressbees: 'YNC Priority', other: 'YNC Partner' };
+const CARRIER_CODE_PATTERNS = [
+  [/fed\s?ex/i, 'YNC Priority'],
+  [/\bups\b/i, 'YNC Swift'],
+  [/dhl/i, 'YNC Worldwide'],
+  [/aramex/i, 'YNC International'],
+  [/bluedart/i, 'YNC Express'],
+  [/ship\s?global/i, 'YNC Global'],
+  [/delhivery/i, 'YNC Surface'],
+];
+function isAdmin() { return me?.role === 'admin'; }
+function vendorCodeName(title, vendor) {
+  const t = String(title || '');
+  for (const [re, name] of CARRIER_CODE_PATTERNS) if (re.test(t)) return name;
+  return VENDOR_CODE_NAMES[vendor] || 'YNC Partner';
+}
+// admin → real name + nickname, everyone else → nickname only
+function svcNameHtml(title, vendor) {
+  const code = vendorCodeName(title, vendor);
+  const real = String(title || '').trim();
+  if (isAdmin()) {
+    return esc(real || code) + (real && real !== code ? ` <span style="font-size:10px;color:var(--gray2);font-weight:600">(${esc(code)})</span>` : '');
+  }
+  return esc(code);
+}
+function svcNamePlain(title, vendor) {
+  const code = vendorCodeName(title, vendor);
+  const real = String(title || '').trim();
+  if (isAdmin()) return real || code;
+  return code;
+}
+function vendorLabel(v) { return isAdmin() ? v : (VENDOR_CODE_NAMES[v] || 'YNC Partner'); }
+function maskVendorName(v) { return isAdmin() ? esc(v) : '••••••'; }
+// Non-admins never see a service name that carries a real vendor/carrier brand
+function displayService(svc, vendor) {
+  const s = String(svc || '');
+  if (!s || isAdmin()) return s;
+  return CARRIER_CODE_PATTERNS.some(([re]) => re.test(s)) ? vendorCodeName(s, vendor) : s;
+}
+
+// Delhivery rate payload → services list (Local Surface + B2B Surface), legacy fallback
+function dhServicesFrom(d) {
+  if (Array.isArray(d?.services) && d.services.length) return d.services;
+  return [{
+    id: 'b2b_surface', title: 'B2B Surface', note: 'B2B',
+    available: Number(d?.finalRate) > 0,
+    vendorPrice: Number(d?.delhiveryRate) || 0,
+    finalRate: Number(d?.finalRate) || 0,
+    chargedWeight: d?.chargedWeight,
+    priceBreakup: d?.priceBreakup || {},
+  }];
+}
+const DH_BREAKUP_SKIP = ['pre_tax_freight_charges','gst_percent','meta_charges','markup','green','lm','appointment_charges','other_handling_charges'];
+const DH_BREAKUP_LABELS = { base_freight_charge:'Base Freight', fuel_surcharge:'Fuel Surcharge', fuel_hike:'Fuel Hike', insurance_rov:'Insurance / ROV', oda:'ODA Charges', fm:'FM Charges', gst:'GST (18%)', pickup:'Pickup', delivery:'Delivery', cod:'COD Charges', pod:'POD Charges', peak:'Peak Surcharge', handling:'Handling', label:'Label Charge', reattempt:'Reattempt', lm:'Location Handling' };
+function dhBreakupList(pb) {
+  if (!pb) return [];
+  return Object.entries(pb)
+    .filter(([k, v]) => !DH_BREAKUP_SKIP.includes(k) && v != null && !isNaN(Number(v)) && Number(v) > 0)
+    .map(([k, v]) => ({ label: DH_BREAKUP_LABELS[k] || k.replace(/_/g, ' '), amount: Number(v) }));
+}
+
 function vrRowHtml(r, i) {
+  const svcRaw = String(r.service || '');
+  const svcShown = displayService(svcRaw, r.vendor);
+  const svcHidden = svcShown !== svcRaw;
   return `<div class="form-row" style="align-items:end;gap:8px;margin-bottom:8px">
-    <div class="fg" style="flex:1"><label>Vendor</label><select onchange="vrField(${i},'vendor',this.value)">${VR_VENDORS.map(v => `<option ${v === r.vendor ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
-    <div class="fg" style="flex:1.5"><label>Service</label><input value="${esc(r.service || '')}" placeholder="e.g. ShipGlobal Direct" onchange="vrField(${i},'service',this.value)"/></div>
+    <div class="fg" style="flex:1"><label>Vendor</label><select onchange="vrField(${i},'vendor',this.value)">${VR_VENDORS.map(v => `<option ${v === r.vendor ? 'selected' : ''}>${isAdmin() ? v : esc(VENDOR_CODE_NAMES[v] || v)}</option>`).join('')}</select></div>
+    <div class="fg" style="flex:1.5"><label>Service</label><input value="${esc(svcShown)}" placeholder="e.g. Service name" ${svcHidden ? 'readonly title="Hidden for your role" style="background:var(--gray4);color:var(--gray)"' : ''} onchange="vrField(${i},'service',this.value)"/></div>
     <div class="fg" style="flex:.9"><label>Rate (₹)</label><input type="number" min="0" step="any" value="${r.rate || ''}" oninput="vrField(${i},'rate',this.value)"/></div>
     <div class="fg" style="flex:1"><label>ETA</label><input value="${esc(r.estimatedDays || '')}" placeholder="e.g. 7-10 Days" onchange="vrField(${i},'estimatedDays',this.value)"/></div>
     <div class="fg" style="max-width:36px"><label>&nbsp;</label><button onclick="vrDelRate(${i})" style="background:var(--red-bg);border:1px solid #fecaca;border-radius:6px;padding:5px 9px;font-size:14px;color:var(--red);cursor:pointer">×</button></div>
@@ -991,7 +1059,7 @@ function vrLiveHtml() {
       <div class="fg"><label>Dest. Postcode *</label><input id="vr-sg-pc" value="${esc(l.destinationPincode || '')}" placeholder="e.g. AB32"/></div>
     </div>
     <div class="fg"><label>Destination Country *</label><select id="vr-sg-c">${sgCountryOptions(guessCountry(l.destination))}</select></div>
-    <button class="btn-primary" id="vr-sg-btn" onclick="vrFetchShipGlobal()" style="width:100%;margin-top:10px">🌐 Fetch ShipGlobal Rates</button>
+    <button class="btn-primary" id="vr-sg-btn" onclick="vrFetchShipGlobal()" style="width:100%;margin-top:10px">🌐 Fetch Intl Rates</button>
   </div>`;
   const dh = `<div>
     <div class="form-row">
@@ -1002,12 +1070,12 @@ function vrLiveHtml() {
       <div class="fg"><label>Weight (kg) *</label><input id="vr-dh-w" type="number" step="0.01" min="0.1" value="${l.weight || ''}"/></div>
       <div class="fg"><label>Declared Value (₹)</label><input id="vr-dh-v" type="number" min="1" value="${l.estimatedValue || ''}"/></div>
     </div>
-    <button class="btn-primary" id="vr-dh-btn" onclick="vrFetchDelhivery()" style="width:100%;margin-top:10px">🚚 Fetch Delhivery Rate</button>
+    <button class="btn-primary" id="vr-dh-btn" onclick="vrFetchDelhivery()" style="width:100%;margin-top:10px">🚚 Fetch Domestic Rates</button>
   </div>`;
   return `<div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:10px;padding:14px;margin-bottom:14px">
     <div class="vt-tabs" style="margin-bottom:12px">
-      <button class="vt-tab ${_vrLiveTab === 'shipglobal' ? 'on' : ''}" onclick="vrSetLiveTab('shipglobal')">🌍 ShipGlobal · Intl</button>
-      <button class="vt-tab ${_vrLiveTab === 'delhivery' ? 'on' : ''}" onclick="vrSetLiveTab('delhivery')">🚚 Delhivery · India</button>
+      <button class="vt-tab ${_vrLiveTab === 'shipglobal' ? 'on' : ''}" onclick="vrSetLiveTab('shipglobal')">🌍 Intl</button>
+      <button class="vt-tab ${_vrLiveTab === 'delhivery' ? 'on' : ''}" onclick="vrSetLiveTab('delhivery')">🚚 Domestic</button>
     </div>
     ${_vrLiveTab === 'shipglobal' ? sg : dh}
   </div>`;
@@ -1034,7 +1102,7 @@ function vrField(i, k, v) { if (!_vrRates[i]) return; _vrRates[i][k] = k === 'ra
 function vrDelRate(i) { _vrRates.splice(i, 1); renderVendorRates(); }
 async function vrSaveRates() {
   const rows = _vrRates.filter(r => r.vendor && Number(r.rate) > 0);
-  if (!rows.length) { toast('Add at least one rate with a vendor and amount', 'error'); return; }
+  if (!rows.length) { toast('Add at least one rate with an amount', 'error'); return; }
   if (!_vrLead) return;
   const rr = await api('POST', '/api/vendor-rates', {
     quoteLeadId: _vrLead.id,
@@ -1058,14 +1126,14 @@ async function vrFetchShipGlobal() {
   const btn = document.getElementById('vr-sg-btn');
   btn.disabled = true; btn.textContent = 'Fetching...';
   const r = await api('POST', '/api/shipglobal/rate', { package_weight: w, country_iso_code_2: c, postcode: pc, dimensions: sgDimsFromLead(_vrLead) });
-  btn.disabled = false; btn.textContent = '🌐 Fetch ShipGlobal Rates';
+  btn.disabled = false; btn.textContent = '🌐 Fetch Intl Rates';
   if (!r) { toast('Session expired. Please log in again.', 'error'); return; }
-  if (!r.success) { toast(r.error || 'ShipGlobal failed', 'error'); return; }
+  if (!r.success) { toast(r.error || 'Could not fetch intl rates', 'error'); return; }
   const services = r.data.services || [];
   if (!services.length) { toast('No services found for this destination', 'error'); return; }
   vrAddRows(services.map(s => ({ vendor: 'shipglobal', service: s.title, rate: s.finalRate, currency: r.data.currency || 'INR', estimatedDays: s.transitTime })));
   const basis = r.data.weightBasis === 'volumetric' ? ` on chargeable ${r.data.billableWeight} kg` : '';
-  toast(`${services.length} ShipGlobal rates added${basis} — click 💾 Save`, 'success');
+  toast(`${services.length} intl rates added${basis} — click 💾 Save`, 'success');
 }
 async function vrFetchDelhivery() {
   const o = document.getElementById('vr-dh-o').value.trim();
@@ -1078,11 +1146,13 @@ async function vrFetchDelhivery() {
   const btn = document.getElementById('vr-dh-btn');
   btn.disabled = true; btn.textContent = 'Fetching...';
   const r = await api('POST', '/api/delhivery/rate', { source_pin: o, consignee_pin: d, weight_g: Math.round(w * 1000), inv_amount: v, payment_mode: 'prepaid' });
-  btn.disabled = false; btn.textContent = '🚚 Fetch Delhivery Rate';
+  btn.disabled = false; btn.textContent = '🚚 Fetch Domestic Rates';
   if (!r) { toast('Session expired. Please log in again.', 'error'); return; }
-  if (!r.success) { toast(r.error || 'Delhivery failed', 'error'); return; }
-  vrAddRows([{ vendor: 'delhivery', service: 'Surface', rate: r.data.finalRate, currency: 'INR', estimatedDays: '' }]);
-  toast('Delhivery rate added — click 💾 Save', 'success');
+  if (!r.success) { toast(r.error || 'Could not fetch domestic rates', 'error'); return; }
+  const dhServices = dhServicesFrom(r.data).filter(s => s.available && Number(s.finalRate) > 0);
+  if (!dhServices.length) { toast('No rates available for this route', 'error'); return; }
+  vrAddRows(dhServices.map(s => ({ vendor: 'delhivery', service: s.title, rate: s.finalRate, currency: 'INR', estimatedDays: '' })));
+  toast(`${dhServices.length} domestic rate${dhServices.length > 1 ? 's' : ''} added — click 💾 Save`, 'success');
 }
 
 // ─── SHIPGLOBAL BILLABLE WEIGHT — volumetric (L×W×H/5000) vs actual ────────
@@ -1117,7 +1187,7 @@ function sgChargeableNote(d) {
 }
 
 // ─── GET RATE (Quote Lead top button) ──────────────────────────────────────
-let _qsgServices = [], _qdhRate = 0, _qsgLead = null;
+let _qsgServices = [], _qdhRate = 0, _qsgLead = null, _qdhServices = [];
 async function getQuoteLeadRates() {
   const l = _vrLead; if (!l) return;
   const w = parseFloat(l.weight);
@@ -1152,7 +1222,7 @@ function showQuoteSgRates(l, pre = {}) {
   _qsgLead = l;
   const pc = pre.pc || '', c = pre.c || guessCountry(l.destination) || '', w = pre.w || l.weight || '';
   showModal('🌍 YNCSG Rates', `
-    <div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--gray);margin-bottom:12px">🌍 Live rates from ShipGlobal (India → ${esc(l.destination || 'world')}). Rate uses the higher of actual vs volumetric (L×W×H/5000) weight.</div>
+    <div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--gray);margin-bottom:12px">🌍 Live international rates (India → ${esc(l.destination || 'world')}). Rate uses the higher of actual vs volumetric (L×W×H/5000) weight.</div>
     <div class="form-row">
       <div class="fg"><label>Weight (kg) *</label><input id="qsg-w" type="number" step="0.01" min="0.01" value="${esc(w)}"/></div>
       <div class="fg"><label>Dest. Postcode *</label><input id="qsg-pc" placeholder="e.g. AB32" value="${esc(pc)}"/></div>
@@ -1180,15 +1250,16 @@ async function fetchQuoteSgRates() {
   btn.disabled = false; btn.textContent = '🔍 Get Rates';
   const el = document.getElementById('qsg-results');
   if (!r) { if (el) el.innerHTML = ''; toast('Session expired. Please log in again.', 'error'); return; }
-  if (!r.success) { if (el) el.innerHTML = ''; toast(r.error || 'ShipGlobal failed', 'error'); return; }
+  if (!r.success) { if (el) el.innerHTML = ''; toast(r.error || 'Could not fetch intl rates', 'error'); return; }
   _qsgServices = r.data.services || [];
   if (!_qsgServices.length) { if (el) el.innerHTML = `<div style="font-size:13px;color:var(--gray);text-align:center;padding:12px">No services found for this destination.</div>`; return; }
   const best = Math.min(..._qsgServices.map(s => s.finalRate));
   el.innerHTML = sgChargeableNote(r.data) + _qsgServices.map((s, i) => `
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--white);border:1px solid var(--gray3);border-radius:8px;padding:10px 12px;margin-bottom:8px">
     <div>
-      <div style="font-size:13px;font-weight:700;color:var(--black)">${esc(s.title)}${s.finalRate === best ? ' <span style="background:var(--green-bg);color:#047857;border:1px solid #a7f3d0;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:700">LOWEST</span>' : ''}</div>
+      <div style="font-size:13px;font-weight:700;color:var(--black)">${svcNameHtml(s.title, 'shipglobal')}${s.finalRate === best ? ' <span style="background:var(--green-bg);color:#047857;border:1px solid #a7f3d0;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:700">LOWEST</span>' : ''}</div>
       <div style="font-size:11.5px;color:var(--gray);margin-top:2px">⏱ ${esc(s.transitTime)}${s.notes ? ' · ' + esc(s.notes) : ''}</div>
+      ${isAdmin() ? `<div style="font-size:11px;color:var(--gray2);margin-top:2px">Vendor: ₹${Number(s.basePrice).toLocaleString('en-IN')}</div>` : ''}
     </div>
     <div style="text-align:right;flex-shrink:0">
       <div style="font-size:16px;font-weight:800;color:var(--brand-dark)">₹${Number(s.finalRate).toLocaleString('en-IN')}</div>
@@ -1201,7 +1272,7 @@ function quoteSgAdd(i) {
   const s = _qsgServices[i]; if (!s) return;
   vrAddRows([{ vendor: 'shipglobal', service: s.title, rate: Number(s.finalRate) || 0, currency: 'INR', estimatedDays: s.transitTime || '' }]);
   closeModal();
-  toast(`"${s.title}" added to Vendor Rates — click 💾 Save`, 'success');
+  toast(`"${svcNamePlain(s.title, 'shipglobal')}" added — click 💾 Save`, 'success');
 }
 function quoteSgAddAll() {
   if (!_qsgServices.length) return;
@@ -1211,34 +1282,58 @@ function quoteSgAddAll() {
 }
 
 function showQuoteDhResult(d, o, dest) {
+  const services = dhServicesFrom(d);
+  _qdhServices = services;
   _qdhRate = Number(d.finalRate) || 0;
-  const SKIP = ['pre_tax_freight_charges','gst_percent','meta_charges','markup','green','lm','appointment_charges','other_handling_charges'];
-  const LABELS = { base_freight_charge:'Base Freight', fuel_surcharge:'Fuel Surcharge', fuel_hike:'Fuel Hike', insurance_rov:'Insurance / ROV', oda:'ODA Charges', fm:'FM Charges', gst:'GST (18%)' };
-  const breakup = d.priceBreakup ? Object.entries(d.priceBreakup)
-    .filter(([k,v]) => !SKIP.includes(k) && v != null && !isNaN(Number(v)) && Number(v) > 0)
-    .map(([k,v]) => ({ label: LABELS[k] || k.replace(/_/g,' '), amount: Number(v) })) : [];
-  showModal('🚚 YNCDL Rate', `
-    <div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--gray);margin-bottom:12px">🚚 Live rate via YNCDL — ${esc(o)} → ${esc(dest)} · Chargeable ${d.chargedWeight || '—'} kg</div>
-    ${me?.role === 'admin' && breakup.length ? `
-    <div style="background:var(--gray4);border-radius:10px;padding:12px 14px;margin-bottom:12px">
-      ${breakup.map(item => `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px solid var(--gray3)"><span style="color:var(--gray)">${item.label}</span><span style="color:var(--black);font-weight:500">₹${item.amount.toLocaleString()}</span></div>`).join('')}
-      <div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:14px;font-weight:700;border-top:2px solid var(--gray3);margin-top:4px"><span>Vendor Total</span><span>₹${Number(d.delhiveryRate || 0).toLocaleString()}</span></div>
-    </div>` : ''}
-    <div style="background:var(--brand-bg);border:2px solid var(--brand-border);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--brand)">YNC Rate</div>
-        <div style="font-size:10px;color:var(--gray);margin-top:2px">Inclusive of all charges</div>
+  const rows = services.map((s, i) => {
+    const avail = s.available !== false && Number(s.finalRate) > 0;
+    const breakup = dhBreakupList(s.priceBreakup);
+    const cw = s.chargedWeight != null && s.chargedWeight !== '' ? `${Number(s.chargedWeight)} kg` : '—';
+    return `
+    <div style="background:var(--white);border:1px solid var(--gray3);border-radius:8px;padding:10px 12px;margin-bottom:8px;${avail ? '' : 'opacity:.65'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <div>
+          <div style="font-size:13.5px;font-weight:700;color:var(--black)">${esc(s.title)}${s.note ? ` <span style="font-size:10.5px;color:var(--gray2);font-weight:600">· ${esc(s.note)}</span>` : ''}</div>
+          <div style="font-size:11.5px;color:var(--gray);margin-top:2px">⚖️ Chargeable ${cw}${s.zone ? ' · Zone ' + esc(s.zone) : ''}</div>
+          ${isAdmin() ? `<div style="font-size:11px;color:var(--gray2);margin-top:2px">Vendor: ₹${Number(s.vendorPrice || 0).toLocaleString('en-IN')}${avail ? '' : ' · rate card not active'}</div>` : ''}
+          ${isAdmin() && breakup.length ? `
+          <details style="margin-top:6px">
+            <summary style="font-size:11px;color:var(--gray);cursor:pointer">🧾 Price Break Down</summary>
+            <div style="padding-top:4px">
+              ${breakup.map(item => `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11.5px;border-bottom:1px solid var(--gray3)"><span style="color:var(--gray)">${item.label}</span><span style="color:var(--black);font-weight:500">₹${item.amount.toLocaleString()}</span></div>`).join('')}
+              <div style="display:flex;justify-content:space-between;padding:5px 0 2px;font-size:12.5px;font-weight:700;border-top:1px solid var(--gray3);margin-top:3px"><span>Vendor Total</span><span>₹${Number(s.vendorPrice || 0).toLocaleString()}</span></div>
+            </div>
+          </details>` : ''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:var(--brand);text-transform:uppercase">YNC Rate</div>
+          <div style="font-size:20px;font-weight:800;color:var(--brand-dark)">${avail ? '₹' + Number(s.finalRate).toLocaleString('en-IN') : '—'}</div>
+          ${avail
+            ? `<button onclick="quoteDhAdd(${i})" style="margin-top:4px;background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--brand);cursor:pointer">➕ Add</button>`
+            : `<div style="font-size:10.5px;color:var(--gray2);margin-top:4px">${isAdmin() ? 'Rate card inactive' : 'Not available'}</div>`}
+        </div>
       </div>
-      <div style="font-size:22px;font-weight:800;color:var(--brand-dark)">₹${_qdhRate.toLocaleString('en-IN')}</div>
-    </div>
-    <button class="btn-primary" onclick="quoteDhAdd()" style="width:100%;margin-top:12px">➕ Add to Vendor Rates</button>
+    </div>`;
+  }).join('');
+  showModal('🚚 YNCDL Rates', `
+    <div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--gray);margin-bottom:12px">🚚 Live rates via YNCDL — ${esc(o)} → ${esc(dest)}. Local Surface (B2C) and B2B Surface, both with YNC pricing.</div>
+    ${rows}
+    <button onclick="quoteDhAddAll()" style="width:100%;background:var(--gray4);border:1.5px solid var(--gray3);border-radius:8px;padding:8px;font-size:12.5px;font-weight:700;color:var(--black);cursor:pointer">➕ Add All Available</button>
   `);
   const mb = document.getElementById('modal-save'); if (mb) mb.style.display = 'none';
 }
-function quoteDhAdd() {
-  vrAddRows([{ vendor: 'delhivery', service: 'Surface', rate: _qdhRate, currency: 'INR', estimatedDays: '' }]);
+function quoteDhAdd(i) {
+  const s = _qdhServices[i]; if (!s || !(s.available !== false && Number(s.finalRate) > 0)) return;
+  vrAddRows([{ vendor: 'delhivery', service: s.title, rate: Number(s.finalRate) || 0, currency: 'INR', estimatedDays: '' }]);
   closeModal();
-  toast('Rate added to Vendor Rates — click 💾 Save', 'success');
+  toast(`"${s.title}" added — click 💾 Save`, 'success');
+}
+function quoteDhAddAll() {
+  const rows = (_qdhServices || []).filter(s => s.available !== false && Number(s.finalRate) > 0);
+  if (!rows.length) { toast('No rates available for this route', 'error'); return; }
+  vrAddRows(rows.map(s => ({ vendor: 'delhivery', service: s.title, rate: Number(s.finalRate) || 0, currency: 'INR', estimatedDays: '' })));
+  closeModal();
+  toast(`${rows.length} rate${rows.length > 1 ? 's' : ''} added — click 💾 Save`, 'success');
 }
 
 // ─── SHIPMENT LEADS ────────────────────────────────────────────────────────
@@ -1451,7 +1546,7 @@ function renderSgResult(d, weight) {
     ${rows.map(s => `
     <div style="padding:12px 20px;border-bottom:1px solid var(--gray3);display:flex;justify-content:space-between;align-items:center;gap:12px">
       <div>
-        <div style="font-size:13.5px;font-weight:700;color:var(--black)">${esc(s.title)}${s.finalRate === best ? ' <span style="background:var(--green-bg);color:#047857;border:1px solid #a7f3d0;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:700;vertical-align:middle">LOWEST</span>' : ''}</div>
+        <div style="font-size:13.5px;font-weight:700;color:var(--black)">${svcNameHtml(s.title, 'shipglobal')}${s.finalRate === best ? ' <span style="background:var(--green-bg);color:#047857;border:1px solid #a7f3d0;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:700;vertical-align:middle">LOWEST</span>' : ''}</div>
         <div style="font-size:11.5px;color:var(--gray);margin-top:2px">⏱ ${esc(s.transitTime)}${s.notes ? ' · ' + esc(s.notes) : ''}</div>
         ${me?.role === 'admin' ? `<div style="font-size:11px;color:var(--gray2);margin-top:2px">Vendor: ₹${Number(s.basePrice).toLocaleString('en-IN')}</div>` : ''}
       </div>
@@ -1535,13 +1630,8 @@ async function fetchDelhiveryGetRate() {
   if (!result.success) { toast(result.error || 'Failed to get rate', 'error'); return; }
 
   const d = result.data;
-
-  // Clean breakup: skip internal/zero fields, use friendly labels
-  const SKIP = ['pre_tax_freight_charges','gst_percent','meta_charges','markup','green','lm','appointment_charges','other_handling_charges'];
-  const LABELS = { base_freight_charge:'Base Freight', fuel_surcharge:'Fuel Surcharge', fuel_hike:'Fuel Hike', insurance_rov:'Insurance / ROV', oda:'ODA Charges', fm:'FM Charges', gst:'GST (18%)' };
-  const breakup = d.priceBreakup ? Object.entries(d.priceBreakup)
-    .filter(([k,v]) => !SKIP.includes(k) && v != null && !isNaN(Number(v)) && Number(v) > 0)
-    .map(([k,v]) => ({ label: LABELS[k] || k.replace(/_/g,' '), amount: Number(v) })) : [];
+  const services = dhServicesFrom(d);
+  const firstAvail = services.find(s => s.available !== false && Number(s.finalRate) > 0);
 
   // Calculate vol weight per box (skip if default 1x1x1)
   let volRows = '';
@@ -1565,47 +1655,39 @@ async function fetchDelhiveryGetRate() {
         <div style="font-size:11px;color:var(--gray);margin-top:2px">${origin} → ${dest}</div>
       </div>
       <div style="display:flex;gap:20px;font-size:12px">
-        <span style="color:var(--gray)">Chargeable<br><strong style="color:var(--black);font-size:15px">${d.chargedWeight || '—'} kg</strong></span>
+        <span style="color:var(--gray)">Chargeable<br><strong style="color:var(--black);font-size:15px">${(firstAvail?.chargedWeight ?? d.chargedWeight) || '—'} kg</strong></span>
       </div>
     </div>
-    ${me?.role === 'admin' ? `
-    <!-- Admin: full breakup with prices -->
+    <!-- Services: Local Surface (B2C) + B2B Surface, both with YNC pricing -->
     <div style="padding:14px 20px">
-      <div style="background:var(--gray4);border-radius:10px;padding:14px 16px">
-        ${breakup.map(item => `
-        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-bottom:1px solid var(--gray3)">
-          <span style="color:var(--gray)">${item.label}</span>
-          <span style="color:var(--black);font-weight:500">₹${item.amount.toLocaleString()}</span>
-        </div>`).join('')}
-        <div style="display:flex;justify-content:space-between;padding:8px 0 4px;font-size:14px;font-weight:700;border-top:2px solid var(--gray3);margin-top:4px">
-          <span>Total</span>
-          <span>₹${d.delhiveryRate.toLocaleString()}</span>
+      ${services.map(s => {
+        const avail = s.available !== false && Number(s.finalRate) > 0;
+        const breakup = dhBreakupList(s.priceBreakup);
+        const cw = s.chargedWeight != null && s.chargedWeight !== '' ? `${Number(s.chargedWeight)} kg` : '—';
+        return `
+      <div style="border:1.5px solid ${avail ? 'var(--brand-border)' : 'var(--gray3)'};background:${avail ? 'var(--brand-bg)' : 'var(--gray4)'};border-radius:10px;padding:12px 14px;margin-bottom:10px;${avail ? '' : 'opacity:.7'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <div>
+            <div style="font-size:13.5px;font-weight:700;color:var(--black)">${esc(s.title)}${s.note ? ` <span style="font-size:10.5px;color:var(--gray2);font-weight:600">· ${esc(s.note)}</span>` : ''}</div>
+            <div style="font-size:11.5px;color:var(--gray);margin-top:2px">⚖️ Chargeable ${cw}${s.zone ? ' · Zone ' + esc(s.zone) : ''}</div>
+            ${isAdmin() ? `<div style="font-size:11px;color:var(--gray2);margin-top:2px">Vendor: ₹${Number(s.vendorPrice || 0).toLocaleString('en-IN')}${avail ? '' : ' · rate card not active'}</div>` : ''}
+            ${isAdmin() && breakup.length ? `
+            <details style="margin-top:6px">
+              <summary style="font-size:11px;color:var(--gray);cursor:pointer">🧾 Price Break Down</summary>
+              <div style="padding-top:4px">
+                ${breakup.map(item => `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11.5px;border-bottom:1px solid var(--gray3)"><span style="color:var(--gray)">${item.label}</span><span style="color:var(--black);font-weight:500">₹${item.amount.toLocaleString()}</span></div>`).join('')}
+                <div style="display:flex;justify-content:space-between;padding:5px 0 2px;font-size:12.5px;font-weight:700;border-top:1px solid var(--gray3);margin-top:3px"><span>Vendor Total</span><span>₹${Number(s.vendorPrice || 0).toLocaleString()}</span></div>
+              </div>
+            </details>` : ''}
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:var(--brand);text-transform:uppercase">YNC Rate</div>
+            <div style="font-size:22px;font-weight:800;color:var(--brand-dark)">${avail ? '₹' + Number(s.finalRate).toLocaleString('en-IN') : '—'}</div>
+            ${avail ? '' : `<div style="font-size:10.5px;color:var(--gray2)">${isAdmin() ? 'Rate card inactive' : 'Not available'}</div>`}
+          </div>
         </div>
-      </div>
-    </div>
-    ` : `
-    <!-- Manager/Sales Rep: names only, no prices, in dropdown -->
-    <div style="padding:12px 20px">
-      <details style="background:var(--gray4);border-radius:10px;overflow:hidden">
-        <summary style="padding:10px 16px;font-size:12px;font-weight:700;color:var(--gray);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px">
-          <span style="font-size:10px">▼</span> Price Break Down
-        </summary>
-        <div style="padding:0 16px 12px">
-          ${breakup.map(item => `
-          <div style="padding:4px 0;font-size:12px;color:var(--gray);border-bottom:1px solid var(--gray3)">${item.label}</div>`).join('')}
-        </div>
-      </details>
-    </div>
-    `}
-    <!-- YNC Final Rate -->
-    <div style="padding:0 20px 16px">
-      <div style="background:var(--brand-bg);border:2px solid var(--brand-border);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--brand)">YNC Rate</div>
-          <div style="font-size:10px;color:var(--gray);margin-top:2px">Inclusive of all charges</div>
-        </div>
-        <div style="font-size:24px;font-weight:800;color:var(--brand-dark)">₹${d.finalRate.toLocaleString()}</div>
-      </div>
+      </div>`;
+      }).join('')}
     </div>
     <!-- Weights -->
     <div style="padding:10px 20px;border-top:1px solid var(--gray3);display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:var(--gray2)">
@@ -3130,7 +3212,7 @@ async function renderBookShipment() {
             <td>${l.shipmentType?l.shipmentType.charAt(0).toUpperCase()+l.shipmentType.slice(1):'-'}</td>
             <td>${l.shipmentMode?badge(l.shipmentMode):'-'}</td>
             <td>${statusSelectHtml('shipment', l.status, l.id, lk)}</td>
-            <td>${l.freightCharge ? fmtCur(l.freightCharge, l.currency) : '-'}${l.localVendor ? `<div style="font-size:10.5px;color:#7c3aed;font-weight:700">via ${esc(l.localVendor)}</div>` : ''}</td>
+            <td>${l.freightCharge ? fmtCur(l.freightCharge, l.currency) : '-'}${l.localVendor ? `<div style="font-size:10.5px;color:#7c3aed;font-weight:700">via ${maskVendorName(l.localVendor)}</div>` : ''}</td>
             <td>${esc(l.assignedTo?.name||'—')}</td>
             <td><span class="sub">${fmtDate(l.createdAt)}</span></td>
             <td class="actions-col">${lk
@@ -3473,7 +3555,8 @@ function bkTimelineItems(tl) {
 }
 
 function bkTrackCard(l, t) {
-  const carrier = (l.delhiveryLr || l.delhiveryAwb) ? 'Delhivery' : (l.awbNumber ? 'ShipGlobal' : '');
+  const rawCarrier = (l.delhiveryLr || l.delhiveryAwb) ? 'Delhivery' : (l.awbNumber ? 'ShipGlobal' : '');
+  const carrier = rawCarrier ? (isAdmin() ? rawCarrier : vendorCodeName(rawCarrier, '')) : '';
   const head = `<div style="padding:10px 14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#2563eb;background:#2563eb11;border-bottom:2px solid #2563eb33">📡 Tracking${carrier ? ' — ' + carrier : ' — Manual'}</div>`;
   if (!t) {
     return `<div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">${head}
@@ -3574,7 +3657,7 @@ async function showBookShipmentDetail(id) {
         ? `<button class="btn-book" onclick="openSgBooking('${l.id}')">🚚 Book Shipment</button>`
         : `<button class="btn-book" onclick="confirmBookShipment('${l.id}')">🚚 Book Shipment</button>`) : ''}
       ${!l.delhiveryLr && !l.awbNumber ? (l.localVendor
-        ? `<button class="btn-book" style="background:#047857" onclick="openLocalVendorModal('${l.id}')" title="Edit local vendor booking">📞 Booked: ${esc(l.localVendor)}</button>`
+        ? `<button class="btn-book" style="background:#047857" onclick="openLocalVendorModal('${l.id}')" title="Edit local vendor booking">${isAdmin() ? `📞 Booked: ${esc(l.localVendor)}` : '📞 Booked (Local Partner)'}</button>`
         : `<button class="btn-book" style="background:#7c3aed" onclick="openLocalVendorModal('${l.id}')">📞 Book with Local Vendor</button>`) : ''}
       ${l.delhiveryLr ? `<button class="btn-label" onclick="downloadLabel('${l.delhiveryLr}')">🏷️ Download Label</button>` : ''}
       ${!l.delhiveryLr && l.awbNumber ? `<button class="btn-label" onclick="downloadSgLabel('${l.awbNumber}')">🏷️ Download Label</button>` : ''}
@@ -3664,12 +3747,12 @@ async function showBookShipmentDetail(id) {
             ${_tr('Expected Pickup', l.expectedPickup ? fmtDate(l.expectedPickup) : '—')}
             ${_tr('Assigned To', esc(l.assignedTo?.name || '—'))}
             ${_tr('Created', fmtDate(l.createdAt))}
-            ${_tr('Delhivery LR', l.delhiveryLr ? `<code style="background:#fef2f2;color:#b91c1c;padding:2px 8px;border-radius:4px;font-size:13px;font-weight:700">${esc(l.delhiveryLr)}</code>` : '<span style="color:var(--gray2)">Not booked yet</span>')}
+            ${_tr(isAdmin() ? 'Delhivery LR' : 'LR / Tracking No.', l.delhiveryLr ? `<code style="background:#fef2f2;color:#b91c1c;padding:2px 8px;border-radius:4px;font-size:13px;font-weight:700">${esc(l.delhiveryLr)}</code>` : '<span style="color:var(--gray2)">Not booked yet</span>')}
             ${_tr('AWB', esc(l.delhiveryAwb || '—'))}
-            ${l.shipmentType === 'international' && l.awbNumber ? _tr('ShipGlobal AWB', `<code style="background:#f0fdf4;color:#15803d;padding:2px 8px;border-radius:4px;font-size:13px;font-weight:700">${esc(l.awbNumber)}</code>`) : ''}
+            ${l.shipmentType === 'international' && l.awbNumber ? _tr(isAdmin() ? 'ShipGlobal AWB' : 'Intl AWB', `<code style="background:#f0fdf4;color:#15803d;padding:2px 8px;border-radius:4px;font-size:13px;font-weight:700">${esc(l.awbNumber)}</code>`) : ''}
             ${_tr('Job ID', l.delhiveryJobId ? `<code style="font-family:monospace;font-size:12px">${esc(l.delhiveryJobId)}</code>` : '—')}
-            ${l.selectedService ? _tr('Selected Service', `<span style="color:var(--brand);font-weight:700">${esc(l.selectedService)}</span>`) : ''}
-            ${l.localVendor ? _tr('Local Vendor', `📞 <strong>${esc(l.localVendor)}</strong> — ${fmtCur(l.localVendorRate || 0, l.currency)}${l.localVendorBookedAt ? ` <span style="color:var(--gray2);font-size:11px">· ${fmtDate(l.localVendorBookedAt)}</span>` : ''}`) : ''}
+            ${l.selectedService ? _tr('Selected Service', `<span style="color:var(--brand);font-weight:700">${svcNameHtml(l.selectedService, l.shipmentType === 'international' ? 'shipglobal' : 'delhivery')}</span>`) : ''}
+            ${l.localVendor ? _tr(isAdmin() ? 'Local Vendor' : 'Local Partner', `📞 <strong>${maskVendorName(l.localVendor)}</strong>${isAdmin() ? ` — ${fmtCur(l.localVendorRate || 0, l.currency)}` : ''}${l.localVendorBookedAt ? ` <span style="color:var(--gray2);font-size:11px">· ${fmtDate(l.localVendorBookedAt)}</span>` : ''}`) : ''}
           </tbody>
         </table>
       </div>
@@ -3766,7 +3849,7 @@ function showShipGlobalBookingRates(l, pre = {}) {
   const c = pre.c || guessCountry(l.destination) || '';
   const w = pre.w || l.weight || '';
   showModal('🌍 YNCSG Rates', `
-    <div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--gray);margin-bottom:12px">🌍 International shipment — live rates from ShipGlobal (India → ${esc(l.destination || 'world')}). Rate uses the higher of actual vs volumetric (L×W×H/5000) weight.</div>
+    <div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--gray);margin-bottom:12px">🌍 International shipment — live rates (India → ${esc(l.destination || 'world')}). Rate uses the higher of actual vs volumetric (L×W×H/5000) weight.</div>
     <div class="form-row">
       <div class="fg"><label>Weight (kg) *</label><input id="sbg-w" type="number" step="0.01" min="0.01" value="${esc(w)}"/></div>
       <div class="fg"><label>Dest. Postcode *</label><input id="sbg-pc" placeholder="e.g. AB32" value="${esc(pc)}"/></div>
@@ -3792,7 +3875,7 @@ async function fetchBookingSgRates() {
   const r = await api('POST', '/api/shipglobal/rate', { package_weight: w, country_iso_code_2: c, postcode: pc, dimensions: sgDimsFromLead(_sbgLead) });
   btn.disabled = false; btn.textContent = '🔍 Get Rates';
   if (!r) { const e = document.getElementById('sbg-results'); if (e) e.innerHTML = ''; toast('Session expired. Please log in again.', 'error'); return; }
-  if (!r.success) { const e = document.getElementById('sbg-results'); if (e) e.innerHTML = ''; toast(r.error || 'ShipGlobal failed', 'error'); return; }
+  if (!r.success) { const e = document.getElementById('sbg-results'); if (e) e.innerHTML = ''; toast(r.error || 'Could not fetch intl rates', 'error'); return; }
   _sbgServices = r.data.services || [];
   _sbgRateData = r.data;
   renderSgSelectList();
@@ -3810,7 +3893,7 @@ function renderSgSelectList() {
   el.innerHTML = sgChargeableNote(_sbgRateData) + services.map((s, i) => { const sel = sgIsSelected(s); return `
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;background:${sel ? '#f0fdfa' : 'var(--white)'};border:${sel ? '1.5px solid #34d399' : '1px solid var(--gray3)'};border-radius:8px;padding:10px 12px;margin-bottom:8px">
     <div>
-      <div style="font-size:13px;font-weight:700;color:var(--black)">${esc(s.title)}${s.finalRate === best ? ' <span style="background:var(--green-bg);color:#047857;border:1px solid #a7f3d0;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:700">LOWEST</span>' : ''}${sel ? ' <span style="background:#d1fae5;color:#047857;border:1px solid #6ee7b7;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:800">✓ SELECTED</span>' : ''}</div>
+      <div style="font-size:13px;font-weight:700;color:var(--black)">${svcNameHtml(s.title, 'shipglobal')}${s.finalRate === best ? ' <span style="background:var(--green-bg);color:#047857;border:1px solid #a7f3d0;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:700">LOWEST</span>' : ''}${sel ? ' <span style="background:#d1fae5;color:#047857;border:1px solid #6ee7b7;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:800">✓ SELECTED</span>' : ''}</div>
       <div style="font-size:11.5px;color:var(--gray);margin-top:2px">⏱ ${esc(s.transitTime)}${s.notes ? ' · ' + esc(s.notes) : ''}${me?.role === 'admin' ? ` · Vendor ₹${Number(s.basePrice).toLocaleString('en-IN')}` : ''}</div>
     </div>
     <div style="text-align:right;flex-shrink:0">
@@ -3819,7 +3902,7 @@ function renderSgSelectList() {
         ? `<span style="display:inline-block;margin-top:4px;color:#047857;font-size:11px;font-weight:800"></span>`
         : `<button onclick="selectSgService(${i})" style="margin-top:4px;background:var(--brand-bg);border:1px solid var(--brand-border);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--brand);cursor:pointer">Select</button>`}
     </div>
-  </div>`; }).join('') + `<div style="font-size:11.5px;color:var(--gray2);text-align:center;margin-top:2px">Selected vendor/service is used when you click 🚚 Book Shipment.</div>`;
+  </div>`; }).join('') + `<div style="font-size:11.5px;color:var(--gray2);text-align:center;margin-top:2px">Selected service is used when you click 🚚 Book Shipment.</div>`;
 }
 async function selectSgService(i) {
   const s = _sbgServices[i]; if (!s || !_sbgLead) return;
@@ -3828,7 +3911,7 @@ async function selectSgService(i) {
   _sbgLead = Object.assign({}, _sbgLead, { freightCharge: s.finalRate, selectedService: s.title });
   renderSgSelectList();
   showBookShipmentDetail(_sbgLead.id);
-  toast(`${s.title} selected — Book Shipment will use it`, 'success');
+  toast(`${svcNamePlain(s.title, 'shipglobal')} selected — Book Shipment will use it`, 'success');
 }
 
 // ─── BOOK ON SHIPGLOBAL (international) ────────────────────────────────────
@@ -3867,7 +3950,7 @@ async function openSgBooking(id) {
     else if (l.freightCharge) { const m = services.findIndex(s => Number(s.finalRate) === Number(l.freightCharge)); if (m >= 0) defIdx = m; }
   }
   const svcHtml = services.length
-    ? `<select id="sgbk-service">${services.map((s, i) => `<option value="${esc(s.title)}" ${i === defIdx ? 'selected' : ''}>${esc(s.title)} — ₹${Number(s.finalRate).toLocaleString('en-IN')}${s.transitTime ? ' · ' + esc(s.transitTime) : ''}</option>`).join('')}</select>`
+    ? `<select id="sgbk-service">${services.map((s, i) => `<option value="${esc(s.title)}" ${i === defIdx ? 'selected' : ''}>${esc(svcNamePlain(s.title, 'shipglobal'))} — ₹${Number(s.finalRate).toLocaleString('en-IN')}${s.transitTime ? ' · ' + esc(s.transitTime) : ''}</option>`).join('')}</select>`
     : `<input id="sgbk-service" placeholder="e.g. Shipglobal Direct" value=""/>`;
 
   const invNo = l.leadId || ('INV-' + Date.now());
@@ -3883,14 +3966,14 @@ async function openSgBooking(id) {
     <div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--gray);margin-bottom:12px">
       <div style="font-weight:700;color:var(--black);margin-bottom:4px">📦 ${esc(rname)} → ${esc(dest)}</div>
       Weight <strong>${w} kg</strong>${chargeable !== w ? ` → Chargeable <strong>${chargeable} kg</strong>` : ''} · Dims <strong>${esc(dimsTxt)}</strong> · Postcode <strong>${esc(pc)}</strong> · Country <strong>${esc(country)}</strong><br/>
-      Order + label will be created directly on ShipGlobal — no manual booking needed.
+      Order + label will be created directly — no manual booking needed.
     </div>
     <div class="fg"><label>Service *</label>${svcHtml}</div>
     <div class="form-row">
       <div class="fg"><label>Invoice No *</label><input id="sgbk-inv" value="${esc(invNo)}"/></div>
       <div class="fg"><label>Invoice Date *</label><input id="sgbk-invdate" type="date" value="${today}"/></div>
     </div>
-    <button class="btn-primary" id="sgbk-btn" onclick="executeSgBooking()" style="width:100%;margin-top:12px">🚚 Book on ShipGlobal</button>
+    <button class="btn-primary" id="sgbk-btn" onclick="executeSgBooking()" style="width:100%;margin-top:12px">🚚 Book Shipment</button>
     <div id="sgbk-msg" style="margin-top:10px;font-size:12.5px;text-align:center"></div>
   `);
   const mb = document.getElementById('modal-save'); if (mb) mb.style.display = 'none';
@@ -3981,12 +4064,12 @@ async function executeSgBooking() {
 
   const btn = document.getElementById('sgbk-btn');
   const msg = document.getElementById('sgbk-msg');
-  if (btn) { btn.disabled = true; btn.textContent = 'Booking with ShipGlobal...'; }
-  if (msg) msg.innerHTML = `<span style="color:var(--gray)">⏳ Creating order + label on ShipGlobal…</span>`;
+  if (btn) { btn.disabled = true; btn.textContent = isAdmin() ? 'Booking with ShipGlobal...' : 'Booking shipment...'; }
+  if (msg) msg.innerHTML = `<span style="color:var(--gray)">⏳ Creating order + label${isAdmin() ? ' on ShipGlobal' : ''}…</span>`;
 
   const r = await api('POST', '/api/shipglobal/order', payload);
 
-  if (btn) { btn.disabled = false; btn.textContent = '🚚 Book on ShipGlobal'; }
+  if (btn) { btn.disabled = false; btn.textContent = isAdmin() ? '🚚 Book on ShipGlobal' : '🚚 Book Shipment'; }
   if (!r) { if (msg) msg.innerHTML = ''; toast('Session expired. Please log in again.', 'error'); return; }
   if (!r.success) {
     if (msg) msg.innerHTML = `<span style="color:var(--red)">${esc(r.error || 'Booking failed')}</span>`;
@@ -4001,7 +4084,7 @@ async function executeSgBooking() {
 }
 
 function showSgBookedModal(id, tracking) {
-  showModal('✅ Booked on ShipGlobal', `
+  showModal(isAdmin() ? '✅ Booked on ShipGlobal' : '✅ Shipment Booked', `
     <div style="text-align:center;padding:6px 0 2px">
       <div style="font-size:42px">📦</div>
       <div style="font-size:12px;color:var(--gray);margin-top:8px;text-transform:uppercase;letter-spacing:.5px;font-weight:700">Tracking / AWB</div>
@@ -4040,15 +4123,16 @@ async function openLocalVendorModal(id) {
   if (!r?.success) { toast('Lead not found', 'error'); return; }
   _lvLead = r.data;
   const l = _lvLead;
-  showModal('📞 ' + (l.localVendor ? 'Edit Local Vendor Booking' : 'Book with Local Vendor'), `
-    <div class="fg"><label>Vendor Name *</label><input id="lv-name" placeholder="e.g. Sharma Roadlines" value="${esc(l.localVendor || '')}"/></div>
-    <div class="fg" style="margin-top:10px"><label>Rate (₹) *</label><input id="lv-rate" type="number" min="1" step="any" placeholder="e.g. 2500" value="${l.localVendorRate || ''}"/></div>
-    <div style="font-size:11.5px;color:var(--gray);margin-top:10px">Booking is placed with this vendor by call/WhatsApp — only the vendor name and agreed rate are saved here.</div>
+  showModal('📞 ' + (l.localVendor ? (isAdmin() ? 'Edit Local Vendor Booking' : 'Edit Local Booking') : (isAdmin() ? 'Book with Local Vendor' : 'Book with Local Partner')), `
+    <div class="fg"><label>${isAdmin() ? 'Vendor Name' : 'Partner Name'} *</label><input id="lv-name" placeholder="${l.localVendor && !isAdmin() ? '•••••• (saved)' : 'e.g. Transport partner'}" value="${isAdmin() ? esc(l.localVendor || '') : ''}"/></div>
+    <div class="fg" style="margin-top:10px"><label>${isAdmin() ? 'Rate (₹)' : 'Agreed Rate (₹)'} *</label><input id="lv-rate" type="number" min="1" step="any" placeholder="e.g. 2500" value="${l.localVendorRate || ''}"/></div>
+    <div style="font-size:11.5px;color:var(--gray);margin-top:10px">Booking is placed with this partner by call/WhatsApp — only the name and agreed rate are saved here.</div>
     ${l.localVendor ? `<button type="button" onclick="removeLocalBooking()" style="margin-top:12px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">✕ Remove local booking</button>` : ''}
   `, async () => {
-    const name = document.getElementById('lv-name').value.trim();
+    const inputName = document.getElementById('lv-name').value.trim();
+    const name = (l.localVendor && !isAdmin()) ? l.localVendor : inputName;
     const rate = parseFloat(document.getElementById('lv-rate').value);
-    if (!name) { toast('Enter vendor name', 'error'); return; }
+    if (!name) { toast('Enter partner name', 'error'); return; }
     if (!rate || rate <= 0) { toast('Enter agreed rate', 'error'); return; }
     const rr = await api('PATCH', `/api/shipment-leads/${l.id}`, {
       localVendor: name,
@@ -4058,7 +4142,7 @@ async function openLocalVendorModal(id) {
     });
     if (!rr?.success) { toast(rr?.error || 'Error saving booking', 'error'); return; }
     closeModal();
-    toast(`Booked with ${name} — ₹${rate.toLocaleString('en-IN')}`, 'success');
+    toast(`Booked with ${isAdmin() ? esc(name) : 'local partner'} — ₹${rate.toLocaleString('en-IN')}`, 'success');
     showBookShipmentDetail(l.id);
   });
 }
@@ -4148,19 +4232,15 @@ async function getBookRates(id) {
     return;
   }
   if (!rateR.success) {
-    toast(rateR.error || 'Failed to get rates from Delhivery', 'error');
+    toast(rateR.error || 'Failed to get rates', 'error');
     return;
   }
 
   const rateData = rateR.data;
   await api('PATCH', `/api/shipment-leads/${id}`, { delhiveryRate: rateData.finalRate, chargedWeight: rateData.chargedWeight });
 
-  // Clean breakup: skip internal/zero fields, use friendly labels
-  const SKIP = ['pre_tax_freight_charges','gst_percent','meta_charges','markup','green','lm','appointment_charges','other_handling_charges'];
-  const LABELS = { base_freight_charge:'Base Freight', fuel_surcharge:'Fuel Surcharge', fuel_hike:'Fuel Hike', insurance_rov:'Insurance / ROV', oda:'ODA Charges', fm:'FM Charges', gst:'GST (18%)' };
-  const breakup = rateData.priceBreakup ? Object.entries(rateData.priceBreakup)
-    .filter(([k,v]) => !SKIP.includes(k) && v != null && !isNaN(Number(v)) && Number(v) > 0)
-    .map(([k,v]) => ({ label: LABELS[k] || k.replace(/_/g,' '), amount: Number(v) })) : [];
+  const services = dhServicesFrom(rateData);
+  const firstAvail = services.find(s => s.available !== false && Number(s.finalRate) > 0);
 
   // Calculate volumetric weight breakdown from packing list
   let volWeightRows = '';
@@ -4180,44 +4260,37 @@ async function getBookRates(id) {
 
   showModal('Rate Card', `
     <div style="background:var(--white);border-radius:10px;overflow:hidden;border:1px solid var(--gray3)">
-      ${me?.role === 'admin' ? `
-      <!-- Admin: full breakup with prices -->
+      <!-- Services: Local Surface (B2C) + B2B Surface, both with YNC pricing -->
       <div style="padding:14px 16px">
-        <div style="background:var(--gray4);border-radius:10px;padding:14px 16px">
-          ${breakup.map(item => `
-          <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-bottom:1px solid var(--gray3)">
-            <span style="color:var(--gray)">${item.label}</span>
-            <span style="color:var(--black);font-weight:500">₹${item.amount.toLocaleString()}</span>
-          </div>`).join('')}
-          <div style="display:flex;justify-content:space-between;padding:8px 0 4px;font-size:14px;font-weight:700;border-top:2px solid var(--gray3);margin-top:4px">
-            <span>Total</span>
-            <span>₹${rateData.delhiveryRate.toLocaleString()}</span>
+        ${services.map(s => {
+          const avail = s.available !== false && Number(s.finalRate) > 0;
+          const bk = dhBreakupList(s.priceBreakup);
+          const cw = s.chargedWeight != null && s.chargedWeight !== '' ? `${Number(s.chargedWeight)} kg` : '—';
+          return `
+        <div style="border:1.5px solid ${avail ? 'var(--brand-border)' : 'var(--gray3)'};background:${avail ? 'var(--brand-bg)' : 'var(--gray4)'};border-radius:10px;padding:12px 14px;margin-bottom:10px;${avail ? '' : 'opacity:.7'}">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+            <div>
+              <div style="font-size:13.5px;font-weight:700;color:var(--black)">${esc(s.title)}${s.note ? ` <span style="font-size:10.5px;color:var(--gray2);font-weight:600">· ${esc(s.note)}</span>` : ''}</div>
+              <div style="font-size:11.5px;color:var(--gray);margin-top:2px">⚖️ Chargeable ${cw}${s.zone ? ' · Zone ' + esc(s.zone) : ''}</div>
+              ${isAdmin() ? `<div style="font-size:11px;color:var(--gray2);margin-top:2px">Vendor: ₹${Number(s.vendorPrice || 0).toLocaleString('en-IN')}${avail ? '' : ' · rate card not active'}</div>` : ''}
+              ${isAdmin() && bk.length ? `
+              <details style="margin-top:6px">
+                <summary style="font-size:11px;color:var(--gray);cursor:pointer">🧾 Price Break Down</summary>
+                <div style="padding-top:4px">
+                  ${bk.map(item => `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11.5px;border-bottom:1px solid var(--gray3)"><span style="color:var(--gray)">${item.label}</span><span style="color:var(--black);font-weight:500">₹${item.amount.toLocaleString()}</span></div>`).join('')}
+                  <div style="display:flex;justify-content:space-between;padding:5px 0 2px;font-size:12.5px;font-weight:700;border-top:1px solid var(--gray3);margin-top:3px"><span>Vendor Total</span><span>₹${Number(s.vendorPrice || 0).toLocaleString()}</span></div>
+                </div>
+              </details>` : ''}
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:var(--brand);text-transform:uppercase">YNC Rate</div>
+              <div style="font-size:22px;font-weight:800;color:var(--brand-dark)">${avail ? '₹' + Number(s.finalRate).toLocaleString('en-IN') : '—'}</div>
+              ${avail ? '' : `<div style="font-size:10.5px;color:var(--gray2)">${isAdmin() ? 'Rate card inactive' : 'Not available'}</div>`}
+            </div>
           </div>
-        </div>
-      </div>
-      ` : `
-      <!-- Manager/Sales Rep: names only, no prices, in dropdown -->
-      <div style="padding:12px 16px">
-        <details style="background:var(--gray4);border-radius:10px;overflow:hidden">
-          <summary style="padding:10px 16px;font-size:12px;font-weight:700;color:var(--gray);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px">
-            <span style="font-size:10px">▼</span> Price Break Down
-          </summary>
-          <div style="padding:0 16px 12px">
-            ${breakup.map(item => `
-            <div style="padding:4px 0;font-size:12px;color:var(--gray);border-bottom:1px solid var(--gray3)">${item.label}</div>`).join('')}
-          </div>
-        </details>
-      </div>
-      `}
-      <!-- YNC Final Rate -->
-      <div style="padding:0 16px 14px">
-        <div style="background:var(--brand-bg);border:2px solid var(--brand-border);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--brand)">YNC Rate</div>
-            <div style="font-size:10px;color:var(--gray);margin-top:2px">Inclusive of all charges</div>
-          </div>
-          <div style="font-size:22px;font-weight:800;color:var(--brand-dark)">₹${rateData.finalRate.toLocaleString()}</div>
-        </div>
+        </div>`;
+        }).join('')}
+        ${firstAvail ? `<div style="font-size:11px;color:var(--gray2);text-align:center;margin-top:2px">Booking uses the B2B Surface rate shown above.</div>` : ''}
       </div>
     </div>
     <!-- Weights -->
@@ -4248,7 +4321,7 @@ function confirmBookShipment(id) {
     <div style="text-align:center;padding:20px 0">
       <div style="font-size:40px;margin-bottom:12px">🚚</div>
       <div style="font-size:16px;font-weight:700;color:var(--black);margin-bottom:6px">Are you sure you want to book a shipment?</div>
-      <div style="font-size:13px;color:var(--gray)">This will create a manifest with Delhivery and generate an LR/AWB number.</div>
+      <div style="font-size:13px;color:var(--gray)">This will create a manifest and generate an LR/AWB number.</div>
     </div>
   `, async () => {
     closeModal();
@@ -4314,7 +4387,7 @@ async function executeBookShipment(id) {
 
   const cleanPhone = (p) => { if(!p) return ''; const d = p.replace(/\D/g,''); if(d.length===10) return d; if(d.length===12 && d.startsWith('91')) return d.slice(2); if(d.length===13 && d.startsWith('091')) return d.slice(3); return d.slice(-10); };
 
-  toast('Creating manifest with Delhivery...', 'info');
+  toast('Creating manifest...', 'info');
 
   const manifestR = await api('POST', '/api/delhivery/manifest', {
     payment_mode: 'prepaid',
@@ -4338,10 +4411,10 @@ async function executeBookShipment(id) {
   });
 
   if (!manifestR) { toast('Session expired. Please log in again.', 'error'); return; }
-  if (!manifestR.success) { toast(manifestR.error || 'Failed to create manifest with Delhivery', 'error'); return; }
+  if (!manifestR.success) { toast(manifestR.error || 'Failed to create manifest', 'error'); return; }
 
   const jobId = manifestR.data?.job_id;
-  if (!jobId) { toast('No job_id received from Delhivery', 'error'); return; }
+  if (!jobId) { toast('No job_id received', 'error'); return; }
 
   await api('PATCH', `/api/shipment-leads/${id}`, { delhiveryJobId: jobId });
   _invalidateBookCache();
