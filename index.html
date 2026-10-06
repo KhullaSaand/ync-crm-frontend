@@ -779,6 +779,8 @@ function globalSearchGroups(q) {
       map: x => ({ id: x.id, title: x.invoiceNo || 'Invoice', sub: [x.customerName, invMoney(x.total), payBadgeText(x.paymentStatus)].filter(Boolean).join(' · '), open: () => viewInvoice(x.id, 'invoices') }) },
     { icon: '✅', label: 'Tasks', url: '/api/tasks?' + qs, page: 'tasks',
       map: x => ({ id: x.id, title: x.title || 'Task', sub: [fmtStatus(x.status), x.priority ? x.priority + ' priority' : ''].filter(Boolean).join(' · '), open: () => { setActivePage('tasks'); renderPage('tasks'); openTaskModal(x); } }) },
+    { icon: '👤', label: 'Team', url: '/api/users', page: 'users', local: q,
+      map: x => ({ id: x.id, title: x.name || 'Member', sub: [roleLabel(x.role), x.title, x.email].filter(Boolean).join(' · '), open: () => { setActivePage('users'); renderPage('users'); } }) },
   ];
 }
 function payBadgeText(s) { return s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : ''; }
@@ -794,7 +796,12 @@ async function globalSearch(q) {
   let html = '', flat = [];
   groups.forEach((g, gi) => {
     const r = results[gi];
-    const items = (r?.success && Array.isArray(r.data) ? r.data : []).slice(0, 6).map(g.map);
+    let rows = (r?.success && Array.isArray(r.data) ? r.data : []);
+    if (g.local) { // team list has no server-side search — filter locally
+      const needle = g.local.toLowerCase();
+      rows = rows.filter(x => [x.name, x.email, x.title, x.role].filter(Boolean).join(' ').toLowerCase().includes(needle));
+    }
+    const items = rows.slice(0, 6).map(g.map);
     if (!items.length) return;
     html += `<div class="gr-group"><span>${g.icon} ${g.label}</span><span>${items.length}</span></div>`;
     items.forEach(it => {
