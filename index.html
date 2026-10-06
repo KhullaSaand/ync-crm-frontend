@@ -2296,16 +2296,42 @@ async function renderGstInvoices() {
 
 async function viewInvoice(id) {
   _viewingDetail = true;
+  window._invFromPage = (curPage === 'gst-invoices') ? 'gst-invoices' : 'invoices';
   const r = await api('GET', `/api/invoices/${id}`);
   const inv = r?.data;
-  if (!inv) { toast('Invoice not found', 'error'); nav('invoices'); return; }
+  if (!inv) { toast('Invoice not found', 'error'); nav(window._invFromPage || 'invoices'); return; }
   const items = Array.isArray(inv.items) ? inv.items : [];
   const balance = invBalance(inv);
   const words = invWords(Number(inv.total) || 0);
   const dueSub = (inv.terms === 'Due on Receipt') ? 'Payable Immediately' : 'Payable by ' + fmtINVDate(inv.dueDate);
+  const gstOwnRate = (Number(inv.cgstRate) || 0) + (Number(inv.sgstRate) || 0);
+  const gstOwnAmt = (Number(inv.cgstAmount) || 0) + (Number(inv.sgstAmount) || 0);
+  let gstRate = 0, gstAmt = 0, gsub = Number(inv.subtotal) || 0, gitems = items;
+  if (gstOwnRate > 0 || gstOwnAmt > 0) {
+    gstRate = gstOwnRate;
+    gstAmt = Math.round(gstOwnAmt * 100) / 100;
+  } else if (inv.paymentStatus === 'paid') {
+    const tot = Math.round((Number(inv.total) || 0) * 100) / 100;
+    gstRate = 18;
+    gsub = Math.round((tot / 1.18) * 100) / 100;
+    gstAmt = Math.round((tot - gsub) * 100) / 100;
+    const sumItems = items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.rate) || 0), 0);
+    if (items.length && sumItems > 0) {
+      let acc = 0;
+      gitems = items.map((it, i) => {
+        const amt = (Number(it.qty) || 0) * (Number(it.rate) || 0);
+        const tax = (i === items.length - 1)
+          ? Math.round((gsub - acc) * 100) / 100
+          : Math.round((amt / sumItems * gsub) * 100) / 100;
+        acc += tax;
+        const qty = Number(it.qty) || 0;
+        return { ...it, rate: qty ? tax / qty : tax };
+      });
+    }
+  }
   window._invEditData = inv;
   document.getElementById('content').innerHTML = `
-  <button class="btn-back no-print" onclick="nav('invoices')">← Back</button>
+  <button class="btn-back no-print" onclick="nav(window._invFromPage || 'invoices')">← Back</button>
   <div class="inv-toolbar no-print">
     <div class="inv-toolbar-left">
       <span class="pill-verified"><span class="dot"></span> Verified Invoice</span>
@@ -2367,7 +2393,7 @@ async function viewInvoice(id) {
     <table class="inv-table">
       <thead><tr><th class="c">#</th><th>Description</th><th class="r">Qty</th><th class="r">Rate (₹)</th><th class="r">Amount (₹)</th></tr></thead>
       <tbody>
-        ${items.map((it, i) => `<tr>
+        ${gitems.map((it, i) => `<tr>
           <td class="c inv-num" style="color:#64748b">${i + 1}</td>
           <td><div class="inv-item-name">${esc(it.description)}</div>${it.details ? `<div class="inv-item-sub">${esc(it.details)}</div>` : ''}</td>
           <td class="r inv-num">${(Number(it.qty) || 0).toFixed(2)}</td>
@@ -2387,9 +2413,8 @@ async function viewInvoice(id) {
         ${inv.notes ? `<div class="inv-thanks"><span>📝</span><span>${esc(inv.notes)}</span></div>` : ''}
       </div>
       <div class="inv-totals">
-        <div class="inv-trow"><span>Sub Total</span><span class="v">${invMoney(inv.subtotal)}</span></div>
-        <div class="inv-trow" style="color:#64748b"><span>CGST (${Number(inv.cgstRate) || 0}%)</span><span class="v">${invMoney(inv.cgstAmount)}</span></div>
-        <div class="inv-trow" style="color:#64748b"><span>SGST (${Number(inv.sgstRate) || 0}%)</span><span class="v">${invMoney(inv.sgstAmount)}</span></div>
+        <div class="inv-trow"><span>Sub Total</span><span class="v">${invMoney(gsub)}</span></div>
+        ${gstRate > 0 || gstAmt > 0 ? `<div class="inv-trow" style="color:#64748b"><span>GST (${gstRate}%)</span><span class="v">${invMoney(gstAmt)}</span></div>` : ''}
         <div class="inv-total-box"><span>Total</span><span class="amt">${invMoney(inv.total)}</span></div>
         <div class="inv-trow"><span>Amount Paid</span><span class="v">${invMoney(inv.amountPaid)}</span></div>
         ${balance > 0
@@ -2473,8 +2498,7 @@ function openInvoiceModal(inv, prefill) {
   </div>
 
   <div class="form-row" style="margin-top:12px">
-    <div class="fg"><label>CGST %</label><input type="number" min="0" step="any" id="inv-cgst" value="${inv?.cgstRate ?? 0}" oninput="invCalcTotals()"/></div>
-    <div class="fg"><label>SGST %</label><input type="number" min="0" step="any" id="inv-sgst" value="${inv?.sgstRate ?? 0}" oninput="invCalcTotals()"/></div>
+    <div class="fg"><label>GST %</label><input type="number" min="0" step="any" id="inv-gst" value="${((Number(inv?.cgstRate) || 0) + (Number(inv?.sgstRate) || 0))}" oninput="invCalcTotals()"/></div>
     <div class="fg"><label>Amount Paid (₹)</label><input type="number" min="0" step="any" id="inv-paid" value="${inv?.amountPaid ?? 0}" oninput="invCalcTotals()"/></div>
   </div>
   <div class="inv-totals-live" id="inv-totals"></div>
@@ -2498,8 +2522,8 @@ function openInvoiceModal(inv, prefill) {
       waybill: document.getElementById('inv-waybill').value,
       serviceDesc: document.getElementById('inv-service').value,
       items: items.map(l => ({ description: l.description.trim(), details: (l.details || '').trim(), qty: Number(l.qty) || 1, rate: Number(l.rate) || 0 })),
-      cgstRate: Number(document.getElementById('inv-cgst').value) || 0,
-      sgstRate: Number(document.getElementById('inv-sgst').value) || 0,
+      cgstRate: Number(document.getElementById('inv-gst').value) || 0,
+      sgstRate: 0,
       amountPaid: Number(document.getElementById('inv-paid').value) || 0,
       notes: document.getElementById('inv-notes').value,
       sourceLeadId: (leadId && leadId !== '—') ? leadId : null,
@@ -2535,15 +2559,13 @@ function invCalcTotals() {
   const el = document.getElementById('inv-totals');
   if (!el) return;
   const sub = _invLines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.rate) || 0), 0);
-  const c = Number(document.getElementById('inv-cgst')?.value) || 0;
-  const g = Number(document.getElementById('inv-sgst')?.value) || 0;
-  const ca = sub * c / 100, sa = sub * g / 100, tot = sub + ca + sa;
+  const c = Number(document.getElementById('inv-gst')?.value) || 0;
+  const ca = sub * c / 100, tot = sub + ca;
   const paid = Number(document.getElementById('inv-paid')?.value) || 0;
   const bal = Math.max(0, tot - paid);
   el.innerHTML = `
     <span>Sub Total: <b>${invMoney(sub)}</b></span>
-    <span>CGST (${c}%): <b>${invMoney(ca)}</b></span>
-    <span>SGST (${g}%): <b>${invMoney(sa)}</b></span>
+    <span>GST (${c}%): <b>${invMoney(ca)}</b></span>
     <span>Balance: <b style="color:${bal > 0 ? '#dc2626' : '#059669'}">${invMoney(bal)}</b></span>
     <span style="margin-left:auto">Total: <b style="font-size:14px;color:var(--brand)">${invMoney(tot)}</b></span>`;
 }
