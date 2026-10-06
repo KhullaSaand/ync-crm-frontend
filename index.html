@@ -342,7 +342,7 @@ td.actions-col>*+*,th.actions-col>*+*{margin-left:6px}
 .inv-party-row{display:flex;gap:7px;align-items:flex-start;font-size:11.5px;color:#475569;margin-top:5px;line-height:1.5}
 .inv-waybill-strip{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:11.5px;color:#475569;margin-top:10px;padding:0 2px}
 .inv-waybill-strip b{color:#0f172a;font-weight:600}
-.paid-stamp{align-self:center;margin-top:8px;padding:7px 22px;border:3px double #dc2626;border-radius:9px;color:#dc2626;font-size:24px;font-weight:800;letter-spacing:6px;text-transform:uppercase;transform:rotate(-7deg);opacity:.85;white-space:nowrap;user-select:none}
+.paid-stamp{align-self:center;margin-top:8px;padding:7px 22px;border:3px double #059669;border-radius:9px;color:#059669;font-size:24px;font-weight:800;letter-spacing:6px;text-transform:uppercase;transform:rotate(-7deg);opacity:.85;white-space:nowrap;user-select:none}
 .vt-tabs{display:flex;gap:8px}
 .vt-tab{flex:1;padding:9px 12px;border-radius:8px;border:1.5px solid var(--gray3);background:var(--white);font-size:12.5px;font-weight:700;color:var(--gray);cursor:pointer;text-align:center;font-family:inherit}
 .vt-tab.on{background:var(--black);border-color:var(--black);color:#fff}
@@ -2242,7 +2242,7 @@ async function renderInvoices() {
       <td style="font-weight:700">${invMoney(inv.total)}</td>
       <td style="font-weight:700;color:${invBalance(inv) > 0 ? '#dc2626' : '#059669'}">${invMoney(invBalance(inv))}</td>
       <td>${payBadge(inv.paymentStatus)}</td>
-      <td class="actions-col"><button type="button" class="btn-view" onclick="viewInvoice('${inv.id}')">👁 View</button></td>
+      <td class="actions-col"><button type="button" class="btn-view" onclick="viewInvoice('${inv.id}','invoices')">👁 View</button></td>
     </tr>`).join('')}
     </tbody></table>` : emptyState('🧾', 'No invoices yet', 'Create your first invoice with the + Invoice button, or generate one from a booking')}
     ${pgHtml(pg)}
@@ -2251,10 +2251,20 @@ async function renderInvoices() {
 
 async function renderGstInvoices() {
   if (me?.role !== 'admin') { toast('Admin access only', 'error'); nav('dashboard'); return; }
+  window._gstSel = window._gstSel || new Set();
   let url = '/api/invoices?paymentStatus=paid&limit=500';
   if (curSearch) url += `&search=${encodeURIComponent(curSearch)}`;
   const r = await api('GET', url);
-  const items = (Array.isArray(r?.data) ? r.data : []).filter(i => i.paymentStatus === 'paid');
+  const paidAll = (Array.isArray(r?.data) ? r.data : []).filter(i => i.paymentStatus === 'paid');
+  const df = curFilter.dateFrom || '', dt = curFilter.dateTo || '';
+  const items = paidAll.filter(inv => {
+    if (!df && !dt) return true;
+    const d = new Date(inv.invoiceDate);
+    if (isNaN(d.getTime())) return false;
+    if (df && d < new Date(df + 'T00:00:00')) return false;
+    if (dt && d > new Date(dt + 'T23:59:59')) return false;
+    return true;
+  });
   let sumTax = 0, sumGst = 0, sumTot = 0;
   const rows = items.map(inv => {
     const paid = Math.round(((Number(inv.amountPaid) > 0 ? Number(inv.amountPaid) : Number(inv.total)) || 0) * 100) / 100;
@@ -2271,16 +2281,28 @@ async function renderGstInvoices() {
     return { inv, paid, taxable, gst };
   });
   sumTax = Math.round(sumTax * 100) / 100; sumGst = Math.round(sumGst * 100) / 100; sumTot = Math.round(sumTot * 100) / 100;
+  window._gstVisibleIds = rows.map(x => x.inv.id);
+  const selCount = window._gstVisibleIds.filter(id => window._gstSel.has(id)).length;
   document.getElementById('content').innerHTML = `
   <div class="table-card">
     <div class="table-header">
       <div><div class="table-title">GST Invoice ${rows.length ? '(' + rows.length + ' paid)' : ''}</div>
       <div style="font-size:12px;color:var(--gray);margin-top:2px">Paid amounts reverse-split into taxable value + GST @18% (invoices with their own GST rates show those instead)</div></div>
+      <div class="table-filters">
+        <span style="font-size:12px;color:var(--gray)">From</span>
+        <input type="date" class="filter-select" style="padding:5px 8px" value="${esc(df)}" onchange="setFilter('dateFrom',this.value)"/>
+        <span style="font-size:12px;color:var(--gray)">To</span>
+        <input type="date" class="filter-select" style="padding:5px 8px" value="${esc(dt)}" onchange="setFilter('dateTo',this.value)"/>
+        ${(df || dt) ? `<button type="button" class="btn-view" onclick="gstClearDates()">✕ Clear</button>` : ''}
+        <button type="button" class="btn-view" id="gst-dl-btn" onclick="gstDownloadPdf()">⬇ Download PDF (${selCount})</button>
+      </div>
     </div>
     ${rows.length ? `<table><thead><tr>
+      <th style="width:32px"><input type="checkbox" ${selCount > 0 && selCount === rows.length ? 'checked' : ''} onchange="gstSelAll(this.checked)" style="cursor:pointer"/></th>
       <th>Invoice #</th><th>Customer</th><th>Invoice Date</th><th>Taxable Value</th><th>GST @18%</th><th>Paid Amount</th>
     </tr></thead><tbody>
-    ${rows.map(({inv, paid, taxable, gst}) => `<tr onclick="viewInvoice('${inv.id}')">
+    ${rows.map(({inv, paid, taxable, gst}) => `<tr onclick="viewInvoice('${inv.id}','gst-invoices')">
+      <td onclick="event.stopPropagation()"><input type="checkbox" ${window._gstSel.has(inv.id) ? 'checked' : ''} onchange="gstSelToggle('${inv.id}',this.checked)" style="cursor:pointer"/></td>
       <td><code style="font-size:12px;background:var(--brand-bg);color:var(--brand);padding:2px 7px;border-radius:5px">${esc(inv.invoiceNo)}</code></td>
       <td><div class="cell-name">${esc(inv.customerName)}</div><div class="cell-sub">${esc(inv.receiverName ? '→ ' + inv.receiverName : (inv.waybill || inv.sourceLeadId || '—'))}</div></td>
       <td>${fmtINVDate(inv.invoiceDate)}</td>
@@ -2289,17 +2311,92 @@ async function renderGstInvoices() {
       <td style="font-weight:700">${invMoney(paid)}</td>
     </tr>`).join('')}
     </tbody><tfoot><tr style="background:var(--gray4);font-weight:700">
-      <td colspan="3" style="text-align:right">Total</td><td>${invMoney(sumTax)}</td><td>${invMoney(sumGst)}</td><td>${invMoney(sumTot)}</td>
+      <td colspan="4" style="text-align:right">Total</td><td>${invMoney(sumTax)}</td><td>${invMoney(sumGst)}</td><td>${invMoney(sumTot)}</td>
     </tr></tfoot></table>` : emptyState('📑', 'No paid invoices yet', 'GST invoices appear here once a payment is marked as Paid')}
   </div>`;
 }
 
-async function viewInvoice(id) {
+function gstSelToggle(id, on) {
+  window._gstSel = window._gstSel || new Set();
+  if (on) window._gstSel.add(id); else window._gstSel.delete(id);
+  const b = document.getElementById('gst-dl-btn');
+  if (b) b.textContent = `⬇ Download PDF (${gstSelCount()})`;
+}
+function gstSelCount() {
+  return (window._gstVisibleIds || []).filter(id => window._gstSel && window._gstSel.has(id)).length;
+}
+function gstSelAll(on) {
+  window._gstSel = window._gstSel || new Set();
+  (window._gstVisibleIds || []).forEach(id => { if (on) window._gstSel.add(id); else window._gstSel.delete(id); });
+  renderGstInvoices();
+}
+function gstClearDates() { curFilter.dateFrom = ''; curFilter.dateTo = ''; renderGstInvoices(); }
+async function gstDownloadPdf() {
+  const ids = (window._gstVisibleIds || []).filter(id => window._gstSel && window._gstSel.has(id));
+  if (!ids.length) { toast('Select at least one invoice (checkbox)', 'error'); return; }
+  if (typeof html2pdf === 'undefined') { toast('PDF library has not loaded yet — check your connection and try again', 'error'); return; }
+  const btn = document.getElementById('gst-dl-btn');
+  if (btn) btn.disabled = true;
+  for (let i = 0; i < ids.length; i++) {
+    if (btn) btn.innerHTML = `⏳ ${i + 1}/${ids.length}…`;
+    try {
+      const rr = await api('GET', `/api/invoices/${ids[i]}`);
+      const inv = rr?.data;
+      if (inv) await gstPdfOne(inv);
+    } catch (e) { console.error('[GST PDF]', e); }
+  }
+  if (btn) { btn.disabled = false; btn.innerHTML = `⬇ Download PDF (${gstSelCount()})`; }
+  toast(`GST invoice PDF${ids.length > 1 ? 's' : ''} downloaded`, 'success');
+}
+async function gstPdfOne(inv) {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;left:-15000px;top:0;width:760px;background:#fff;z-index:-1';
+  wrap.innerHTML = invDetailMain(inv);
+  document.body.appendChild(wrap);
+  try {
+    await Promise.all(Array.from(wrap.querySelectorAll('img')).map(im => im.complete ? Promise.resolve() : new Promise(res => { im.onload = res; im.onerror = res; })));
+    const el = wrap.querySelector('.invoice-page');
+    const filename = String(inv.invoiceNo || 'invoice').replace(/[\\/:*?"<>|]/g, '-') + '.pdf';
+    await html2pdf().set({
+      margin: [6, 8],
+      filename,
+      image: { type: 'jpeg', quality: 1 },
+      html2canvas: { scale: 3, useCORS: true, backgroundColor: '#ffffff', logging: false },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] },
+    }).from(el).save();
+  } finally { wrap.remove(); }
+}
+
+async function viewInvoice(id, from) {
   _viewingDetail = true;
-  window._invFromPage = (curPage === 'gst-invoices') ? 'gst-invoices' : 'invoices';
+  if (from) window._invFromPage = from;
+  window._invFromPage = window._invFromPage || 'invoices';
   const r = await api('GET', `/api/invoices/${id}`);
   const inv = r?.data;
-  if (!inv) { toast('Invoice not found', 'error'); nav(window._invFromPage || 'invoices'); return; }
+  if (!inv) { toast('Invoice not found', 'error'); nav(window._invFromPage); return; }
+  const balance = invBalance(inv);
+  window._invEditData = inv;
+  document.getElementById('content').innerHTML = `
+  <button class="btn-back no-print" onclick="nav(window._invFromPage || 'invoices')">← Back</button>
+  <div class="inv-toolbar no-print">
+    <div class="inv-toolbar-left">
+      <span class="pill-verified"><span class="dot"></span> Verified Invoice</span>
+      <span>• Ref: <b style="color:var(--black)">${esc(inv.invoiceNo)}</b></span>
+      ${payBadge(inv.paymentStatus)}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="inv-btn-dark" onclick="window.print()">🖨 Print Invoice</button>
+      <button class="inv-btn-light" onclick="downloadInvoicePdf(this)">⬇ Download PDF</button>
+      ${balance > 0 ? `<button class="inv-btn-light" onclick="recordPayment('${inv.id}')">💰 Record Payment</button>` : ''}
+      <button class="inv-btn-light" onclick="openInvoiceModal(window._invEditData)">✏️ Edit</button>
+      ${me?.role === 'admin' ? `<button class="inv-btn-danger" onclick="deleteInvoice('${inv.id}')">🗑 Delete</button>` : ''}
+    </div>
+  </div>
+  ${invDetailMain(inv)}`;
+}
+
+function invDetailMain(inv) {
   const items = Array.isArray(inv.items) ? inv.items : [];
   const balance = invBalance(inv);
   const words = invWords(Number(inv.total) || 0);
@@ -2329,23 +2426,7 @@ async function viewInvoice(id) {
       });
     }
   }
-  window._invEditData = inv;
-  document.getElementById('content').innerHTML = `
-  <button class="btn-back no-print" onclick="nav(window._invFromPage || 'invoices')">← Back</button>
-  <div class="inv-toolbar no-print">
-    <div class="inv-toolbar-left">
-      <span class="pill-verified"><span class="dot"></span> Verified Invoice</span>
-      <span>• Ref: <b style="color:var(--black)">${esc(inv.invoiceNo)}</b></span>
-      ${payBadge(inv.paymentStatus)}
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="inv-btn-dark" onclick="window.print()">🖨 Print Invoice</button>
-      <button class="inv-btn-light" onclick="downloadInvoicePdf(this)">⬇ Download PDF</button>
-      ${balance > 0 ? `<button class="inv-btn-light" onclick="recordPayment('${inv.id}')">💰 Record Payment</button>` : ''}
-      <button class="inv-btn-light" onclick="openInvoiceModal(window._invEditData)">✏️ Edit</button>
-      ${me?.role === 'admin' ? `<button class="inv-btn-danger" onclick="deleteInvoice('${inv.id}')">🗑 Delete</button>` : ''}
-    </div>
-  </div>
+  return `
   <main class="invoice-page">
     <header class="inv-head">
       <div>
@@ -2533,7 +2614,7 @@ function openInvoiceModal(inv, prefill) {
     if (!r?.success) { toast(r?.error || 'Error saving invoice', 'error'); return; }
     toast(inv ? 'Invoice updated' : 'Invoice created', 'success');
     closeModal();
-    viewInvoice(r.data.id);
+    viewInvoice(r.data.id, (curPage === 'gst-invoices' || curPage === 'invoices') ? curPage : 'invoices');
   });
   invLinesRender();
   invCalcTotals();
@@ -2650,7 +2731,7 @@ async function deleteInvoice(id) {
   const r = await api('DELETE', `/api/invoices/${id}`);
   if (!r?.success) { toast(r?.error || 'Error deleting invoice', 'error'); return; }
   toast('Invoice deleted', 'success');
-  nav('invoices');
+  nav(window._invFromPage || 'invoices');
 }
 
 async function downloadInvoicePdf(btn) {
