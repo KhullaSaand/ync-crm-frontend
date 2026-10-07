@@ -1118,7 +1118,7 @@ function displayService(svc, vendor) {
   return CARRIER_CODE_PATTERNS.some(([re]) => re.test(s)) ? vendorCodeName(s, vendor) : s;
 }
 
-// Delhivery rate payload → services list (Local Surface + B2B Surface), legacy fallback
+// Delhivery rate payload → services list (B2B Surface), legacy fallback
 function dhServicesFrom(d) {
   if (Array.isArray(d?.services) && d.services.length) return d.services;
   return [{
@@ -1416,7 +1416,7 @@ function showQuoteDhResult(d, o, dest) {
     </div>`;
   }).join('');
   showModal('🚚 YNCDL Rates', `
-    <div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--gray);margin-bottom:12px">🚚 Live rates via YNCDL — ${esc(o)} → ${esc(dest)}. Local Surface (B2C) and B2B Surface, both with YNC pricing.</div>
+    <div style="background:var(--gray4);border:1px solid var(--gray3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--gray);margin-bottom:12px">🚚 Live rates via YNCDL — ${esc(o)} → ${esc(dest)}. B2B Surface with YNC pricing.</div>
     ${rows}
     <button onclick="quoteDhAddAll()" style="width:100%;background:var(--gray4);border:1.5px solid var(--gray3);border-radius:8px;padding:8px;font-size:12.5px;font-weight:700;color:var(--black);cursor:pointer">➕ Add All Available</button>
   `);
@@ -1758,7 +1758,7 @@ async function fetchDelhiveryGetRate() {
         <span style="color:var(--gray)">Chargeable<br><strong style="color:var(--black);font-size:15px">${(firstAvail?.chargedWeight ?? d.chargedWeight) || '—'} kg</strong></span>
       </div>
     </div>
-    <!-- Services: Local Surface (B2C) + B2B Surface, both with YNC pricing -->
+      <!-- Services: B2B Surface, with YNC pricing -->
     <div style="padding:14px 20px">
       ${services.map(s => {
         const avail = s.available !== false && Number(s.finalRate) > 0;
@@ -4364,7 +4364,7 @@ async function getBookRates(id) {
 
   showModal('Rate Card', `
     <div style="background:var(--white);border-radius:10px;overflow:hidden;border:1px solid var(--gray3)">
-      <!-- Services: Local Surface (B2C) + B2B Surface, both with YNC pricing -->
+    <!-- Services: B2B Surface, with YNC pricing -->
       <div style="padding:14px 16px">
         ${services.map(s => {
           const avail = s.available !== false && Number(s.finalRate) > 0;
