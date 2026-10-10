@@ -177,6 +177,10 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .tbtn-del:hover{background:#dc2626;color:#fff;border-color:#dc2626}
 .tbtn-assign{background:var(--blue-bg);color:var(--blue);border:1.5px solid #bfdbfe}
 .tbtn-assign:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
+.bulk-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:var(--gray4);border-bottom:1px solid var(--gray3)}
+.bulk-count{font-size:12.5px;font-weight:700;color:var(--brand);white-space:nowrap}
+.bulk-cb{width:15px;height:15px;cursor:pointer;accent-color:var(--brand);vertical-align:middle}
+.bulk-bar .btn-primary:disabled{opacity:.45;cursor:not-allowed}
 .lead-id{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;font-weight:600;letter-spacing:.02em;color:#334155;background:var(--gray4);border:1px solid var(--gray3);border-radius:5px;padding:2px 6px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .task-acts button:focus-visible,.tbtn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 /* priority */
@@ -1022,10 +1026,11 @@ async function renderQuoteLeads() {
         </select>
       </div>
     </div>
-    ${items.length ? `<table><thead><tr>
-      <th>ID</th><th>Customer</th><th>Route</th><th>Mode</th><th>Tracking</th><th>Quoted</th><th>Status</th><th>Assigned</th><th class="actions-col">Actions</th>
-    </tr></thead><tbody>
-    ${items.map(l=>{const lk=rowLocked(l);return `<tr>
+    ${items.length ? `${bulkBarHtml('quote')}<table><thead><tr>
+      ${bulkThHtml('quote', items.map(i=>i.id))}<th>ID</th><th>Customer</th><th>Route</th><th>Mode</th><th>Tracking</th><th>Quoted</th><th>Status</th><th>Assigned</th><th class="actions-col">Actions</th>
+    </tr></thead>
+    ${items.map(l=>{const lk=rowLocked(l);return `<tr data-bulk-id="${esc(l.id)}">
+      ${bulkTdHtml('quote', l.id)}
       <td><span style="font-family:monospace;font-size:12px;color:#888">${esc(l.leadId||'—')}</span></td>
       <td><div class="avatar-cell"><div class="av">${l.customerName?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(l.customerName)}</div><div class="cell-sub">${esc(l.company||l.email||'')}</div></div></div></td>
       <td><div class="cell-name">${esc(l.origin||'?')}${l.originPincode?' <span style=color:var(--gray2)>('+esc(l.originPincode)+')</span>':''} → ${esc(l.destination||'?')}${l.destinationPincode?' <span style=color:var(--gray2)>('+esc(l.destinationPincode)+')</span>':''}</div></td>
@@ -1488,10 +1493,11 @@ async function renderShipmentLeads() {
         </select>
       </div>
     </div>
-    ${items.length ? `<table><thead><tr>
-      <th>ID</th><th>Customer</th><th>Route</th><th>Mode</th><th>Booking Ref</th><th>AWB / Tracking</th><th>Freight</th><th>Status</th><th>Assigned</th><th class="actions-col">Actions</th>
-    </tr></thead><tbody>
-    ${items.map(l=>{const lk=rowLocked(l);return `<tr>
+    ${items.length ? `${bulkBarHtml('shipment')}<table><thead><tr>
+      ${bulkThHtml('shipment', items.map(i=>i.id))}<th>ID</th><th>Customer</th><th>Route</th><th>Mode</th><th>Booking Ref</th><th>AWB / Tracking</th><th>Freight</th><th>Status</th><th>Assigned</th><th class="actions-col">Actions</th>
+    </tr></thead>
+    ${items.map(l=>{const lk=rowLocked(l);return `<tr data-bulk-id="${esc(l.id)}">
+      ${bulkTdHtml('shipment', l.id)}
       <td><span style="font-family:monospace;font-size:12px;color:#888">${esc(l.leadId||'—')}</span></td>
       <td><div class="avatar-cell"><div class="av">${l.customerName?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(l.customerName)}</div><div class="cell-sub">${esc(l.company||l.email||'')}</div></div></div></td>
       <td><div class="cell-name">${esc(l.origin||'?')} → ${esc(l.destination||'?')}</div></td>
@@ -3187,6 +3193,95 @@ async function assignedFilterHtml() {
   </select>`;
 }
 
+// ─── BULK ASSIGN (Leads / Shipment / Book A Shipment) ─────────────────────
+// Tick rows on the list, pick one person, hit Assign. The selection is kept
+// across pages and filter changes until you assign it or press Clear.
+// Shipments and Book A Shipment share the same records, so both use 'shipment'.
+const bulkSel = { quote: new Set(), shipment: new Set() };
+
+function bulkEnabled()       { return me?.role === 'admin' || me?.role === 'manager'; }
+function bulkApiPath(type)   { return type === 'quote' ? '/api/quote-leads/bulk-assign' : '/api/shipment-leads/bulk-assign'; }
+
+function bulkBarHtml(type) {
+  if (!bulkEnabled()) return '';
+  const n = bulkSel[type].size;
+  return `<div class="bulk-bar" id="bulk-bar-${type}">
+    <span class="bulk-count" id="bulk-count-${type}">${n} selected</span>
+    <select class="filter-select" id="bulk-assignee-${type}" title="Assign selected rows to">
+      <option value="">Unassigned</option>
+      ${(_usersCache||[]).map(u=>`<option value="${u.id}">${esc(u.name)} (${fmtStatus(u.role)})${u.isActive===false?' — inactive':''}</option>`).join('')}
+    </select>
+    <button type="button" class="btn-primary" style="width:auto;padding:7px 14px;font-size:13px" id="bulk-assign-btn-${type}" ${n?'':'disabled'} onclick="runBulkAssign('${type}')">👤 Assign ${n}</button>
+    <button type="button" class="btn-view" id="bulk-clear-${type}" style="${n?'':'display:none'}" onclick="clearBulk('${type}')">✕ Clear</button>
+  </div>`;
+}
+
+function bulkThHtml(type, pageIds) {
+  if (!bulkEnabled()) return '';
+  const on = pageIds.length > 0 && pageIds.every(id => bulkSel[type].has(id));
+  return `<th style="width:34px"><input type="checkbox" class="bulk-cb" id="bulk-all-${type}" ${on?'checked':''} onchange="bulkToggleAll('${type}', this.checked)"/></th>`;
+}
+
+function bulkTdHtml(type, id) {
+  if (!bulkEnabled()) return '';
+  return `<td><input type="checkbox" class="bulk-cb" ${bulkSel[type].has(id)?'checked':''} onchange="bulkToggle('${type}','${id}',this.checked)"/></td>`;
+}
+
+function bulkToggle(type, id, on) {
+  if (on) bulkSel[type].add(id); else bulkSel[type].delete(id);
+  syncBulkBar(type);
+}
+
+// Only the rows on screen are (un)ticked — anything selected on another page stays selected.
+function bulkToggleAll(type, on) {
+  document.querySelectorAll('table tbody tr').forEach(tr => {
+    const cb = tr.querySelector('input.bulk-cb');
+    const id = tr.getAttribute('data-bulk-id');
+    if (!cb || !id) return;
+    cb.checked = on;
+    if (on) bulkSel[type].add(id); else bulkSel[type].delete(id);
+  });
+  syncBulkBar(type);
+}
+
+function syncBulkBar(type) {
+  const n = bulkSel[type].size;
+  const cnt = document.getElementById(`bulk-count-${type}`);
+  if (cnt) cnt.textContent = `${n} selected`;
+  const btn = document.getElementById(`bulk-assign-btn-${type}`);
+  if (btn) { btn.disabled = !n; btn.textContent = `👤 Assign ${n}`; }
+  const clr = document.getElementById(`bulk-clear-${type}`);
+  if (clr) clr.style.display = n ? '' : 'none';
+  const hd = document.getElementById(`bulk-all-${type}`);
+  if (hd) {
+    const cbs = [...document.querySelectorAll('table tbody input.bulk-cb')];
+    hd.checked = cbs.length > 0 && cbs.every(cb => cb.checked);
+  }
+}
+
+function clearBulk(type) {
+  bulkSel[type].clear();
+  document.querySelectorAll('table tbody input.bulk-cb').forEach(cb => { cb.checked = false; });
+  syncBulkBar(type);
+}
+
+async function runBulkAssign(type) {
+  const ids = [...bulkSel[type]];
+  if (!ids.length) return;
+  const assignedToId = document.getElementById(`bulk-assignee-${type}`)?.value || '';
+  const btn = document.getElementById(`bulk-assign-btn-${type}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
+  const r = await api('POST', bulkApiPath(type), { ids, assignedToId });
+  if (btn) { btn.disabled = false; btn.textContent = `👤 Assign ${ids.length}`; }
+  if (!r?.success) { toast(r?.error || 'Error assigning rows', 'error'); syncBulkBar(type); return; }
+  const name = assignedToId
+    ? ((_usersCache||[]).find(u=>u.id===assignedToId)?.name || 'the selected person')
+    : 'nobody (Unassigned)';
+  toast(`Assigned ${r?.data?.updated ?? ids.length} of ${ids.length} row(s) to ${name}`, 'success');
+  bulkSel[type].clear();
+  renderPage(curPage);
+}
+
 // ─── INLINE STATUS (change status from the list row) ──────────────────────
 const STATUS_OPTS = {
   contact:  ['prospect','qualified','hot_lead','negotiation','won','lost','cold'],
@@ -3482,11 +3577,13 @@ async function renderBookShipment() {
       ` : `
         <div class="empty"><div class="empty-icon">📦</div><div class="empty-title">No Bookings Yet</div><div class="empty-sub">Click "+ New Booking" to create a shipment</div></div>
       `) : `
+        ${bulkBarHtml('shipment')}
         <div class="table-scroll">
         <table class="book-tbl"><thead><tr>
-          <th style="white-space:nowrap">Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Shipment Type</th><th>Mode</th><th>Status</th><th>Amount</th><th>Assigned</th><th>Created</th><th class="actions-col">Actions</th>
+          ${bulkThHtml('shipment', leads.map(i=>i.id))}<th style="white-space:nowrap">Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Shipment Type</th><th>Mode</th><th>Status</th><th>Amount</th><th>Assigned</th><th>Created</th><th class="actions-col">Actions</th>
         </tr></thead><tbody>
-          ${leads.map(l => { const lk = rowLocked(l); return `<tr>
+          ${leads.map(l => { const lk = rowLocked(l); return `<tr data-bulk-id="${esc(l.id)}">
+            ${bulkTdHtml('shipment', l.id)}
             <td style="white-space:nowrap"><code style="font-size:12px;background:var(--blue-bg);color:var(--blue);padding:2px 7px;border-radius:5px">${esc(l.leadId)}</code></td>
             <td style="max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><strong>${esc(l.customerName)}</strong><br><span class="sub">${esc(l.company||'')}</span></td>
             <td style="max-width:108px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.origin||'-')}</td>
