@@ -175,6 +175,8 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .tbtn-edit:hover{background:var(--brand);color:#fff;border-color:var(--brand)}
 .tbtn-del{background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca}
 .tbtn-del:hover{background:#dc2626;color:#fff;border-color:#dc2626}
+.tbtn-assign{background:var(--blue-bg);color:var(--blue);border:1.5px solid #bfdbfe}
+.tbtn-assign:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
 .lead-id{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;font-weight:600;letter-spacing:.02em;color:#334155;background:var(--gray4);border:1px solid var(--gray3);border-radius:5px;padding:2px 6px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .task-acts button:focus-visible,.tbtn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 /* priority */
@@ -1870,7 +1872,8 @@ async function renderTasks() {
       const ro = me?.role === 'sales_rep' && t.assignedTo?.id !== me.id; // can view, never touch
       const tJson = JSON.stringify(t).replace(/"/g,'&quot;');
       const actions = ro
-        ? `<button class="tbtn tbtn-edit" onclick="viewTask(${tJson},event)" title="View only">👁 View</button>`
+        ? `<button class="tbtn tbtn-edit" onclick="viewTask(${tJson},event)" title="View only">👁 View</button>
+           <button class="tbtn tbtn-assign" onclick="openTaskAssignModal(${tJson},event)" title="Hand this task to someone">👤 Assign</button>`
         : `<div class="task-acts">
           <span class="tseg">
             ${taskSegBtn(t,'done','completed','Done','✓')}
@@ -1982,7 +1985,9 @@ async function renderReports() {
 let _usersCache = null;
 async function getUsersForAssign() {
   _usersCache = null; // always refresh
-  const r = await api('GET', '/api/users');
+  // Sales reps only get the name-only roster that backs the Task screen picker;
+  // every other screen keeps its existing assignee behaviour.
+  const r = await api('GET', me?.role === 'sales_rep' ? '/api/users?for=assign' : '/api/users');
   _usersCache = r?.data || [];
   return _usersCache;
 }
@@ -1991,6 +1996,15 @@ function assignDropdown(currentId) {
   return `<select id="mf-assigned">
     <option value="">Unassigned</option>
     ${_usersCache.map(u => `<option value="${u.id}" ${currentId === u.id ? 'selected' : ''}>${esc(u.name)} (${fmtStatus(u.role)})</option>`).join('')}
+  </select>`;
+}
+// Task screen only — anyone on the team can be assigned to, by anyone.
+function taskAssignDropdown(currentId) {
+  const list = _usersCache || [];
+  if (!list.length) return '<div style="font-size:12px;color:var(--gray)">No team members found</div>';
+  return `<select id="mf-assigned">
+    <option value="">Unassigned</option>
+    ${list.map(u => `<option value="${u.id}" ${currentId === u.id ? 'selected' : ''}>${esc(u.name)} (${fmtStatus(u.role)})${u.isActive === false ? ' — inactive' : ''}</option>`).join('')}
   </select>`;
 }
 function dimsBlock(l) {
@@ -2393,7 +2407,7 @@ async function openTaskModal(t) {
     <datalist id="leadid-options"></datalist>
   </div>
   <div class="fg"><label>Follow up date</label><input id="mf-due" type="date" value="${t?.dueDate?t.dueDate.slice(0,10):''}"/></div>
-  ${me?.role !== 'sales_rep' ? `<div class="fg"><label>Assigned To</label>${assignDropdown(t?.assignedToId||'')}</div>` : ''}
+  <div class="fg"><label>Assigned To</label>${taskAssignDropdown(t?.assignedToId||'')}</div>
   ${t ? notesHtml('task', t.id, t.notes, 'm') : `<div class="fg"><label>Notes</label><textarea id="mf-notes" placeholder="Write a note..."></textarea></div>`}`, async () => {
     const assignEl = document.getElementById('mf-assigned');
     const body = {
@@ -2447,6 +2461,22 @@ function viewTask(t, e) {
   ${t.description ? `<div class="fg" style="margin-top:16px"><label>Description</label><div style="font-size:13.5px;white-space:pre-wrap">${esc(t.description)}</div></div>` : ''}
   <div style="font-size:11.5px;color:var(--gray);margin-top:14px">🔒 View only — you can read this task and its notes, but only the assignee, a manager or an admin can change it.</div>
   ${notesHtml('task', t.id, t.notes, 'm', true)}`);
+}
+
+// Task screen only — hand a task to anyone on the team. This is the one change
+// a sales rep may make on someone else's task; everything else stays read-only.
+async function openTaskAssignModal(t, e) {
+  if (e) e.stopPropagation();
+  await getUsersForAssign();
+  showModal('Assign — ' + (t.title || ''), `
+  <div class="fg"><label>Assigned To</label>${taskAssignDropdown(t?.assignedToId || '')}</div>
+  <div style="font-size:12.5px;color:var(--gray);line-height:1.55">Pick anyone on the team. Only the assignee changes — the title, status, follow up date and notes stay as they are.</div>`, async () => {
+    const v = document.getElementById('mf-assigned')?.value || null;
+    const r = await api('PATCH', `/api/tasks/${t.id}`, { assignedToId: v });
+    if (!r?.success) { toast(r?.error || 'Error reassigning task', 'error'); return; }
+    toast('Task reassigned', 'success');
+    closeModal(); renderTasks();
+  });
 }
 
 // User Modal
