@@ -175,6 +175,7 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .tbtn-edit:hover{background:var(--brand);color:#fff;border-color:var(--brand)}
 .tbtn-del{background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca}
 .tbtn-del:hover{background:#dc2626;color:#fff;border-color:#dc2626}
+.lead-id{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;font-weight:600;letter-spacing:.02em;color:#334155;background:var(--gray4);border:1px solid var(--gray3);border-radius:5px;padding:2px 6px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .task-acts button:focus-visible,.tbtn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 /* priority */
 .badge-high{background:#fee2e2;color:#dc2626}
@@ -801,7 +802,7 @@ function globalSearchGroups(q) {
     { icon: '🧾', label: 'Invoices', url: '/api/invoices?' + qs, page: 'invoices',
       map: x => ({ id: x.id, title: x.invoiceNo || 'Invoice', sub: [x.customerName, invMoney(x.total), payBadgeText(x.paymentStatus)].filter(Boolean).join(' · '), open: () => viewInvoice(x.id, 'invoices') }) },
     { icon: '✅', label: 'Tasks', url: '/api/tasks?' + qs, page: 'tasks',
-      map: x => ({ id: x.id, title: x.title || 'Task', sub: [fmtStatus(x.status), x.priority ? x.priority + ' priority' : ''].filter(Boolean).join(' · '), open: () => { setActivePage('tasks'); renderPage('tasks'); openTaskModal(x); } }) },
+      map: x => ({ id: x.id, title: x.title || 'Task', sub: [x.leadId, fmtStatus(x.status), x.priority ? x.priority + ' priority' : ''].filter(Boolean).join(' · '), open: () => { setActivePage('tasks'); renderPage('tasks'); openTaskModal(x); } }) },
     { icon: '👤', label: 'Team', url: '/api/users', page: 'users', local: q,
       map: x => ({ id: x.id, title: x.name || 'Member', sub: [roleLabel(x.role), x.title, x.email].filter(Boolean).join(' · '), open: () => { setActivePage('users'); renderPage('users'); } }) },
   ];
@@ -1863,7 +1864,7 @@ async function renderTasks() {
       </div>
     </div>
     ${items.length ? `<div class="table-scroll"><table><thead><tr>
-      <th>Title</th><th>Priority</th><th>Status</th><th>Due Date</th><th>Contact</th><th>Assigned</th><th>Actions</th>
+      <th>Title</th><th>Lead ID</th><th>Priority</th><th>Status</th><th>Follow up date</th><th>Assigned</th><th>Actions</th>
     </tr></thead><tbody>
     ${items.map(t=>{
       const ro = me?.role === 'sales_rep' && t.assignedTo?.id !== me.id; // can view, never touch
@@ -1874,17 +1875,16 @@ async function renderTasks() {
           <span class="tseg">
             ${taskSegBtn(t,'done','completed','Done','✓')}
             ${taskSegBtn(t,'hold','on_hold','Hold','⏸')}
-            ${taskSegBtn(t,'cancel','cancelled','Cancel','⊘')}
           </span>
           <button class="tbtn tbtn-edit" onclick="editTask(${tJson},event)">Edit</button>
           <button class="tbtn tbtn-del" onclick="deleteTask(${tJson},event)" title="Delete this task">🗑 Delete</button>
         </div>`;
       return `<tr>
       <td><div class="cell-name" style="${t.isDone?'text-decoration:line-through;color:var(--gray2)':''}">${esc(t.title)}</div>${t.description?`<div class="cell-sub">${esc(t.description.slice(0,60))}</div>`:''}</td>
+      <td>${leadIdCell(t.leadId)}</td>
       <td>${badge(t.priority)}</td>
       <td>${badge(t.status)}</td>
       <td>${t.dueDate?fmtDate(t.dueDate):'—'}</td>
-      <td>${t.contact?esc(t.contact.name):'—'}</td>
       <td>${esc(t.assignedTo?.name||'—')}${ro?` <span title="View only" style="color:var(--gray2)">🔒</span>`:''}</td>
       <td style="white-space:nowrap">${actions}</td>
     </tr>`; }).join('')}
@@ -1893,10 +1893,16 @@ async function renderTasks() {
   </div>`;
 }
 
-// One segment of the Done / Hold / Cancel control. Clicking the active one reverts to Pending.
+// One segment of the Done / Hold control. Clicking the active one reverts to Pending.
 function taskSegBtn(t, key, status, label, icon) {
   const on = t.status === status;
   return `<button class="${on ? 'is-' + key : ''}" title="${on ? 'Set back to Pending' : 'Mark as ' + label}" onclick="setTaskStatus('${t.id}','${on ? 'pending' : status}',event)">${icon} ${label}</button>`;
+}
+
+// Linked quote/shipment lead (YNC-Q-… / YNC-S-…) shown in the Lead ID column.
+function leadIdCell(v) {
+  if (!v) return '<span style="color:var(--gray2)">—</span>';
+  return `<span class="lead-id" title="${esc(v)}">${esc(v)}</span>`;
 }
 
 async function setTaskStatus(id, status, e) {
@@ -2379,7 +2385,14 @@ async function openTaskModal(t) {
   <div class="fg"><label>Status</label><select id="mf-status">
     ${TASK_STATUSES.map(s=>`<option value="${s}" ${(t?.status||'pending')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
   </select></div></div>
-  <div class="fg"><label>Due Date</label><input id="mf-due" type="date" value="${t?.dueDate?t.dueDate.slice(0,10):''}"/></div>
+  <div class="fg"><label>Lead ID <span style="font-weight:400;color:var(--gray2)">(quote or shipment lead)</span></label>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input id="mf-leadid" list="leadid-options" placeholder="YNC-Q-00001 or YNC-S-00001" value="${esc(t?.leadId||'')}" style="flex:1" autocomplete="off"/>
+      <button type="button" style="background:var(--gray4);color:var(--gray);border:1.5px solid var(--gray3);border-radius:6px;padding:7px 10px;font-size:12px;font-weight:600" onclick="document.getElementById('mf-leadid').value=''" title="Remove the linked lead">Clear</button>
+    </div>
+    <datalist id="leadid-options"></datalist>
+  </div>
+  <div class="fg"><label>Follow up date</label><input id="mf-due" type="date" value="${t?.dueDate?t.dueDate.slice(0,10):''}"/></div>
   ${me?.role !== 'sales_rep' ? `<div class="fg"><label>Assigned To</label>${assignDropdown(t?.assignedToId||'')}</div>` : ''}
   ${t ? notesHtml('task', t.id, t.notes, 'm') : `<div class="fg"><label>Notes</label><textarea id="mf-notes" placeholder="Write a note..."></textarea></div>`}`, async () => {
     const assignEl = document.getElementById('mf-assigned');
@@ -2387,6 +2400,7 @@ async function openTaskModal(t) {
       title: document.getElementById('mf-title').value, description: document.getElementById('mf-desc').value,
       priority: document.getElementById('mf-priority').value, status: document.getElementById('mf-status').value,
       dueDate: document.getElementById('mf-due').value || null,
+      leadId: document.getElementById('mf-leadid')?.value.trim() || '',
       ...(assignEl ? { assignedToId: assignEl.value || null } : {}),
       ...(t ? {} : { notes: document.getElementById('mf-notes')?.value || '' }),
     };
@@ -2395,8 +2409,25 @@ async function openTaskModal(t) {
     toast(t ? 'Task updated!' : 'Task created!', 'success');
     closeModal(); renderTasks();
   });
+  loadLeadIdOptions();
 }
 function editTask(t, e) { e.stopPropagation(); openTaskModal(t); }
+
+// Fill the Lead ID datalist with recent quote (YNC-Q-) and shipment (YNC-S-) leads.
+// The API validates whatever is typed, so a lead outside this window can still be entered by hand.
+async function loadLeadIdOptions() {
+  const dl = document.getElementById('leadid-options');
+  if (!dl) return;
+  const [q, s] = await Promise.all([
+    api('GET', '/api/quote-leads?page=1&limit=500'),
+    api('GET', '/api/shipment-leads?page=1&limit=500'),
+  ]);
+  const el = document.getElementById('leadid-options'); // modal may have closed while loading
+  if (!el) return;
+  const rows = [...(q?.data || []), ...(s?.data || [])].filter(x => x && x.leadId);
+  rows.sort((a, b) => (b.leadId < a.leadId ? -1 : b.leadId > a.leadId ? 1 : 0));
+  el.innerHTML = rows.map(x => `<option value="${esc(x.leadId)}">${esc(x.customerName || x.company || '')}</option>`).join('');
+}
 
 // Task detail (read-only) — used by sales reps viewing someone else's task
 function viewTask(t, e) {
@@ -2405,11 +2436,11 @@ function viewTask(t, e) {
   showViewModal('Task — ' + (t.title || ''), `
   <div class="dp-fields">
     ${f('Title', esc(t.title || '—'))}
+    ${f('Lead ID', leadIdCell(t.leadId))}
     ${f('Assigned To', esc(t.assignedTo?.name || '—'))}
     ${f('Priority', badge(t.priority))}
     ${f('Status', badge(t.status))}
-    ${f('Due Date', t.dueDate ? fmtDate(t.dueDate) : '—')}
-    ${f('Contact', t.contact ? esc(t.contact.name) + (t.contact.company ? ' · ' + esc(t.contact.company) : '') : '—')}
+    ${f('Follow up date', t.dueDate ? fmtDate(t.dueDate) : '—')}
     ${f('Created', fmtDT(t.createdAt))}
     ${f('Last Updated', fmtDT(t.updatedAt))}
   </div>
