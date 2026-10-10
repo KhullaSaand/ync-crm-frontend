@@ -1844,19 +1844,23 @@ async function renderTasks() {
     ${items.length ? `<table><thead><tr>
       <th>Title</th><th>Priority</th><th>Status</th><th>Due Date</th><th>Contact</th><th>Assigned</th><th>Actions</th>
     </tr></thead><tbody>
-    ${items.map(t=>`<tr>
+    ${items.map(t=>{
+      const ro = me?.role === 'sales_rep' && t.assignedTo?.id !== me.id; // can view, never touch
+      const tJson = JSON.stringify(t).replace(/"/g,'&quot;');
+      return `<tr>
       <td><div class="cell-name" style="${t.isDone?'text-decoration:line-through;color:var(--gray2)':''}">${esc(t.title)}</div>${t.description?`<div class="cell-sub">${esc(t.description.slice(0,60))}</div>`:''}</td>
       <td>${badge(t.priority)}</td>
       <td>${badge(t.status)}</td>
       <td>${t.dueDate?fmtDate(t.dueDate):'—'}</td>
       <td>${t.contact?esc(t.contact.name):'—'}</td>
-      <td>${esc(t.assignedTo?.name||'—')}</td>
-      <td style="white-space:nowrap">
-        ${!t.isDone?`<button onclick="toggleTask('${t.id}',true,event)" style="background:var(--green-bg);color:var(--green);border:1.5px solid #bbf7d0;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">Done</button>`
+      <td>${esc(t.assignedTo?.name||'—')}${ro?` <span title="View only" style="color:var(--gray2)">🔒</span>`:''}</td>
+      <td style="white-space:nowrap">${ro
+        ? `<button onclick="viewTask(${tJson},event)" style="background:var(--brand-bg);color:var(--brand);border:1.5px solid var(--brand-border);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">👁 View</button>`
+        : `${!t.isDone?`<button onclick="toggleTask('${t.id}',true,event)" style="background:var(--green-bg);color:var(--green);border:1.5px solid #bbf7d0;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">Done</button>`
         :`<button onclick="toggleTask('${t.id}',false,event)" style="background:var(--gray4);color:var(--gray);border:1.5px solid var(--gray3);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">Undo</button>`}
-        <button onclick="editTask(${JSON.stringify(t).replace(/"/g,'&quot;')},event)" style="background:var(--brand-bg);color:var(--brand);border:1.5px solid var(--brand-border);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-left:4px">Edit</button>
+        <button onclick="editTask(${tJson},event)" style="background:var(--brand-bg);color:var(--brand);border:1.5px solid var(--brand-border);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-left:4px">Edit</button>`}
       </td>
-    </tr>`).join('')}
+    </tr>`; }).join('')}
     </tbody></table>` : emptyState('✅','No tasks found','Create your first task using the button above')}
     ${pgHtml(pg)}
   </div>`;
@@ -1991,6 +1995,12 @@ function showModal(title, bodyHtml, saveCb) {
   modalCb = saveCb;
 }
 function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); modalCb = null; }
+// Read-only modal: same shell as showModal but with a single Close action
+function showViewModal(title, bodyHtml) {
+  showModal(title, bodyHtml, null);
+  document.getElementById('modal-foot').innerHTML = '<button class="btn-cancel" onclick="closeModal()">Close</button>';
+  modalCb = null;
+}
 let _modalSaving = false;
 function modalSave() {
   // Prevent double-submit: ignore extra clicks while a save is in flight
@@ -2315,7 +2325,8 @@ async function deleteShipmentLead(id) {
 }
 
 // Task Modal
-function openTaskModal(t) {
+async function openTaskModal(t) {
+  await getUsersForAssign();
   showModal(t ? 'Edit Task' : 'New Task', `
   <div class="fg"><label>Title *</label><input id="mf-title" value="${esc(t?.title||'')}"/></div>
   <div class="fg"><label>Description</label><textarea id="mf-desc">${esc(t?.description||'')}</textarea></div>
@@ -2325,11 +2336,16 @@ function openTaskModal(t) {
   <div class="fg"><label>Status</label><select id="mf-status">
     ${['pending','in_progress','completed','overdue'].map(s=>`<option value="${s}" ${(t?.status||'pending')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
   </select></div></div>
-  <div class="fg"><label>Due Date</label><input id="mf-due" type="date" value="${t?.dueDate?t.dueDate.slice(0,10):''}"/></div>`, async () => {
+  <div class="fg"><label>Due Date</label><input id="mf-due" type="date" value="${t?.dueDate?t.dueDate.slice(0,10):''}"/></div>
+  ${me?.role !== 'sales_rep' ? `<div class="fg"><label>Assigned To</label>${assignDropdown(t?.assignedToId||'')}</div>` : ''}
+  ${t ? notesHtml('task', t.id, t.notes, 'm') : `<div class="fg"><label>Notes</label><textarea id="mf-notes" placeholder="Write a note..."></textarea></div>`}`, async () => {
+    const assignEl = document.getElementById('mf-assigned');
     const body = {
       title: document.getElementById('mf-title').value, description: document.getElementById('mf-desc').value,
       priority: document.getElementById('mf-priority').value, status: document.getElementById('mf-status').value,
       dueDate: document.getElementById('mf-due').value || null,
+      ...(assignEl ? { assignedToId: assignEl.value || null } : {}),
+      ...(t ? {} : { notes: document.getElementById('mf-notes')?.value || '' }),
     };
     const r = t ? await api('PATCH', `/api/tasks/${t.id}`, body) : await api('POST', '/api/tasks', body);
     if (!r?.success) { toast(r?.error || 'Error saving task', 'error'); return; }
@@ -2338,6 +2354,26 @@ function openTaskModal(t) {
   });
 }
 function editTask(t, e) { e.stopPropagation(); openTaskModal(t); }
+
+// Task detail (read-only) — used by sales reps viewing someone else's task
+function viewTask(t, e) {
+  if (e) e.stopPropagation();
+  const f = (label, val) => `<div class="dp-field"><label>${label}</label><span>${val}</span></div>`;
+  showViewModal('Task — ' + (t.title || ''), `
+  <div class="dp-fields">
+    ${f('Title', esc(t.title || '—'))}
+    ${f('Assigned To', esc(t.assignedTo?.name || '—'))}
+    ${f('Priority', badge(t.priority))}
+    ${f('Status', badge(t.status))}
+    ${f('Due Date', t.dueDate ? fmtDate(t.dueDate) : '—')}
+    ${f('Contact', t.contact ? esc(t.contact.name) + (t.contact.company ? ' · ' + esc(t.contact.company) : '') : '—')}
+    ${f('Created', fmtDT(t.createdAt))}
+    ${f('Last Updated', fmtDT(t.updatedAt))}
+  </div>
+  ${t.description ? `<div class="fg" style="margin-top:16px"><label>Description</label><div style="font-size:13.5px;white-space:pre-wrap">${esc(t.description)}</div></div>` : ''}
+  <div style="font-size:11.5px;color:var(--gray);margin-top:14px">🔒 View only — you can read this task and its notes, but only the assignee, a manager or an admin can change it.</div>
+  ${notesHtml('task', t.id, t.notes, 'm', true)}`);
+}
 
 // User Modal
 function openUserModal(u) {
@@ -3079,7 +3115,7 @@ async function manageTrackingFromRow(leadId, leadType) {
 }
 
 // ─── MULTIPLE NOTES ────────────────────────────────────────────────────────
-const NOTE_API = { contact: '/api/contacts', quote: '/api/quote-leads', shipment: '/api/shipment-leads' };
+const NOTE_API = { contact: '/api/contacts', quote: '/api/quote-leads', shipment: '/api/shipment-leads', task: '/api/tasks' };
 function parseNotes(raw) {
   if (!raw) return [];
   const t = String(raw).trim(); if (!t) return [];
@@ -3096,24 +3132,25 @@ function parseNotes(raw) {
   }
   return [{ id: 'legacy', text: t, by: null, at: null }];
 }
-function notesHtml(type, id, raw, ctx) {
+function notesHtml(type, id, raw, ctx, ro) {
   ctx = ctx || 'd';
+  ro = !!ro;
   const notes = parseNotes(raw);
-  return `<div class="notes-block" id="notes-${type}-${id}-${ctx}">
+  return `<div class="notes-block" data-ro="${ro ? '1' : '0'}" id="notes-${type}-${id}-${ctx}">
     <div class="notes-head"><div class="notes-label">📝 Notes (${notes.length})</div>
-      <button type="button" class="btn-note-add" onclick="noteEditorToggle('${type}','${id}','${ctx}')">+ Add Note</button></div>
+      ${ro ? '' : `<button type="button" class="btn-note-add" onclick="noteEditorToggle('${type}','${id}','${ctx}')">+ Add Note</button>`}</div>
     <div class="notes-list">${notes.length ? notes.map(n => `
       <div class="note-item"><div class="note-meta">${esc(n.by || '—')}${n.at ? ' · ' + fmtDT(n.at) : ''}</div>
         <div class="note-text">${esc(n.text)}</div>
-        <button type="button" class="note-del" title="Delete note" onclick="deleteNote('${type}','${id}','${n.id}','${ctx}')">✕</button></div>`).join('')
-      : `<div style="font-size:12.5px;color:var(--gray2);padding:2px 0">No notes yet — click "+ Add Note" to write one.</div>`}</div>
-    <div class="note-editor" id="note-ed-${type}-${id}-${ctx}" style="display:none">
+        ${ro ? '' : `<button type="button" class="note-del" title="Delete note" onclick="deleteNote('${type}','${id}','${n.id}','${ctx}')">✕</button>`}</div>`).join('')
+      : `<div style="font-size:12.5px;color:var(--gray2);padding:2px 0">${ro ? 'No notes yet.' : 'No notes yet — click "+ Add Note" to write one.'}</div>`}</div>
+    ${ro ? '' : `<div class="note-editor" id="note-ed-${type}-${id}-${ctx}" style="display:none">
       <textarea id="note-ta-${type}-${id}-${ctx}" placeholder="Write a note..."></textarea>
       <div class="note-editor-actions">
         <button type="button" class="btn-cancel" onclick="noteEditorHide('${type}','${id}','${ctx}')">Cancel</button>
         <button type="button" class="btn-save" onclick="saveNote('${type}','${id}','${ctx}')">Save Note</button>
       </div>
-    </div>
+    </div>`}
   </div>`;
 }
 function noteEditorToggle(type, id, ctx) {
@@ -3127,7 +3164,8 @@ function refreshNotes(type, id, ctx, raw) {
   // refresh the calling context and the other one (detail ↔ modal) so nothing goes stale
   ['d','m'].forEach(c => {
     const wrap = document.getElementById(`notes-${type}-${id}-${c}`); if (!wrap) return;
-    const tmp = document.createElement('div'); tmp.innerHTML = notesHtml(type, id, raw, c);
+    const ro = wrap.dataset.ro === '1';
+    const tmp = document.createElement('div'); tmp.innerHTML = notesHtml(type, id, raw, c, ro);
     wrap.replaceWith(tmp.firstElementChild);
   });
 }
