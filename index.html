@@ -1028,7 +1028,7 @@ async function renderQuoteLeads() {
       </div>
     </div>
     ${items.length ? `${bulkBarHtml('quote')}<table><thead><tr>
-      ${bulkThHtml('quote', items.map(i=>i.id))}<th>ID</th><th>Customer</th><th>Route</th><th>Mode</th><th>Tracking</th><th>Quoted</th><th>Status</th><th>Assigned</th><th class="actions-col">Actions</th>
+      ${bulkThHtml('quote', items.map(i=>i.id))}<th>ID</th><th>Customer</th><th>Route</th><th>Mode</th><th>Quoted</th><th>Status</th><th>Assigned</th><th class="actions-col">Actions</th>
     </tr></thead>
     ${items.map(l=>{const lk=rowLocked(l);return `<tr data-bulk-id="${esc(l.id)}">
       ${bulkTdHtml('quote', l.id)}
@@ -1036,13 +1036,12 @@ async function renderQuoteLeads() {
       <td><div class="avatar-cell"><div class="av">${l.customerName?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(l.customerName)}</div><div class="cell-sub">${esc(l.company||l.email||'')}</div></div></div></td>
       <td><div class="cell-name">${esc(l.origin||'?')}${l.originPincode?' <span style=color:var(--gray2)>('+esc(l.originPincode)+')</span>':''} → ${esc(l.destination||'?')}${l.destinationPincode?' <span style=color:var(--gray2)>('+esc(l.destinationPincode)+')</span>':''}</div></td>
       <td>${l.shipmentMode?badge(l.shipmentMode):'—'}</td>
-      <td>${l.tracking?.trackingId?`<span style="font-family:monospace;font-size:12px;font-weight:700;color:var(--green)">${esc(l.tracking.trackingId)}</span>`:'—'}</td>
       <td>${l.quotedAmount?fmtCur(l.quotedAmount):'—'}</td>
       <td>${statusSelectHtml('quote', l.status, l.id, lk)}</td>
       <td>${assigneeCellHtml(l, lk)}</td>
       <td class="actions-col">${lk
         ? `<button type="button" class="btn-view" onclick="viewQuoteLead('${l.id}')" title="Read only">👁 View</button>`
-        : `<button type="button" class="btn-view" onclick="viewQuoteLead('${l.id}')">👁 View</button>${l.tracking?.trackingId?`<button type="button" class="btn-track" title="Manage Tracking" onclick="manageTrackingFromRow('${l.id}','quote')">📦 Tracking</button>`:''}`}</td>
+        : `<button type="button" class="btn-view" onclick="viewQuoteLead('${l.id}')">👁 View</button>`}</td>
     </tr>`}).join('')}
     </tbody></table>` : emptyState('💬','No quote leads found','Add your first quote lead using the button above')}
     ${pgHtml(pg)}
@@ -1051,12 +1050,8 @@ async function renderQuoteLeads() {
 
 async function viewQuoteLead(id) {
   _viewingDetail = true;
-  const [leadRes, trackRes] = await Promise.all([
-    api('GET', `/api/quote-leads/${id}`),
-    api('GET', `/api/tracking/${id}`).catch(() => null),
-  ]);
+  const leadRes = await api('GET', `/api/quote-leads/${id}`);
   const l = leadRes?.data; if (!l) return;
-  const t = trackRes?.data;
   // A sales rep who is not the assignee may open the lead, but only to read it.
   const ro = rowLocked(l);
   document.getElementById('content').innerHTML = `
@@ -1071,14 +1066,18 @@ async function viewQuoteLead(id) {
       <div class="dp-actions">
         ${ro ? '' : `
         <button class="btn-get-rates" onclick="getQuoteLeadRates()">🔍 Get Rate</button>
-        ${t ? `<button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(t.timeline||[]).replace(/"/g,'&quot;')},'${l.id}','quote')">📦 Manage Tracking</button>` : ''}
         <button class="btn-edit" onclick="editQuoteLead(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏️ Edit</button>
         ${me.role==='admin'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteQuoteLead('${l.id}')">Delete</button>`:''}`}
       </div>
     </div>
     ${ro ? `<div style="margin-top:12px;padding:10px 14px;background:var(--gray4);border:1px solid var(--gray3);border-radius:var(--radius);font-size:13px;color:var(--gray)">👁 <strong>Read only</strong> — this lead is assigned to <strong>${esc(l.assignedTo?.name || 'another user')}</strong>. You can see everything, but only the assignee, their manager or an admin can change it.</div>` : ''}
+    ${l.status==='shipment_booked' ? `<div style="margin-top:12px;padding:12px 16px;background:#2563eb11;border:1px solid #2563eb44;border-radius:var(--radius);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px">
+      <div>📦 <strong>This lead has moved to Book A Shipment</strong>${l.convertedBooking?` — it lives there as booking <span style="font-family:monospace;font-weight:700">${esc(l.convertedBooking.leadId)}</span>`:''}. Packing list, rates, labels and delivery are handled on that screen.</div>
+      ${l.convertedBooking
+        ? `<button type="button" class="btn-view" onclick="showBookShipmentDetail('${l.convertedBooking.id}')">📦 Open booking</button>`
+        : (ro ? '' : `<button type="button" class="btn-view" onclick="recreateBookingFromQuote('${l.id}')">📦 Create booking</button>`)}
+    </div>` : ''}
     <div class="dp-fields">
-      ${t ? `<div class="dp-field"><label>Tracking ID</label><span style="font-family:monospace;font-weight:700;color:var(--green)">${esc(t.trackingId)}</span></div>` : ''}
       <div class="dp-field"><label>Phone</label><span>${esc(l.phone||'—')}</span></div>
       <div class="dp-field"><label>Origin → Dest</label><span>${esc(l.origin||'?')}${l.originPincode?' ('+esc(l.originPincode)+')':''} → ${esc(l.destination||'?')}${l.destinationPincode?' ('+esc(l.destinationPincode)+')':''}</span></div>
       <div class="dp-field"><label>Cargo Type</label><span>${esc(l.cargoType||'—')}</span></div>
@@ -1092,7 +1091,6 @@ async function viewQuoteLead(id) {
       <div class="dp-field"><label>Created</label><span>${fmtDate(l.createdAt)}</span></div>
     </div>
     ${notesHtml('quote', l.id, l.notes, 'd', ro)}
-    ${t && t.timeline?.length ? `<div style="margin-top:20px"><div class="section-title">Tracking Timeline</div><div class="tracking-tl">${t.timeline.map((s,i)=>`<div class="tracking-tl-item"><div class="tl-status">${esc(s.status||s.status_text||'')}</div>${s.location?`<div class="tl-loc">📍 ${esc(s.location)}</div>`:''}<div class="tl-date">${fmtDate(s.timestamp||s.status_date)}</div></div>`).join('')}</div></div>` : ''}
   </div>
   <div class="table-card" style="margin-top:16px">
     <div class="table-header">
@@ -1107,6 +1105,15 @@ async function viewQuoteLead(id) {
   </div>`;
   _vrLead = l;
   loadVendorRates(l.id);
+}
+
+// Re-asserting shipment_booked re-runs the server's booking conversion, so a
+// lead whose booking was deleted by hand comes back without a new status flip.
+async function recreateBookingFromQuote(id) {
+  const r = await api('PATCH', `/api/quote-leads/${id}`, { status: 'shipment_booked' });
+  if (!r?.success) { toast(r?.error || 'Could not create booking', 'error'); return; }
+  toast('Lead moved to Book A Shipment', 'success');
+  viewQuoteLead(id);
 }
 
 // ─── VENDOR RATES (Quote Leads) ────────────────────────────────────────────
