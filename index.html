@@ -3670,14 +3670,12 @@ async function renderBookShipment() {
         ${bulkBarHtml('shipment')}
         <div class="table-scroll">
         <table class="book-tbl"><thead><tr>
-          ${bulkThHtml('shipment', leads.map(i=>i.id))}<th style="white-space:nowrap">Lead ID</th><th>Customer</th><th>Origin</th><th>Destination</th><th>Shipment Type</th><th>Mode</th><th>Status</th><th>Amount</th><th>Assigned</th><th>Created</th><th class="actions-col">Actions</th>
+          ${bulkThHtml('shipment', leads.map(i=>i.id))}<th style="white-space:nowrap">Lead ID</th><th>Customer</th><th>Shipment Type</th><th>Mode</th><th>Status</th><th>Amount</th><th>Assigned</th><th>Created</th><th class="actions-col">Actions</th>
         </tr></thead><tbody>
           ${leads.map(l => { const lk = rowLocked(l); return `<tr data-bulk-id="${esc(l.id)}">
             ${bulkTdHtml('shipment', l.id)}
             <td style="white-space:nowrap"><code style="font-size:12px;background:var(--blue-bg);color:var(--blue);padding:2px 7px;border-radius:5px">${esc(l.leadId)}</code></td>
-            <td style="max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><strong>${esc(l.customerName)}</strong><br><span class="sub">${esc(l.company||'')}</span></td>
-            <td style="max-width:108px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.origin||'-')}</td>
-            <td style="max-width:108px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.destination||'-')}</td>
+            <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><strong>${esc(l.customerName)}</strong><br><span class="sub">${l.origin||l.destination ? esc(l.origin||'—')+' → '+esc(l.destination||'—') : esc(l.company||'')}</span></td>
             <td>${l.shipmentType?l.shipmentType.charAt(0).toUpperCase()+l.shipmentType.slice(1):'-'}</td>
             <td>${l.shipmentMode?badge(l.shipmentMode):'-'}</td>
             <td>${statusSelectHtml('booking', l.status, l.id, lk)}</td>
