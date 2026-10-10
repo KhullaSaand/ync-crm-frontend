@@ -594,7 +594,7 @@ function startAutoRefresh() {
       'contacts':      ['/api/contacts?page=1&limit=15'],
       'quote-leads':   ['/api/quote-leads?page=1&limit=15'],
       'shipment-leads':['/api/shipment-leads?page=1&limit=15'],
-      'book-shipment': ['/api/shipment-leads?page=1&limit=15&source=booking'],
+      'book-shipment': ['/api/shipment-leads?source=booking&page=1&limit=15'],
       'tasks':         ['/api/tasks?page=1&limit=15'],
       'invoices':      ['/api/invoices?page=1&limit=15'],
       'gst-invoices':  ['/api/invoices?paymentStatus=paid&limit=500'],
@@ -602,6 +602,7 @@ function startAutoRefresh() {
     const urls = pageMap[curPage];
     if (urls) {
       urls.forEach(u => _apiCache.delete(cacheKey('GET', u)));
+      if (curPage === 'book-shipment') _invalidateBookCache(); // also clears filtered variants
       renderPage(curPage);
     }
   }, 15000);
@@ -720,6 +721,7 @@ const ADD_LABELS = {
 
 function setActivePage(page) {
   curPage = page; curPageNum = 1; curFilter = {};
+  if (page === 'book-shipment') bookShipmentPage = 1;
   _viewingDetail = false;
   localStorage.setItem('ync_page', page);
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
@@ -2384,7 +2386,7 @@ function calcDimWeight(type) {
   }
 }
 
-function setFilter(key, val) { curFilter[key] = val; curPageNum = 1; renderPage(curPage); }
+function setFilter(key, val) { curFilter[key] = val; curPageNum = 1; if (curPage === 'book-shipment') bookShipmentPage = 1; renderPage(curPage); }
 function setCategoryFilter(cat) { curCategoryFilter = cat; curPageNum = 1; document.querySelectorAll('.cat-filter').forEach(el => el.classList.toggle('active', el.getAttribute('data-cat') === (cat||''))); renderPage(curPage); }
 function goPage(p) { curPageNum = p; renderPage(curPage); }
 function pgHtml(pg) {
@@ -3265,7 +3267,7 @@ let bookShipmentPage = 1;
 let bookShipmentTotal = 0;
 const BOOK_SHIP_PAGE_SIZE = 15;
 
-function _invalidateBookCache() { _apiCache.delete(cacheKey('GET', `/api/shipment-leads?source=booking&page=1&limit=${BOOK_SHIP_PAGE_SIZE}`)); }
+function _invalidateBookCache() { invalidateCache('/api/shipment-leads?source=booking'); }
 
 function _parseAddress(s) {
   if (!s) return { city:'', state:'', pin:'', country:'', addr:'' };
@@ -3286,21 +3288,55 @@ function _parseAddress(s) {
 }
 
 async function renderBookShipment() {
-  let url = `/api/shipment-leads?page=${bookShipmentPage}&limit=${BOOK_SHIP_PAGE_SIZE}&source=booking`;
+  let url = `/api/shipment-leads?source=booking&page=${bookShipmentPage}&limit=${BOOK_SHIP_PAGE_SIZE}`;
   if (curSearch) url += `&search=${encodeURIComponent(curSearch)}`;
+  if (curFilter.status)       url += `&status=${curFilter.status}`;
+  if (curFilter.mode)         url += `&mode=${curFilter.mode}`;
+  if (curFilter.shipmentType) url += `&shipmentType=${curFilter.shipmentType}`;
+  if (curFilter.assignedToId) url += `&assignedToId=${curFilter.assignedToId}`;
+  if (curFilter.dateFrom)     url += `&dateFrom=${curFilter.dateFrom}`;
+  if (curFilter.dateTo)       url += `&dateTo=${curFilter.dateTo}`;
+  if (curFilter.unassigned)   url += `&unassigned=1`;
   const r = await api('GET', url);
   const leads = r?.data || [];
   bookShipmentTotal = r?.pagination?.total || 0;
   const totalPages = Math.ceil(bookShipmentTotal / BOOK_SHIP_PAGE_SIZE);
 
+  const f = curFilter;
+  const anyFilter = !!(f.status || f.mode || f.shipmentType || f.assignedToId || f.dateFrom || f.dateTo || f.unassigned);
+  const noMatch = leads.length === 0 && (curSearch || anyFilter);
+  const assignedHtml = await assignedFilterHtml();
+  const statusOpts = ['', ...STATUS_OPTS.shipment];
+  const modeOpts   = ['', 'air', 'sea', 'road', 'courier'];
+  const typeOpts   = ['', 'domestic', 'international'];
+
   document.getElementById('content').innerHTML = `
     <div class="table-card">
-      <div class="table-header">
-        <div class="table-title">📦 Shipments</div>
-        <button class="btn-primary" style="width:auto;padding:8px 16px" onclick="openBookShipmentModal(null)">+ New Booking</button>
+      <div class="table-header" style="flex-wrap:wrap;gap:10px">
+        <div class="table-title">📦 Shipments <span style="font-weight:500;color:var(--gray)">(${bookShipmentTotal})</span></div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <div class="table-filters">
+            <select class="filter-select" onchange="setFilter('status',this.value)" title="Status">
+              ${statusOpts.map(s=>`<option value="${s}" ${f.status===s?'selected':''}>${s?fmtStatus(s):'All Statuses'}</option>`).join('')}
+            </select>
+            <select class="filter-select" onchange="setFilter('mode',this.value)" title="Mode">
+              ${modeOpts.map(m=>`<option value="${m}" ${f.mode===m?'selected':''}>${m?m.toUpperCase():'All Modes'}</option>`).join('')}
+            </select>
+            <select class="filter-select" onchange="setFilter('shipmentType',this.value)" title="Shipment type">
+              ${typeOpts.map(t=>`<option value="${t}" ${f.shipmentType===t?'selected':''}>${t?t.charAt(0).toUpperCase()+t.slice(1):'All Types'}</option>`).join('')}
+            </select>
+            ${assignedHtml}
+            <input type="date" class="filter-select" style="padding:5px 8px" title="Created from" value="${esc(f.dateFrom||'')}" onchange="setFilter('dateFrom',this.value)"/>
+            <input type="date" class="filter-select" style="padding:5px 8px" title="Created to" value="${esc(f.dateTo||'')}" onchange="setFilter('dateTo',this.value)"/>
+            <button type="button" class="btn-view" title="Only bookings with no assignee" style="${f.unassigned?'background:var(--brand);color:#fff;border-color:var(--brand)':''}" onclick="setFilter('unassigned','${f.unassigned?'':'1'}')">👤 Unassigned</button>
+            ${anyFilter ? `<button type="button" class="btn-view" onclick="clearBookFilters()">✕ Clear</button>` : ''}
+          </div>
+          <button class="btn-primary" style="width:auto;padding:8px 16px" onclick="openBookShipmentModal(null)">+ New Booking</button>
+        </div>
       </div>
-      ${leads.length === 0 ? (curSearch ? `
-        <div class="empty"><div class="empty-icon">🔎</div><div class="empty-title">No bookings match “${esc(curSearch)}”</div><div class="empty-sub">Try a different name, phone, lead ID or destination</div></div>
+      ${leads.length === 0 ? (noMatch ? `
+        <div class="empty"><div class="empty-icon">🔎</div><div class="empty-title">No bookings match ${curSearch?`“${esc(curSearch)}”`:'these filters'}</div><div class="empty-sub">Try a different status, mode, date range or search term</div>
+        <button type="button" class="btn-view" style="margin-top:14px" onclick="clearBookFilters()">✕ Clear filters${curSearch?' & search':''}</button></div>
       ` : `
         <div class="empty"><div class="empty-icon">📦</div><div class="empty-title">No Bookings Yet</div><div class="empty-sub">Click "+ New Booking" to create a shipment</div></div>
       `) : `
@@ -3328,6 +3364,16 @@ async function renderBookShipment() {
       `}
       ${totalPages > 1 ? `<div class="pagination"><span>Showing ${(bookShipmentPage-1)*BOOK_SHIP_PAGE_SIZE+1}-${Math.min(bookShipmentPage*BOOK_SHIP_PAGE_SIZE, bookShipmentTotal)} of ${bookShipmentTotal}</span><div class="page-btns"><button class="page-btn" onclick="bookShipmentPage--;renderBookShipment()" ${bookShipmentPage===1?'disabled':''}>← Prev</button><span style="padding:6px 12px;font-size:13px;color:var(--gray)">Page ${bookShipmentPage} of ${totalPages}</span><button class="page-btn" onclick="bookShipmentPage++;renderBookShipment()" ${bookShipmentPage>=totalPages?'disabled':''}>Next →</button></div></div>` : ''}
     </div>`;
+}
+
+function clearBookFilters() {
+  curFilter = {};
+  curSearch = '';
+  const si = document.getElementById('search-input');
+  if (si) si.value = '';
+  hideGlobalResults();
+  bookShipmentPage = 1;
+  renderBookShipment();
 }
 
 async function openBookShipmentModal(l) {
