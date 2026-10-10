@@ -152,6 +152,7 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .badge-quoted{background:var(--yellow-bg);color:var(--yellow)}
 .badge-follow_up{background:#fff7ed;color:#c2410c}
 .badge-shipment_booked{background:var(--green-bg);color:var(--green)}
+.badge-in_transit{background:#eef2ff;color:#4338ca}
 .badge-delivered{background:#052e16;color:#86efac}
 .badge-cancelled{background:#fee2e2;color:#dc2626}
 /* task */
@@ -1038,9 +1039,9 @@ async function renderQuoteLeads() {
       <td>${l.tracking?.trackingId?`<span style="font-family:monospace;font-size:12px;font-weight:700;color:var(--green)">${esc(l.tracking.trackingId)}</span>`:'—'}</td>
       <td>${l.quotedAmount?fmtCur(l.quotedAmount):'—'}</td>
       <td>${statusSelectHtml('quote', l.status, l.id, lk)}</td>
-      <td>${esc(l.assignedTo?.name||'—')}</td>
+      <td>${assigneeCellHtml(l, lk)}</td>
       <td class="actions-col">${lk
-        ? `<button type="button" class="btn-view locked" data-name="${esc(l.assignedTo?.name||'')}" onclick="lockedAccess(this)">🔒 Locked</button>`
+        ? `<button type="button" class="btn-view" onclick="viewQuoteLead('${l.id}')" title="Read only">👁 View</button>`
         : `<button type="button" class="btn-view" onclick="viewQuoteLead('${l.id}')">👁 View</button>${l.tracking?.trackingId?`<button type="button" class="btn-track" title="Manage Tracking" onclick="manageTrackingFromRow('${l.id}','quote')">📦 Tracking</button>`:''}`}</td>
     </tr>`}).join('')}
     </tbody></table>` : emptyState('💬','No quote leads found','Add your first quote lead using the button above')}
@@ -1056,6 +1057,8 @@ async function viewQuoteLead(id) {
   ]);
   const l = leadRes?.data; if (!l) return;
   const t = trackRes?.data;
+  // A sales rep who is not the assignee may open the lead, but only to read it.
+  const ro = rowLocked(l);
   document.getElementById('content').innerHTML = `
   <button class="btn-back" onclick="nav('quote-leads')">← Back</button>
   <div class="detail-panel" style="margin-top:16px">
@@ -1066,12 +1069,14 @@ async function viewQuoteLead(id) {
         <div style="margin-top:8px;display:flex;gap:8px">${l.category?`<span class="badge badge-${l.category}">${fmtStatus(l.category)}</span>`:''}${badge(l.status)}${l.shipmentMode?badge(l.shipmentMode):''}</div>
       </div>
       <div class="dp-actions">
+        ${ro ? '' : `
         <button class="btn-get-rates" onclick="getQuoteLeadRates()">🔍 Get Rate</button>
         ${t ? `<button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(t.timeline||[]).replace(/"/g,'&quot;')},'${l.id}','quote')">📦 Manage Tracking</button>` : ''}
         <button class="btn-edit" onclick="editQuoteLead(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏️ Edit</button>
-        ${me.role==='admin'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteQuoteLead('${l.id}')">Delete</button>`:''}
+        ${me.role==='admin'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteQuoteLead('${l.id}')">Delete</button>`:''}`}
       </div>
     </div>
+    ${ro ? `<div style="margin-top:12px;padding:10px 14px;background:var(--gray4);border:1px solid var(--gray3);border-radius:var(--radius);font-size:13px;color:var(--gray)">👁 <strong>Read only</strong> — this lead is assigned to <strong>${esc(l.assignedTo?.name || 'another user')}</strong>. You can see everything, but only the assignee, their manager or an admin can change it.</div>` : ''}
     <div class="dp-fields">
       ${t ? `<div class="dp-field"><label>Tracking ID</label><span style="font-family:monospace;font-weight:700;color:var(--green)">${esc(t.trackingId)}</span></div>` : ''}
       <div class="dp-field"><label>Phone</label><span>${esc(l.phone||'—')}</span></div>
@@ -1086,7 +1091,7 @@ async function viewQuoteLead(id) {
       <div class="dp-field"><label>Assigned To</label><span>${esc(l.assignedTo?.name||'—')}</span></div>
       <div class="dp-field"><label>Created</label><span>${fmtDate(l.createdAt)}</span></div>
     </div>
-    ${notesHtml('quote', l.id, l.notes, 'd')}
+    ${notesHtml('quote', l.id, l.notes, 'd', ro)}
     ${t && t.timeline?.length ? `<div style="margin-top:20px"><div class="section-title">Tracking Timeline</div><div class="tracking-tl">${t.timeline.map((s,i)=>`<div class="tracking-tl-item"><div class="tl-status">${esc(s.status||s.status_text||'')}</div>${s.location?`<div class="tl-loc">📍 ${esc(s.location)}</div>`:''}<div class="tl-date">${fmtDate(s.timestamp||s.status_date)}</div></div>`).join('')}</div></div>` : ''}
   </div>
   <div class="table-card" style="margin-top:16px">
@@ -1506,9 +1511,9 @@ async function renderShipmentLeads() {
       <td>${esc(l.awbNumber||'—')}</td>
       <td>${l.freightCharge?fmtCur(l.freightCharge):'—'}</td>
       <td>${statusSelectHtml('shipment', l.status, l.id, lk)}</td>
-      <td>${esc(l.assignedTo?.name||'—')}</td>
+      <td>${assigneeCellHtml(l, lk)}</td>
       <td class="actions-col">${lk
-        ? `<button type="button" class="btn-view locked" data-name="${esc(l.assignedTo?.name||'')}" onclick="lockedAccess(this)">🔒 Locked</button>`
+        ? `<button type="button" class="btn-view" onclick="viewShipmentLead('${l.id}')" title="Read only">👁 View</button>`
         : `<button type="button" class="btn-view" onclick="viewShipmentLead('${l.id}')">👁 View</button>${l.tracking?.trackingId?`<button type="button" class="btn-track" title="Manage Tracking" onclick="manageTrackingFromRow('${l.id}','shipment')">📦 Tracking</button>`:''}`}</td>
     </tr>`}).join('')}
     </tbody></table>` : emptyState('🚢','No shipment leads found','Add your first shipment booking using the button above')}
@@ -1524,6 +1529,8 @@ async function viewShipmentLead(id) {
   ]);
   const l = leadRes?.data; if (!l) return;
   const t = trackRes?.data;
+  // A sales rep who is not the assignee may open the lead, but only to read it.
+  const ro = rowLocked(l);
   document.getElementById('content').innerHTML = `
   <button class="btn-back" onclick="nav('shipment-leads')">← Back</button>
   <div class="detail-panel" style="margin-top:16px">
@@ -1534,12 +1541,14 @@ async function viewShipmentLead(id) {
         <div style="margin-top:8px;display:flex;gap:8px">${badge(l.status)}${l.shipmentMode?badge(l.shipmentMode):''}</div>
       </div>
       <div class="dp-actions">
+        ${ro ? '' : `
         ${t ? `<button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(t.timeline||[]).replace(/"/g,'&quot;')},'${l.id}','shipment')">📦 Manage Tracking</button>` : ''}
         ${t && (l.delhiveryLr || l.delhiveryAwb || l.awbNumber) ? `<button class="btn-track" id="bk-sync-btn" onclick="syncLeadTracking('${l.id}',{wrapId:'vs-track-wrap'})">🔄 Refresh</button>` : ''}
         <button class="btn-edit" onclick="editShipmentLead(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏️ Edit</button>
-        ${me.role==='admin'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteShipmentLead('${l.id}')">Delete</button>`:''}
+        ${me.role==='admin'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteShipmentLead('${l.id}')">Delete</button>`:''}`}
       </div>
     </div>
+    ${ro ? `<div style="margin-top:12px;padding:10px 14px;background:var(--gray4);border:1px solid var(--gray3);border-radius:var(--radius);font-size:13px;color:var(--gray)">👁 <strong>Read only</strong> — this lead is assigned to <strong>${esc(l.assignedTo?.name || 'another user')}</strong>. You can see everything, but only the assignee, their manager or an admin can change it.</div>` : ''}
     <div class="dp-fields">
       ${t ? `<div class="dp-field"><label>Tracking ID</label><span style="font-family:monospace;font-weight:700;color:var(--green)">${esc(t.trackingId)}</span></div>` : ''}
       <div class="dp-field"><label>Phone</label><span>${esc(l.phone||'—')}</span></div>
@@ -1557,7 +1566,7 @@ async function viewShipmentLead(id) {
       <div class="dp-field"><label>Assigned To</label><span>${esc(l.assignedTo?.name||'—')}</span></div>
       <div class="dp-field"><label>Created</label><span>${fmtDate(l.createdAt)}</span></div>
     </div>
-    ${notesHtml('shipment', l.id, l.notes, 'd')}
+    ${notesHtml('shipment', l.id, l.notes, 'd', ro)}
     <div id="vs-track-wrap">${vsTrackHtml(t)}</div>
   </div>`;
 
@@ -1932,27 +1941,62 @@ async function deleteTask(t, e) {
 }
 
 // ─── USERS ────────────────────────────────────────────────────────────────
+let _showDeleted = false;
+function toggleDeletedUsers() { _showDeleted = !_showDeleted; renderUsers(); }
+
+async function deleteUser(id, name) {
+  const msg = `Delete ${name}?\n\nThey disappear from the team list and can no longer sign in.\nEvery lead, booking and task keeps their name, so nothing in the history is lost.\n\nYou can bring them back any time with Restore.`;
+  if (!confirm(msg)) return;
+  const r = await api('DELETE', `/api/users/${id}`);
+  if (!r?.success) { toast(r?.error || 'Error deleting user', 'error'); return; }
+  toast(r?.data?.message || `${name} has been deleted`, 'success');
+  renderUsers();
+}
+
+async function restoreUser(id, name) {
+  const r = await api('PATCH', `/api/users/${id}`, { restore: true });
+  if (!r?.success) { toast(r?.error || 'Error restoring user', 'error'); return; }
+  toast(`${name} has been restored — they come back inactive, so use Activate when you want them back in.`, 'success');
+  renderUsers();
+}
+
 async function renderUsers() {
-  const r = await api('GET', '/api/users');
-  const items = r?.data || [];
+  // Fetch everyone (including deleted) so the toggle is instant; the default
+  // view simply hides the soft-deleted ones.
+  const r = await api('GET', '/api/users?includeDeleted=1');
+  const all = r?.data || [];
+  const nDeleted = all.filter(u => u.deletedAt).length;
+  const items = _showDeleted ? all : all.filter(u => !u.deletedAt);
   document.getElementById('content').innerHTML = `
   <div class="table-card">
-    <div class="table-header"><div class="table-title">Team Members (${items.length})</div></div>
+    <div class="table-header">
+      <div class="table-title">Team Members (${items.length})</div>
+      ${nDeleted ? `<div class="table-filters">
+        <button type="button" class="btn-view" style="${_showDeleted?'background:var(--brand);color:#fff;border-color:var(--brand)':''}" onclick="toggleDeletedUsers()">${_showDeleted?'🙈 Hide deleted':`🗑 Show deleted (${nDeleted})`}</button>
+      </div>` : ''}
+    </div>
     ${items.length ? `<table><thead><tr>
       <th>Name</th><th>Role</th><th>Title</th><th>Manager</th><th>Status</th><th>Actions</th>
     </tr></thead><tbody>
-    ${items.map(u=>`<tr>
+    ${items.map(u=>{
+      const isDeleted = !!u.deletedAt;
+      const dim = isDeleted ? 'opacity:.55;' : '';
+      return `<tr style="${dim}">
       <td><div class="avatar-cell"><div class="av">${u.avatar||u.name?.slice(0,2).toUpperCase()}</div><div><div class="cell-name">${esc(u.name)}</div><div class="cell-sub">${esc(u.email)}</div></div></div></td>
       <td><span class="role-badge role-${u.role}">${roleLabel(u.role)}</span></td>
       <td>${esc(u.title||'—')}</td>
       <td>${u.manager?esc(u.manager.name):'—'}</td>
-      <td><span class="badge ${u.isActive?'badge-won':'badge-lost'}">${u.isActive?'Active':'Inactive'}</span></td>
-      <td>
-        <button onclick="editUser(${JSON.stringify(u).replace(/"/g,'&quot;')},event)" style="background:var(--brand-bg);color:var(--brand);border:1.5px solid var(--brand-border);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">Edit</button>
-        ${u.id!==me.id?`<button onclick="deactivateUser('${u.id}','${esc(u.name)}',event)" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-left:4px">${u.isActive?'Deactivate':'Activate'}</button>`:''}
+      <td>${isDeleted
+        ? '<span class="badge badge-lost">Deleted</span>'
+        : `<span class="badge ${u.isActive?'badge-won':'badge-lost'}">${u.isActive?'Active':'Inactive'}</span>`}</td>
+      <td>${isDeleted
+        ? `<button onclick="restoreUser('${u.id}','${esc(u.name)}',event)" style="background:var(--green-bg);color:var(--green);border:1.5px solid #bbf7d0;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">↩ Restore</button>`
+        : `<button onclick="editUser(${JSON.stringify(u).replace(/"/g,'&quot;')},event)" style="background:var(--brand-bg);color:var(--brand);border:1.5px solid var(--brand-border);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">Edit</button>
+        ${u.id!==me.id?`<button onclick="deactivateUser('${u.id}','${esc(u.name)}',event)" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-left:4px">${u.isActive?'Deactivate':'Activate'}</button>
+        <button onclick="deleteUser('${u.id}','${esc(u.name)}',event)" title="Delete this user" style="background:#fff;color:#991b1b;border:1.5px solid #fecaca;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-left:4px">🗑 Delete</button>`:''}`}
       </td>
-    </tr>`).join('')}
-    </tbody></table>` : emptyState('🏢','No team members','Add team members using the button above')}
+    </tr>`}).join('')}
+    </tbody></table>` : emptyState('🏢', 'No team members', _showDeleted?'Add team members using the button above':'Deleted members are hidden — use "Show deleted" above to see them')}
   </div>`;
 }
 
@@ -3171,6 +3215,46 @@ async function generateInvoiceFromBooking(id) {
   openInvoiceModal(null, prefill);
 }
 
+// 🧾 View Invoice on a booking — opens the invoice it already produced, or the
+// invoice form if this booking has none yet.
+async function viewInvoiceForBooking(id) {
+  const r = await api('GET', `/api/shipment-leads/${id}`);
+  const l = r?.data;
+  if (!l) { toast('Booking not found', 'error'); return; }
+  if (l.leadId) {
+    const inv = await api('GET', `/api/invoices?sourceLeadId=${encodeURIComponent(l.leadId)}&sourceLeadType=shipment&limit=50`);
+    const list = Array.isArray(inv?.data) ? inv.data : [];
+    if (list.length) { viewInvoice(list[0].id, 'book-shipment'); return; }
+  }
+  toast('No invoice for this booking yet — opening the invoice form.', 'info');
+  await generateInvoiceFromBooking(id);
+}
+
+// ─── INLINE ASSIGNEE (Book A Shipment / Shipment rows) ────────────────────
+function inlineAssignHtml(l) {
+  // Admin and manager can reassign straight from the list; everyone else just
+  // sees the name. Deleted users never appear in the picker.
+  if (!bulkEnabled()) return esc(l?.assignedTo?.name || '—');
+  return `<select class="filter-select" style="max-width:150px;padding:3px 6px;font-size:12px" title="Change assignee" onchange="inlineAssign('${l.id}',this.value,this)">
+    <option value="">Unassigned</option>
+    ${(_usersCache||[]).map(u=>`<option value="${u.id}" ${l?.assignedToId===u.id?'selected':''}>${esc(u.name)}</option>`).join('')}
+  </select>`;
+}
+
+async function inlineAssign(id, assignedToId, sel) {
+  sel.disabled = true;
+  const r = await api('PATCH', `/api/shipment-leads/${id}`, { assignedToId });
+  if (!r?.success) {
+    toast(r?.error || 'Error changing assignee', 'error');
+    _invalidateBookCache();
+    renderPage(curPage);
+    return;
+  }
+  toast(assignedToId ? 'Assignee updated' : 'Assignee cleared', 'success');
+  _invalidateBookCache();
+  renderPage(curPage);
+}
+
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtDT(d) { if (!d) return ''; const dt = new Date(d); if (isNaN(dt.getTime())) return ''; return dt.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
@@ -3178,6 +3262,10 @@ function fmtDT(d) { if (!d) return ''; const dt = new Date(d); if (isNaN(dt.getT
 // ─── ROW LOCK (sales rep sees other reps' records only as locked search hits) ─
 function rowLocked(r) { return !!(me && me.role === 'sales_rep' && (!r || !r.assignedTo || r.assignedTo.id !== me.id)); }
 function lockedAccess(btn) { toast('🔒 Assigned to ' + (btn && btn.dataset ? btn.dataset.name : 'another user') + ' — you do not have access to this record.', 'error'); }
+// The lock now travels with the assignee name; the row itself still opens, read-only.
+function assigneeCellHtml(l, lk) {
+  return `${esc(l?.assignedTo?.name || '—')}${lk ? ` <span title="Read only — assigned to ${esc(l.assignedTo?.name || 'another user')}" style="cursor:help">🔒</span>` : ''}`;
+}
 
 // ─── ASSIGNED FILTER (beside All Statuses) ─────────────────────────────────
 async function assignedFilterHtml() {
@@ -3287,6 +3375,8 @@ const STATUS_OPTS = {
   contact:  ['prospect','qualified','hot_lead','negotiation','won','lost','cold'],
   quote:    ['new_inquiry','quoted','follow_up','shipment_booked','delivered','cancelled'],
   shipment: ['new_inquiry','quoted','follow_up','shipment_booked','delivered','cancelled'],
+  // Book A Shipment only — the Shipment list keeps the shorter set above.
+  booking:  ['new_inquiry','quoted','follow_up','shipment_booked','in_transit','delivered','cancelled'],
 };
 function statusSelectHtml(type, status, id, locked) {
   const opts = (STATUS_OPTS[type] || STATUS_OPTS.quote).slice();
@@ -3296,7 +3386,7 @@ function statusSelectHtml(type, status, id, locked) {
   </select>`;
 }
 async function rowStatusChange(type, id, val, sel) {
-  const paths = { contact: '/api/contacts', quote: '/api/quote-leads', shipment: '/api/shipment-leads' };
+  const paths = { contact: '/api/contacts', quote: '/api/quote-leads', shipment: '/api/shipment-leads', booking: '/api/shipment-leads' };
   const wasDisabled = sel.disabled;
   sel.disabled = true;
   const r = await api('PATCH', `${paths[type]}/${id}`, { status: val });
@@ -3543,7 +3633,7 @@ async function renderBookShipment() {
   const anyFilter = !!(f.status || f.mode || f.shipmentType || f.assignedToId || f.dateFrom || f.dateTo || f.unassigned);
   const noMatch = leads.length === 0 && (curSearch || anyFilter);
   const assignedHtml = await assignedFilterHtml();
-  const statusOpts = ['', ...STATUS_OPTS.shipment];
+  const statusOpts = ['', ...STATUS_OPTS.booking];
   const modeOpts   = ['', 'air', 'sea', 'road', 'courier'];
   const typeOpts   = ['', 'domestic', 'international'];
 
@@ -3590,13 +3680,13 @@ async function renderBookShipment() {
             <td style="max-width:108px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.destination||'-')}</td>
             <td>${l.shipmentType?l.shipmentType.charAt(0).toUpperCase()+l.shipmentType.slice(1):'-'}</td>
             <td>${l.shipmentMode?badge(l.shipmentMode):'-'}</td>
-            <td>${statusSelectHtml('shipment', l.status, l.id, lk)}</td>
+            <td>${statusSelectHtml('booking', l.status, l.id, lk)}</td>
             <td>${l.freightCharge ? fmtCur(l.freightCharge, l.currency) : '-'}${l.localVendor ? `<div style="font-size:10.5px;color:#7c3aed;font-weight:700">via ${maskVendorName(l.localVendor)}</div>` : ''}</td>
-            <td>${esc(l.assignedTo?.name||'—')}</td>
+            <td>${inlineAssignHtml(l)}</td>
             <td><span class="sub">${fmtDate(l.createdAt)}</span></td>
             <td class="actions-col">${lk
-              ? `<button type="button" class="btn-view locked" data-name="${esc(l.assignedTo?.name||'')}" onclick="lockedAccess(this)">🔒 Locked</button>`
-              : `<button type="button" class="btn-view" onclick="showBookShipmentDetail('${l.id}')">👁 View</button><button type="button" class="btn-track" title="Generate Invoice" onclick="generateInvoiceFromBooking('${l.id}')">🧾 Invoice</button>`}</td>
+              ? `<button type="button" class="btn-view" onclick="showBookShipmentDetail('${l.id}')">👁 View</button><button type="button" class="btn-view locked" data-name="${esc(l.assignedTo?.name||'')}" onclick="lockedAccess(this)" title="Read only — assigned to ${esc(l.assignedTo?.name||'another user')}">🔒</button>`
+              : `<button type="button" class="btn-view" onclick="showBookShipmentDetail('${l.id}')">👁 View</button><button type="button" class="btn-view" title="Invoice for this booking" onclick="viewInvoiceForBooking('${l.id}')">🧾 View Invoice</button><button type="button" class="btn-track" title="Generate Invoice" onclick="generateInvoiceFromBooking('${l.id}')">➕ New Invoice</button>`}</td>
           </tr>`; }).join('')}
         </tbody></table>
         </div>
@@ -3943,7 +4033,7 @@ function bkTimelineItems(tl) {
   }).join('')}</div>`;
 }
 
-function bkTrackCard(l, t) {
+function bkTrackCard(l, t, ro) {
   const rawCarrier = (l.delhiveryLr || l.delhiveryAwb) ? 'Delhivery' : (l.awbNumber ? 'ShipGlobal' : '');
   const carrier = rawCarrier ? (isAdmin() ? rawCarrier : vendorCodeName(rawCarrier, '')) : '';
   const head = `<div style="padding:10px 14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#2563eb;background:#2563eb11;border-bottom:2px solid #2563eb33">📡 Tracking${carrier ? ' — ' + carrier : ' — Manual'}</div>`;
@@ -3959,8 +4049,9 @@ function bkTrackCard(l, t) {
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
         <div><span style="font-family:monospace;font-size:14px;font-weight:800;color:#15803d">${esc(t.trackingId)}</span>${trackStatusChip(status)}</div>
         <div style="display:flex;gap:6px">
+          ${ro ? '<span style="font-size:11.5px;color:var(--gray2)">👁 Read only</span>' : `
           ${carrier ? `<button class="btn-track" id="bk-sync-btn" onclick="syncLeadTracking('${l.id}',{wrapId:'bk-track-wrap'})">🔄 Refresh</button>` : ''}
-          <button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(tl).replace(/"/g, '&quot;')},'${l.id}','book')">📦 Manage Tracking</button>
+          <button class="btn-tracking" onclick="openTrackingModal('${t.id}',${JSON.stringify(tl).replace(/"/g, '&quot;')},'${l.id}','book')">📦 Manage Tracking</button>`}
         </div>
       </div>
       <div id="bk-track-err" style="font-size:11.5px;color:#b91c1c;margin-top:6px"></div>
@@ -3991,7 +4082,7 @@ async function syncLeadTracking(leadId, opts = {}) {
   const wrap = document.getElementById(opts.wrapId || 'bk-track-wrap');
   if (wrap) {
     if (opts.wrapId === 'vs-track-wrap') wrap.innerHTML = vsTrackHtml(r.data);
-    else wrap.innerHTML = bkTrackCard(_bkTrackLead, r.data);
+    else wrap.innerHTML = bkTrackCard(_bkTrackLead, r.data, rowLocked(_bkTrackLead));
   }
   if (!opts.silent) toast(r.data.changed ? '✅ Tracking updated' : 'ℹ️ No new updates', r.data.changed ? 'success' : 'info');
 }
@@ -4013,6 +4104,8 @@ async function showBookShipmentDetail(id) {
   if (!r?.success) { toast('Lead not found', 'error'); return; }
   const l = r.data;
   const t = trackRes?.success ? trackRes.data : null;
+  // A sales rep who is not the assignee may open the booking, but only to read it.
+  const ro = rowLocked(l);
   _bkTrackLead = l;
 
   const _tr = (label, value, opts = {}) => {
@@ -4041,6 +4134,9 @@ async function showBookShipmentDetail(id) {
       </div>
     </div>
     <div class="dp-actions" style="flex-wrap:wrap">
+      ${l.delhiveryLr ? `<button class="btn-label" onclick="downloadLabel('${l.delhiveryLr}')">🏷️ Download Label</button>` : ''}
+      ${!l.delhiveryLr && l.awbNumber ? `<button class="btn-label" onclick="downloadSgLabel('${l.awbNumber}')">🏷️ Download Label</button>` : ''}
+      ${ro ? '' : `
       ${!l.delhiveryLr && !l.awbNumber && !l.localVendor ? `<button class="btn-get-rates" onclick="getBookRates('${l.id}')">💰 Get Rates</button>` : ''}
       ${!l.delhiveryLr && !l.awbNumber && !l.localVendor ? (l.shipmentType === 'international'
         ? `<button class="btn-book" onclick="openSgBooking('${l.id}')">🚚 Book Shipment</button>`
@@ -4048,13 +4144,12 @@ async function showBookShipmentDetail(id) {
       ${!l.delhiveryLr && !l.awbNumber ? (l.localVendor
         ? `<button class="btn-book" style="background:#047857" onclick="openLocalVendorModal('${l.id}')" title="Edit local vendor booking">${isAdmin() ? `📞 Booked: ${esc(l.localVendor)}` : '📞 Booked (Local Partner)'}</button>`
         : `<button class="btn-book" style="background:#7c3aed" onclick="openLocalVendorModal('${l.id}')">📞 Book with Local Vendor</button>`) : ''}
-      ${l.delhiveryLr ? `<button class="btn-label" onclick="downloadLabel('${l.delhiveryLr}')">🏷️ Download Label</button>` : ''}
-      ${!l.delhiveryLr && l.awbNumber ? `<button class="btn-label" onclick="downloadSgLabel('${l.awbNumber}')">🏷️ Download Label</button>` : ''}
       <button class="btn-track" onclick="generateInvoiceFromBooking('${l.id}')">🧾 Generate Invoice</button>
       <button class="btn-edit" onclick="editBookShipmentById('${l.id}')">✏️ Edit</button>
-      ${me?.role==='admin'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteBookShipment('${l.id}')">Delete</button>`:''}
+      ${me?.role==='admin'?`<button class="btn-danger" style="padding:7px 14px;font-size:13px" onclick="deleteBookShipment('${l.id}')">Delete</button>`:''}`}
     </div>
   </div>
+  ${ro ? `<div style="margin-top:12px;padding:10px 14px;background:var(--gray4);border:1px solid var(--gray3);border-radius:var(--radius);font-size:13px;color:var(--gray)">👁 <strong>Read only</strong> — this booking is assigned to <strong>${esc(l.assignedTo?.name || 'another user')}</strong>. You can see everything, but only the assignee, their manager or an admin can change it.</div>` : ''}
 
   <!-- TWO-COLUMN LAYOUT -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;align-items:start">
@@ -4102,7 +4197,7 @@ async function showBookShipmentDetail(id) {
         <table style="width:100%;border-collapse:collapse">
           <tbody>
             ${sectionHeader('📝', 'Notes', '#ea580c')}
-            <tr><td colspan="2" style="padding:10px 14px;font-size:13px;color:var(--black);line-height:1.5;border-bottom:1px solid var(--gray3)">${notesHtml('shipment', l.id, l.notes, 'd')}</td></tr>
+            <tr><td colspan="2" style="padding:10px 14px;font-size:13px;color:var(--black);line-height:1.5;border-bottom:1px solid var(--gray3)">${notesHtml('shipment', l.id, l.notes, 'd', ro)}</td></tr>
           </tbody>
         </table>
       </div>
@@ -4147,7 +4242,7 @@ async function showBookShipmentDetail(id) {
       </div>
 
       <!-- TRACKING (YNC number + auto/manual timeline) -->
-      <div id="bk-track-wrap">${bkTrackCard(l, t)}</div>
+      <div id="bk-track-wrap">${bkTrackCard(l, t, ro)}</div>
 
       <!-- RATE BREAKDOWN TABLE -->
       ${l.delhiveryRate ? `
