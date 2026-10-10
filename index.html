@@ -159,6 +159,23 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .badge-in_progress{background:var(--blue-bg);color:var(--blue)}
 .badge-completed{background:var(--green-bg);color:var(--green)}
 .badge-overdue{background:#fee2e2;color:#dc2626}
+.badge-on_hold{background:var(--yellow-bg);color:var(--yellow)}
+/* task row actions: status segmented control + edit/delete */
+.task-acts{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tseg{display:inline-flex;border:1.5px solid var(--gray3);border-radius:6px;background:var(--white);overflow:hidden}
+.tseg button{border:0;border-right:1px solid var(--gray3);background:var(--white);color:var(--gray);font-size:11.5px;font-weight:600;padding:4px 8px;cursor:pointer;white-space:nowrap;font-family:inherit}
+.tseg button:last-child{border-right:0}
+.tseg button:hover{background:var(--gray4);color:var(--black)}
+.tseg button.is-done{background:#15803d;color:#fff}
+.tseg button.is-hold{background:#b45309;color:#fff}
+.tseg button.is-cancel{background:#dc2626;color:#fff}
+.tseg button.is-done:hover,.tseg button.is-hold:hover,.tseg button.is-cancel:hover{filter:brightness(1.08);color:#fff}
+.tbtn{border-radius:6px;padding:4px 9px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit}
+.tbtn-edit{background:var(--brand-bg);color:var(--brand);border:1.5px solid var(--brand-border)}
+.tbtn-edit:hover{background:var(--brand);color:#fff;border-color:var(--brand)}
+.tbtn-del{background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca}
+.tbtn-del:hover{background:#dc2626;color:#fff;border-color:#dc2626}
+.task-acts button:focus-visible,.tbtn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 /* priority */
 .badge-high{background:#fee2e2;color:#dc2626}
 .badge-medium{background:var(--yellow-bg);color:var(--yellow)}
@@ -545,6 +562,10 @@ let curSearch = '';
 let curFilter = {};
 let curPageNum = 1;
 let curCategoryFilter = '';
+
+// Row actions on Tasks: Done / Hold / Cancel map onto these statuses (must match the Prisma enum).
+const TASK_STATUSES = ['pending','in_progress','completed','overdue','on_hold','cancelled'];
+const TASK_ACT_TOAST = { completed:'Task marked as Done', on_hold:'Task put on Hold', cancelled:'Task cancelled', pending:'Task moved back to Pending' };
 
 // ─── API CACHE ──────────────────────────────────────────────────────────────
 const _apiCache = new Map();
@@ -1833,7 +1854,7 @@ async function renderTasks() {
       <div class="table-title">Tasks (${pg.total||0})</div>
       <div class="table-filters">
         <select class="filter-select" onchange="setFilter('status',this.value)">
-          ${['','pending','in_progress','completed','overdue'].map(s=>`<option value="${s}" ${curFilter.status===s?'selected':''}>${s?fmtStatus(s):'All Statuses'}</option>`).join('')}
+          ${[''].concat(TASK_STATUSES).map(s=>`<option value="${s}" ${curFilter.status===s?'selected':''}>${s?fmtStatus(s):'All Statuses'}</option>`).join('')}
         </select>
         ${assignedHtml}
         <select class="filter-select" onchange="setFilter('priority',this.value)">
@@ -1841,12 +1862,23 @@ async function renderTasks() {
         </select>
       </div>
     </div>
-    ${items.length ? `<table><thead><tr>
+    ${items.length ? `<div class="table-scroll"><table><thead><tr>
       <th>Title</th><th>Priority</th><th>Status</th><th>Due Date</th><th>Contact</th><th>Assigned</th><th>Actions</th>
     </tr></thead><tbody>
     ${items.map(t=>{
       const ro = me?.role === 'sales_rep' && t.assignedTo?.id !== me.id; // can view, never touch
       const tJson = JSON.stringify(t).replace(/"/g,'&quot;');
+      const actions = ro
+        ? `<button class="tbtn tbtn-edit" onclick="viewTask(${tJson},event)" title="View only">👁 View</button>`
+        : `<div class="task-acts">
+          <span class="tseg">
+            ${taskSegBtn(t,'done','completed','Done','✓')}
+            ${taskSegBtn(t,'hold','on_hold','Hold','⏸')}
+            ${taskSegBtn(t,'cancel','cancelled','Cancel','⊘')}
+          </span>
+          <button class="tbtn tbtn-edit" onclick="editTask(${tJson},event)">Edit</button>
+          <button class="tbtn tbtn-del" onclick="deleteTask(${tJson},event)" title="Delete this task">🗑 Delete</button>
+        </div>`;
       return `<tr>
       <td><div class="cell-name" style="${t.isDone?'text-decoration:line-through;color:var(--gray2)':''}">${esc(t.title)}</div>${t.description?`<div class="cell-sub">${esc(t.description.slice(0,60))}</div>`:''}</td>
       <td>${badge(t.priority)}</td>
@@ -1854,22 +1886,33 @@ async function renderTasks() {
       <td>${t.dueDate?fmtDate(t.dueDate):'—'}</td>
       <td>${t.contact?esc(t.contact.name):'—'}</td>
       <td>${esc(t.assignedTo?.name||'—')}${ro?` <span title="View only" style="color:var(--gray2)">🔒</span>`:''}</td>
-      <td style="white-space:nowrap">${ro
-        ? `<button onclick="viewTask(${tJson},event)" style="background:var(--brand-bg);color:var(--brand);border:1.5px solid var(--brand-border);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">👁 View</button>`
-        : `${!t.isDone?`<button onclick="toggleTask('${t.id}',true,event)" style="background:var(--green-bg);color:var(--green);border:1.5px solid #bbf7d0;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">Done</button>`
-        :`<button onclick="toggleTask('${t.id}',false,event)" style="background:var(--gray4);color:var(--gray);border:1.5px solid var(--gray3);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">Undo</button>`}
-        <button onclick="editTask(${tJson},event)" style="background:var(--brand-bg);color:var(--brand);border:1.5px solid var(--brand-border);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-left:4px">Edit</button>`}
-      </td>
+      <td style="white-space:nowrap">${actions}</td>
     </tr>`; }).join('')}
-    </tbody></table>` : emptyState('✅','No tasks found','Create your first task using the button above')}
+    </tbody></table></div>` : emptyState('✅','No tasks found','Create your first task using the button above')}
     ${pgHtml(pg)}
   </div>`;
 }
 
-async function toggleTask(id, done, e) {
+// One segment of the Done / Hold / Cancel control. Clicking the active one reverts to Pending.
+function taskSegBtn(t, key, status, label, icon) {
+  const on = t.status === status;
+  return `<button class="${on ? 'is-' + key : ''}" title="${on ? 'Set back to Pending' : 'Mark as ' + label}" onclick="setTaskStatus('${t.id}','${on ? 'pending' : status}',event)">${icon} ${label}</button>`;
+}
+
+async function setTaskStatus(id, status, e) {
   e.stopPropagation();
-  await api('PATCH', `/api/tasks/${id}`, { isDone: done, status: done ? 'completed' : 'pending' });
-  toast(done ? 'Task marked complete!' : 'Task reopened', 'success');
+  const r = await api('PATCH', `/api/tasks/${id}`, { status });
+  if (!r?.success) { toast(r?.error || 'Could not update task', 'error'); return; }
+  toast(TASK_ACT_TOAST[status] || 'Task updated', 'success');
+  renderTasks();
+}
+
+async function deleteTask(t, e) {
+  e.stopPropagation();
+  if (!confirm(`Delete "${t.title}"? This cannot be undone.`)) return;
+  const r = await api('DELETE', `/api/tasks/${t.id}`);
+  if (!r?.success) { toast(r?.error || 'Could not delete task', 'error'); return; }
+  toast('Task deleted', 'success');
   renderTasks();
 }
 
@@ -2334,7 +2377,7 @@ async function openTaskModal(t) {
     ${['high','medium','low'].map(p=>`<option value="${p}" ${(t?.priority||'medium')===p?'selected':''}>${p.charAt(0).toUpperCase()+p.slice(1)}</option>`).join('')}
   </select></div>
   <div class="fg"><label>Status</label><select id="mf-status">
-    ${['pending','in_progress','completed','overdue'].map(s=>`<option value="${s}" ${(t?.status||'pending')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
+    ${TASK_STATUSES.map(s=>`<option value="${s}" ${(t?.status||'pending')===s?'selected':''}>${fmtStatus(s)}</option>`).join('')}
   </select></div></div>
   <div class="fg"><label>Due Date</label><input id="mf-due" type="date" value="${t?.dueDate?t.dueDate.slice(0,10):''}"/></div>
   ${me?.role !== 'sales_rep' ? `<div class="fg"><label>Assigned To</label>${assignDropdown(t?.assignedToId||'')}</div>` : ''}
@@ -3190,7 +3233,7 @@ function fmtStatus(s) {
   const map = {
     prospect:'Prospect', qualified:'Qualified', hot_lead:'Hot Lead', negotiation:'Negotiation', won:'Won', lost:'Lost', cold:'Cold',
     new_inquiry:'New Inquiry', quoted:'Quoted', follow_up:'Follow Up', shipment_booked:'Shipment Booked', delivered:'Delivered', cancelled:'Cancelled',
-    pending:'Pending', in_progress:'In Progress', completed:'Completed', overdue:'Overdue',
+    pending:'Pending', in_progress:'In Progress', completed:'Completed', overdue:'Overdue', on_hold:'On Hold',
     high:'High', medium:'Medium', low:'Low',
     air:'Air', sea:'Sea', road:'Road', courier:'Courier',
   };
