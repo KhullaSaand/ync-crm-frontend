@@ -622,7 +622,7 @@ function startAutoRefresh() {
       'dashboard':     ['/api/reports?type=summary', '/api/reports?type=activity&range=month'],
       'contacts':      ['/api/contacts?page=1&limit=15'],
       'quote-leads':   ['/api/quote-leads?page=1&limit=15'],
-      'shipment-leads':['/api/shipment-leads?page=1&limit=15'],
+      'shipment-leads':['/api/shipment-leads?page=1&limit=15&excludeSource=booking'],
       'book-shipment': ['/api/shipment-leads?source=booking&page=1&limit=15'],
       'tasks':         ['/api/tasks?page=1&limit=15'],
       'invoices':      ['/api/invoices?page=1&limit=15'],
@@ -643,7 +643,7 @@ function preloadAll() {
     '/api/reports?type=activity&range=month',
     '/api/contacts?page=1&limit=15',
     '/api/quote-leads?page=1&limit=15',
-    '/api/shipment-leads?page=1&limit=15',
+    '/api/shipment-leads?page=1&limit=15&excludeSource=booking',
     '/api/shipment-leads?page=1&limit=15&source=booking',
     '/api/tasks?page=1&limit=15',
   ];
@@ -1481,7 +1481,7 @@ function quoteDhAddAll() {
 
 // ─── SHIPMENT LEADS ────────────────────────────────────────────────────────
 async function renderShipmentLeads() {
-  let url = `/api/shipment-leads?page=${curPageNum}&limit=15`;
+  let url = `/api/shipment-leads?page=${curPageNum}&limit=15&excludeSource=booking`;
   if (curSearch) url += `&search=${encodeURIComponent(curSearch)}`;
   if (curFilter.status) url += `&status=${curFilter.status}`;
   if (curFilter.mode)   url += `&mode=${curFilter.mode}`;
