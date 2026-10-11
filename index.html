@@ -319,6 +319,22 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .toast-item.info::before{content:'ℹ️'}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 
+/* MORNING BRIEFING (task reminders on first open of the day) */
+#briefing{position:fixed;top:66px;right:24px;width:352px;max-width:calc(100vw - 48px);z-index:9998;background:var(--white);border:1.5px solid #fed7aa;border-radius:14px;box-shadow:var(--shadow-lg);overflow:hidden;animation:slideIn .3s ease}
+.brf-head{display:flex;align-items:center;gap:8px;padding:12px 14px;background:#fff7ed;border-bottom:1.5px solid #fed7aa}
+.brf-head b{font-size:13.5px;color:#c2410c}
+.brf-sub{font-size:11.5px;color:#9a3412}
+.brf-close{margin-left:auto;background:none;border:none;cursor:pointer;color:#c2410c;font-size:18px;line-height:1;padding:0 2px}
+.brf-sec{padding:9px 14px 5px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.brf-sec.od{color:#dc2626}.brf-sec.td{color:#b45309}
+.brf-item{display:flex;align-items:center;gap:9px;padding:8px 14px;font-size:13px;cursor:pointer;border-top:1px solid var(--gray3)}
+.brf-item:hover{background:#f8fafc}
+.brf-item .bt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.brf-item .bd{font-size:11px;color:var(--gray2);flex-shrink:0}
+.brf-empty{padding:22px 14px;text-align:center;color:var(--gray2);font-size:13px}
+.brf-foot{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--gray3);background:#f8fafc}
+.brf-foot button{flex:1;font-size:12.5px;padding:8px 10px}
+
 /* ROLE BADGE */
 .role-badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
 .role-admin{background:#fee2e2;color:#991b1b}
@@ -758,6 +774,7 @@ function initApp() {
   nav(localStorage.getItem('ync_page') || 'dashboard');
   preloadAll();
   startAutoRefresh();
+  maybeMorningBriefing(); // fire-and-forget: once-a-day task reminder
 }
 
 window.onload = () => {
@@ -3853,6 +3870,84 @@ function toast(msg, type='info') {
   el.textContent = msg;
   t.appendChild(el);
   setTimeout(() => el.remove(), 3500);
+}
+
+// ─── MORNING BRIEFING ────────────────────────────────────────────────────────
+// On the first app open each day, remind the user of their overdue + due-today
+// tasks with a browser notification (when permitted) and an in-app banner.
+// "First open of the day" is tracked per browser in localStorage.
+function _todayISO() { return new Date().toLocaleDateString('en-CA'); } // YYYY-MM-DD
+
+function dismissBriefing(persist) {
+  const b = document.getElementById('briefing');
+  if (b) b.remove();
+  if (persist) localStorage.setItem('ync_briefing_date', _todayISO());
+}
+
+async function maybeMorningBriefing() {
+  if (!me) return;
+  const today = _todayISO();
+  if (localStorage.getItem('ync_briefing_date') === today) return; // already seen today
+  localStorage.setItem('ync_briefing_date', today); // claim the day now (avoids double-fire on rapid re-init)
+  try {
+    const r = await api('GET', '/api/tasks?page=1&limit=200');
+    const all = r?.data || [];
+    const dayOf = t => new Date(t.dueDate).toLocaleDateString('en-CA');
+    const mine = all.filter(t => !t.isDone && t.assignedTo?.id === me.id && t.dueDate);
+    const overdue  = mine.filter(t => dayOf(t) < today).sort((a,b) => (dayOf(a) < dayOf(b) ? -1 : 1));
+    const dueToday = mine.filter(t => dayOf(t) === today);
+    if (!overdue.length && !dueToday.length) return; // clear day — stay quiet
+    _fireBriefing(overdue, dueToday);
+  } catch (e) { /* never block app start */ }
+}
+
+function _fireBriefing(overdue, dueToday) {
+  const n = overdue.length + dueToday.length;
+  const notifBody = [
+    overdue.length  ? `${overdue.length} overdue`  : '',
+    dueToday.length ? `${dueToday.length} due today` : '',
+  ].filter(Boolean).join(' · ');
+
+  // Browser notification — fire only if already granted (or grant it once).
+  const fireNotif = () => {
+    try {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      new Notification(`☀️ YNC — ${n} task${n === 1 ? '' : 's'} need${n === 1 ? 's' : ''} you`, {
+        body: notifBody, tag: 'ync-morning-briefing',
+      });
+    } catch (e) {}
+  };
+  try {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission().then(p => { if (p === 'granted') fireNotif(); }).catch(() => {});
+    } else { fireNotif(); }
+  } catch (e) {}
+
+  // In-app banner.
+  const old = document.getElementById('briefing');
+  if (old) old.remove();
+  const item = t => `
+    <div class="brf-item" onclick="dismissBriefing(true);viewTask(${JSON.stringify(t).replace(/"/g,'&quot;')},event)">
+      <span class="bt">${esc(t.title)}</span>
+      <span class="bd">${fmtDate(t.dueDate)}</span>
+    </div>`;
+  const el = document.createElement('div');
+  el.id = 'briefing';
+  el.innerHTML = `
+    <div class="brf-head">
+      <div>
+        <b>☀️ Good morning, ${esc((me.name || '').split(' ')[0])}</b>
+        <div class="brf-sub">${n} task${n === 1 ? '' : 's'} need${n === 1 ? 's' : ''} attention</div>
+      </div>
+      <button class="brf-close" title="Dismiss for today" onclick="dismissBriefing(true)">✕</button>
+    </div>
+    ${overdue.length  ? `<div class="brf-sec od">⚠ Overdue (${overdue.length})</div>${overdue.map(item).join('')}` : ''}
+    ${dueToday.length ? `<div class="brf-sec td">📅 Due today (${dueToday.length})</div>${dueToday.map(item).join('')}` : ''}
+    <div class="brf-foot">
+      <button class="btn-view" onclick="dismissBriefing(true);nav('tasks')">Open Tasks</button>
+      <button class="btn-view" onclick="dismissBriefing(true)">Got it</button>
+    </div>`;
+  document.body.appendChild(el);
 }
 // Tracking Management Modal
 let _trackId = null;
