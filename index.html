@@ -219,6 +219,9 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .att-switch input:disabled + .att-slider{opacity:.5;cursor:not-allowed}
 .att-live{font-variant-numeric:tabular-nums;font-weight:700;color:var(--green)}
 .att-dl{margin-left:auto}
+/* live break chip (on-break state + I'm Back) */
+.att-break-chip{display:inline-flex;align-items:center;gap:10px;background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;border-radius:24px;padding:7px 8px 7px 14px;font-size:13px;font-weight:700;white-space:nowrap}
+.att-break-timer{font-variant-numeric:tabular-nums;font-size:14px}
 /* break-type dropdown (Lunch / Tea) */
 .att-dd{position:relative;display:inline-block}
 .att-dd-btn{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:inherit}
@@ -727,6 +730,8 @@ async function doRegister() {
 
 async function doLogout() {
   if (token) {
+    // close any live break first (fire-and-forget, idempotent)
+    if (_attOpenBreak) fetch(API + `/api/leaves/${_attOpenBreak.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'end' }) }).catch(() => {});
     // close the open attendance session first (fire-and-forget, idempotent)
     fetch(API + '/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'logout' }) }).catch(() => {});
     await fetch(API + '/api/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }).catch(() => {});
@@ -2076,6 +2081,7 @@ async function renderReports() {
 
 // ─── ATTENDANCE / EMPLOYEE MANAGEMENT ──────────────────────────────────────
 let _attTimer = null;
+let _attOpenBreak = null; // the caller's live (open) break, if any
 function attDT(d) {
   if (!d) return '—';
   return new Date(d).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', hour12:true });
@@ -2099,16 +2105,31 @@ async function renderAttendance() {
   const [sumR, logR, lvR, pendR] = await Promise.all(reqs);
   const summary = sumR?.data?.summary || [];
   const myOpen  = sumR?.data?.myOpen || null;
+  _attOpenBreak = sumR?.data?.myOpenBreak || null;
   const logs    = logR?.data || [];
   const leaves  = lvR?.data || [];
   const pending = isMgr ? (pendR?.data || []) : [];
   const meRow   = summary.find(u => u.id === me.id);
   const loggedIn = !!myOpen;
+  const onBreak = !!_attOpenBreak;
+  const breakName = _attOpenBreak ? (_attOpenBreak.type === 'lunch_break' ? 'Lunch Break' : 'Tea Break') : '';
   const today = new Date().toISOString().slice(0,10);
   const todayStr = new Date().toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long' });
 
   // Login/logout switch is for sales reps & managers only — admins don't
   // track their own attendance, they just get the report/export bar.
+  // While on a live break the switch area shows the break chip + "I'm Back";
+  // when logged in and not on break, a Start Break dropdown (Lunch / Tea).
+  const breakAction = onBreak
+    ? `<div class="att-break-chip">☕ ${breakName} · since ${_attOpenBreak.startTime} · <span class="att-break-timer" id="att-break-timer">…</span>
+       <button class="tbtn tbtn-edit" onclick="endBreak()">I'm Back</button></div>`
+    : (loggedIn ? `<div class="att-dd" id="att-break-dd" style="margin-left:auto">
+        <button class="btn-primary att-dd-btn" onclick="event.stopPropagation();attDDToggle()">Start Break ▾</button>
+        <div class="att-dd-menu">
+          <div class="att-dd-item" onclick="startBreak('lunch_break')">🍴 Lunch Break</div>
+          <div class="att-dd-item" onclick="startBreak('tea_break')">🍵 Tea Break</div>
+        </div>
+      </div>` : '');
   const toggleCard = me?.role !== 'admin' ? `
   <div class="att-card">
     <label class="att-switch">
@@ -2116,10 +2137,11 @@ async function renderAttendance() {
       <span class="att-slider"></span>
     </label>
     <div>
-      <div class="att-status-txt" style="color:${loggedIn ? 'var(--green)' : 'var(--gray)'}">${loggedIn ? 'Logged In' : 'Logged Out'}</div>
-      <div class="att-sub">${todayStr}${loggedIn ? ` · session <span class="att-live" id="att-timer">…</span>` : ' · flip the switch to start your shift'}</div>
+      <div class="att-status-txt" style="color:${onBreak ? '#c2410c' : loggedIn ? 'var(--green)' : 'var(--gray)'}">${onBreak ? 'On ' + breakName : loggedIn ? 'Logged In' : 'Logged Out'}</div>
+      <div class="att-sub">${todayStr}${onBreak ? ' · your break timer is running' : loggedIn ? ` · session <span class="att-live" id="att-timer">…</span>` : ' · flip the switch to start your shift'}</div>
     </div>
-    <div style="text-align:right;margin-left:auto">
+    ${breakAction}
+    <div style="text-align:right;${onBreak || !loggedIn ? 'margin-left:auto;' : ''}">
       <div class="stat-label">Today's work</div>
       <div class="att-status-txt">${meRow ? attHM(meRow.workMins) : '0m'}</div>
     </div>
@@ -2146,7 +2168,7 @@ async function renderAttendance() {
     ${summary.length ? summary.map(u => `<tr>
       <td style="font-weight:600">${esc(u.name)}</td>
       <td>${roleLabel(u.role)}</td>
-      <td>${u.loggedInNow ? '<span style="color:var(--green);font-weight:700">● Logged in</span>' : '<span style="color:var(--gray2)">○ Offline</span>'}</td>
+      <td>${u.onBreakNow ? `<span style="color:#c2410c;font-weight:700">☕ On ${u.onBreakNow === 'lunch_break' ? 'Lunch' : 'Tea'} Break</span>` : u.loggedInNow ? '<span style="color:var(--green);font-weight:700">● Logged in</span>' : '<span style="color:var(--gray2)">○ Offline</span>'}</td>
       <td>${u.logins}</td>
       <td><strong>${attHM(u.workMins)}</strong></td>
       <td>${attDT(u.lastLoginAt)}</td>
@@ -2198,23 +2220,14 @@ async function renderAttendance() {
   const appsCard = `
   <div class="table-card">
     <div class="table-header"><div class="table-title">📋 Leave &amp; Break Applications</div>
-      <div style="display:flex;align-items:center;gap:12px">
-        <div style="font-size:12px;color:var(--gray)">${isMgr ? 'Yours + your team' : 'Yours'}</div>
-        <div class="att-dd" id="att-break-dd">
-          <button class="btn-primary att-dd-btn" onclick="event.stopPropagation();attDDToggle()">Apply Break ▾</button>
-          <div class="att-dd-menu">
-            <div class="att-dd-item" onclick="openBreakModal('lunch_break')">🍴 Lunch Break</div>
-            <div class="att-dd-item" onclick="openBreakModal('tea_break')">🍵 Tea Break</div>
-          </div>
-        </div>
-      </div></div>
+      <div style="font-size:12px;color:var(--gray)">${isMgr ? 'Yours + your team' : 'Yours'}</div></div>
     <table><thead><tr>${isMgr ? '<th>Employee</th>' : ''}<th>Type</th><th>When</th><th>Reason</th><th>Status</th><th>Reviewed By</th></tr></thead><tbody>
     ${leaves.length ? leaves.map(lv => `<tr>
       ${isMgr ? `<td style="font-weight:600">${esc(lv.user?.name)}</td>` : ''}
       <td>${attTypeBadge(lv.type)}</td>
       <td>${lv.type === 'leave'
           ? `${fmtDate(lv.startDate)}${lv.endDate ? ' → ' + fmtDate(lv.endDate) : ''}`
-          : `${fmtDate(lv.startDate)} · ${lv.startTime}–${lv.endTime}`}</td>
+          : `${fmtDate(lv.startDate)} · ${lv.startTime}–${lv.endTime || '<span style="color:#c2410c;font-weight:700">now</span>'}`}</td>
       <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(lv.reason)}">${esc(lv.reason) || '—'}</td>
       <td>${badge(lv.status)}${lv.rejectReason ? `<div style="font-size:11px;color:#dc2626;margin-top:3px" title="${esc(lv.rejectReason)}">${esc(lv.rejectReason)}</div>` : ''}</td>
       <td>${esc(lv.reviewedBy?.name) || (lv.status === 'approved' && lv.type !== 'leave' ? 'Auto-approved' : '—')}</td>
@@ -2224,13 +2237,25 @@ async function renderAttendance() {
 
   document.getElementById('content').innerHTML = '<div class="att-wrap">' + toggleCard + reportCard + teamCard + approvalsCard + historyCard + appsCard + '</div>';
 
-  if (loggedIn && myOpen) {
+  // live tickers: work-session timer + on-break timer (IST wall-clock)
+  const breakStartMs = onBreak
+    ? Date.parse(`${new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })}T${_attOpenBreak.startTime}:00+05:30`)
+    : null;
+  if ((loggedIn && myOpen) || onBreak) {
     const tick = () => {
-      const el = document.getElementById('att-timer');
-      if (!el) { clearInterval(_attTimer); _attTimer = null; return; }
-      const secs = Math.floor((Date.now() - new Date(myOpen.loginAt))/1000);
-      const h = Math.floor(secs/3600), m = Math.floor((secs%3600)/60), s = secs%60;
-      el.textContent = h ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
+      const sEl = document.getElementById('att-timer');
+      if (loggedIn && myOpen && sEl) {
+        const secs = Math.floor((Date.now() - new Date(myOpen.loginAt))/1000);
+        const h = Math.floor(secs/3600), m = Math.floor((secs%3600)/60), s = secs%60;
+        sEl.textContent = h ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
+      }
+      const bEl = document.getElementById('att-break-timer');
+      if (onBreak && bEl && breakStartMs) {
+        const secs = Math.max(0, Math.floor((Date.now() - breakStartMs)/1000));
+        const h = Math.floor(secs/3600), m = Math.floor((secs%3600)/60), s = secs%60;
+        bEl.textContent = h ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
+      }
+      if (!sEl && !bEl) { clearInterval(_attTimer); _attTimer = null; }
     };
     tick();
     _attTimer = setInterval(tick, 1000);
@@ -2283,36 +2308,29 @@ function openLeaveModal() {
   });
 }
 
-function openBreakModal(type) {
+// Live break: starts the moment it's clicked — no form. The break timer
+// runs on the card until the user hits "I'm Back" (PATCH action=end).
+async function startBreak(type) {
   const dd = document.getElementById('att-break-dd');
   if (dd) dd.classList.remove('open');
-  const today = new Date().toISOString().slice(0,10);
   const label = type === 'lunch_break' ? 'Lunch Break' : 'Tea Break';
-  const def = type === 'lunch_break' ? ['13:00', '14:00'] : ['16:30', '16:50'];
-  showModal(`Apply ${label}`, `
-  <div class="fg"><label>Date *</label><input id="mf-lv-bdate" type="date" value="${today}"/></div>
-  <div class="form-row">
-    <div class="fg"><label>From *</label><input id="mf-lv-start-time" type="time" value="${def[0]}"/></div>
-    <div class="fg"><label>To *</label><input id="mf-lv-end-time" type="time" value="${def[1]}"/></div>
-  </div>
-  <div class="fg"><label>Reason</label><textarea id="mf-lv-reason" placeholder="Optional note for your manager..."></textarea></div>`,
-  async () => {
-    const body = {
-      type,
-      startDate: document.getElementById('mf-lv-bdate').value,
-      startTime: document.getElementById('mf-lv-start-time').value,
-      endTime:   document.getElementById('mf-lv-end-time').value,
-      reason:    document.getElementById('mf-lv-reason').value,
-    };
-    if (!body.startDate || !body.startTime || !body.endTime) { toast('Date and times are required', 'error'); return; }
-    if (body.endTime <= body.startTime) { toast('End time must be after start time', 'error'); return; }
-    const r = await api('POST', '/api/leaves', body);
-    if (!r?.success) { toast(r?.error || 'Could not submit request', 'error'); return; }
-    closeModal();
-    toast(`${label} recorded`, 'success');
-    invalidateCache('/api/leaves');
-    renderAttendance();
-  });
+  const r = await api('POST', '/api/leaves', { type });
+  if (!r?.success) { toast(r?.error || 'Could not start break', 'error'); return; }
+  toast(`${label} started — timer running`, 'success');
+  invalidateCache('/api/leaves');
+  invalidateCache('/api/attendance'); // summary carries myOpenBreak / onBreakNow
+  renderAttendance();
+}
+
+async function endBreak() {
+  if (!_attOpenBreak) return;
+  const label = _attOpenBreak.type === 'lunch_break' ? 'Lunch Break' : 'Tea Break';
+  const r = await api('PATCH', `/api/leaves/${_attOpenBreak.id}`, { action: 'end' });
+  if (!r?.success) { toast(r?.error || 'Could not end break', 'error'); return; }
+  toast(`Back from ${label} (${r.data?.startTime}–${r.data?.endTime})`, 'success');
+  invalidateCache('/api/leaves');
+  invalidateCache('/api/attendance'); // summary carries myOpenBreak / onBreakNow
+  renderAttendance();
 }
 
 async function reviewLeave(id, status) {
