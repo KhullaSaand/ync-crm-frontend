@@ -199,6 +199,25 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .badge-customs{background:var(--orange-bg);color:var(--orange)}
 .badge-moving{background:var(--green-bg);color:var(--green)}
 .badge-warehousing{background:var(--yellow-bg);color:var(--yellow)}
+/* employee management: leave status + types */
+.badge-approved{background:var(--green-bg);color:var(--green)}
+.badge-rejected{background:#fee2e2;color:#dc2626}
+.badge-leave{background:var(--purple-bg);color:var(--purple)}
+.badge-lunch_break{background:var(--orange-bg);color:var(--orange)}
+.badge-tea_break{background:var(--yellow-bg);color:var(--yellow)}
+/* attendance login/logout switch */
+.att-card{background:var(--white);border:1px solid var(--gray3);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:18px}
+.att-status-txt{font-size:15px;font-weight:700}
+.att-sub{font-size:12.5px;color:var(--gray);margin-top:2px}
+.att-switch{position:relative;display:inline-block;width:64px;height:32px;flex-shrink:0}
+.att-switch input{opacity:0;width:0;height:0}
+.att-slider{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;border-radius:32px;transition:.25s}
+.att-slider:before{content:"";position:absolute;height:26px;width:26px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.att-switch input:checked + .att-slider{background:var(--green)}
+.att-switch input:checked + .att-slider:before{transform:translateX(32px)}
+.att-switch input:disabled + .att-slider{opacity:.5;cursor:not-allowed}
+.att-live{font-variant-numeric:tabular-nums;font-weight:700;color:var(--green)}
+.att-dl{margin-left:auto}
 /* sub-nav category filters */
 .cat-filters{padding:2px 0 6px 0}
 .cat-filter{display:block;padding:5px 12px 5px 42px;font-size:12px;color:rgba(255,255,255,.5);cursor:pointer;border-radius:6px;transition:all .15s;margin-bottom:1px}
@@ -501,6 +520,7 @@ td.actions-col>*+*,th.actions-col>*+*{margin-left:6px}
         <div class="nav-section-title">Work</div>
         <div class="nav-item" onclick="nav('tasks')" id="nav-tasks"><span class="ni">✅</span>Tasks</div>
         <div class="nav-item" onclick="nav('invoices')" id="nav-invoices"><span class="ni">🧾</span>Invoices</div>
+        <div class="nav-item" onclick="nav('attendance')" id="nav-attendance"><span class="ni">🕑</span>Attendance</div>
       </div>
       <div class="nav-section" id="nav-section-admin" style="display:none">
         <div class="nav-section-title">Admin</div>
@@ -627,6 +647,7 @@ function startAutoRefresh() {
       'tasks':         ['/api/tasks?page=1&limit=15'],
       'invoices':      ['/api/invoices?page=1&limit=15'],
       'gst-invoices':  ['/api/invoices?paymentStatus=paid&limit=500'],
+      'attendance':    ['/api/attendance/summary', '/api/attendance?page=1&limit=20', '/api/leaves?page=1&limit=20', '/api/leaves?status=pending'],
     };
     const urls = pageMap[curPage];
     if (urls) {
@@ -696,7 +717,11 @@ async function doRegister() {
 }
 
 async function doLogout() {
-  if (token) await fetch(API + '/api/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }).catch(() => {});
+  if (token) {
+    // close the open attendance session first (fire-and-forget, idempotent)
+    fetch(API + '/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'logout' }) }).catch(() => {});
+    await fetch(API + '/api/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }).catch(() => {});
+  }
   token = ''; me = null;
   _apiCache.clear();
   if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
@@ -740,12 +765,13 @@ const PAGE_TITLES = {
   dashboard: 'Dashboard', contacts: 'Contacts',
   'quote-leads': 'Leads', 'shipment-leads': 'Shipment',
   tasks: 'Tasks', users: 'Team Management', reports: 'Reports',
-  'get-rate': 'Get Rate', invoices: 'Invoices', 'gst-invoices': 'GST Invoice'
+  'get-rate': 'Get Rate', invoices: 'Invoices', 'gst-invoices': 'GST Invoice',
+  attendance: 'Attendance'
 };
 const ADD_LABELS = {
   contacts: '+ Contact', 'quote-leads': '+ Quote Lead',
   'shipment-leads': '+ Shipment Lead', tasks: '+ Task', users: '+ Team Member',
-  invoices: '+ Invoice'
+  invoices: '+ Invoice', attendance: '+ Apply Leave / Break'
 };
 
 function setActivePage(page) {
@@ -878,6 +904,7 @@ function renderPage(page) {
     case 'users':         renderUsers(); break;
     case 'reports':       renderReports(); break;
     case 'get-rate':      renderGetRate(); break;
+    case 'attendance':    renderAttendance(); break;
   }
 }
 
@@ -2038,6 +2065,267 @@ async function renderReports() {
   </div>`;
 }
 
+// ─── ATTENDANCE / EMPLOYEE MANAGEMENT ──────────────────────────────────────
+let _attTimer = null;
+function attDT(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', hour12:true });
+}
+function attHrs(mins) { return (Math.round((mins/60)*100)/100).toFixed(1) + ' h'; }
+function attHM(mins) {
+  const h = Math.floor(mins/60), m = mins%60;
+  return h ? `${h}h ${m}m` : `${m}m`;
+}
+function attTypeBadge(t) { return `<span class="badge badge-${t}">${fmtStatus(t)}</span>`; }
+
+async function renderAttendance() {
+  if (_attTimer) { clearInterval(_attTimer); _attTimer = null; }
+  const isMgr = me?.role === 'admin' || me?.role === 'manager';
+  const reqs = [
+    api('GET', '/api/attendance/summary'),
+    api('GET', '/api/attendance?page=1&limit=20'),
+    api('GET', '/api/leaves?page=1&limit=20'),
+  ];
+  if (isMgr) reqs.push(api('GET', '/api/leaves?status=pending'));
+  const [sumR, logR, lvR, pendR] = await Promise.all(reqs);
+  const summary = sumR?.data?.summary || [];
+  const myOpen  = sumR?.data?.myOpen || null;
+  const logs    = logR?.data || [];
+  const leaves  = lvR?.data || [];
+  const pending = isMgr ? (pendR?.data || []) : [];
+  const meRow   = summary.find(u => u.id === me.id);
+  const loggedIn = !!myOpen;
+  const today = new Date().toISOString().slice(0,10);
+  const todayStr = new Date().toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long' });
+
+  const toggleCard = `
+  <div class="att-card">
+    <label class="att-switch">
+      <input type="checkbox" id="att-toggle" ${loggedIn ? 'checked' : ''} onchange="toggleAttendance(this)"/>
+      <span class="att-slider"></span>
+    </label>
+    <div>
+      <div class="att-status-txt" style="color:${loggedIn ? 'var(--green)' : 'var(--gray)'}">${loggedIn ? 'Logged In' : 'Logged Out'}</div>
+      <div class="att-sub">${todayStr}${loggedIn ? ` · session <span class="att-live" id="att-timer">…</span>` : ' · flip the switch to start your shift'}</div>
+    </div>
+    <div style="text-align:right;margin-left:auto">
+      <div class="stat-label">Today's work</div>
+      <div class="att-status-txt">${meRow ? attHM(meRow.workMins) : '0m'}</div>
+    </div>
+    ${me?.role === 'admin' ? `
+    <div class="att-dl" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <input id="att-from" type="date" value="${new Date(Date.now()-30*86400000).toISOString().slice(0,10)}" style="font-family:inherit;font-size:12.5px;padding:6px 8px;border:1.5px solid var(--gray3);border-radius:8px"/>
+      <span style="color:var(--gray);font-size:12px">to</span>
+      <input id="att-to" type="date" value="${today}" style="font-family:inherit;font-size:12.5px;padding:6px 8px;border:1.5px solid var(--gray3);border-radius:8px"/>
+      <button class="btn-primary" onclick="downloadAttendanceReport()">⬇ Excel Report</button>
+    </div>` : ''}
+  </div>`;
+
+  const teamCard = isMgr ? `
+  <div class="table-card">
+    <div class="table-header"><div class="table-title">👥 Team Attendance (last 30 days)</div></div>
+    <table><thead><tr><th>Employee</th><th>Role</th><th>Status</th><th>Logins</th><th>Total Worked</th><th>Last Login</th></tr></thead><tbody>
+    ${summary.length ? summary.map(u => `<tr>
+      <td style="font-weight:600">${esc(u.name)}</td>
+      <td>${roleLabel(u.role)}</td>
+      <td>${u.loggedInNow ? '<span style="color:var(--green);font-weight:700">● Logged in</span>' : '<span style="color:var(--gray2)">○ Offline</span>'}</td>
+      <td>${u.logins}</td>
+      <td><strong>${attHM(u.workMins)}</strong></td>
+      <td>${attDT(u.lastLoginAt)}</td>
+    </tr>`).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:26px">No team members found</td></tr>`}
+    </tbody></table>
+  </div>` : '';
+
+  const approvalsCard = isMgr ? `
+  <div class="table-card">
+    <div class="table-header"><div class="table-title">🕒 Pending Approvals${pending.length ? ` (${pending.length})` : ''}</div>
+      <div style="font-size:12px;color:var(--gray)">Leaves &amp; breaks waiting on you</div></div>
+    <table><thead><tr><th>Employee</th><th>Type</th><th>When</th><th>Reason</th><th>Applied</th><th>Actions</th></tr></thead><tbody>
+    ${pending.length ? pending.map(lv => `<tr>
+      <td style="font-weight:600">${esc(lv.user?.name)}</td>
+      <td>${attTypeBadge(lv.type)}</td>
+      <td>${lv.type === 'leave'
+          ? `${fmtDate(lv.startDate)}${lv.endDate ? ' → ' + fmtDate(lv.endDate) : ''}`
+          : `${fmtDate(lv.startDate)} · ${lv.startTime}–${lv.endTime}`}</td>
+      <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(lv.reason)}">${esc(lv.reason) || '—'}</td>
+      <td>${fmtDate(lv.createdAt)}</td>
+      <td style="white-space:nowrap">
+        <button class="tbtn tbtn-edit" onclick="reviewLeave('${lv.id}','approved')">✓ Approve</button>
+        <button class="tbtn tbtn-del" onclick="reviewLeave('${lv.id}','rejected')">✕ Reject</button>
+      </td>
+    </tr>`).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:26px">🎉 Nothing pending — all caught up</td></tr>`}
+    </tbody></table>
+  </div>` : '';
+
+  const historyCard = `
+  <div class="table-card">
+    <div class="table-header"><div class="table-title">🕘 Login History</div>
+      <div style="font-size:12px;color:var(--gray)">${logs.length} recent sessions${isMgr ? ' (your team)' : ''}</div></div>
+    <table><thead><tr>${isMgr ? '<th>Employee</th>' : ''}<th>Login</th><th>Logout</th><th>Worked</th><th>Status</th></tr></thead><tbody>
+    ${logs.length ? logs.map(l => {
+      const mins = l.logoutAt
+        ? (l.workMins ?? Math.round((new Date(l.logoutAt) - new Date(l.loginAt))/60000))
+        : Math.round((Date.now() - new Date(l.loginAt))/60000);
+      return `<tr>
+        ${isMgr ? `<td style="font-weight:600">${esc(l.user?.name)}</td>` : ''}
+        <td>${attDT(l.loginAt)}</td>
+        <td>${attDT(l.logoutAt)}</td>
+        <td><strong>${attHM(mins)}</strong></td>
+        <td>${l.logoutAt ? '<span class="badge badge-completed">Closed</span>' : '<span class="badge badge-in_progress">Live</span>'}</td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:26px">No sessions yet — flip the switch above to start</td></tr>`}
+    </tbody></table>
+  </div>`;
+
+  const appsCard = `
+  <div class="table-card">
+    <div class="table-header"><div class="table-title">📋 Leave &amp; Break Applications</div>
+      <div style="font-size:12px;color:var(--gray)">${isMgr ? 'Yours + your team' : 'Yours'}</div></div>
+    <table><thead><tr>${isMgr ? '<th>Employee</th>' : ''}<th>Type</th><th>When</th><th>Reason</th><th>Status</th><th>Reviewed By</th></tr></thead><tbody>
+    ${leaves.length ? leaves.map(lv => `<tr>
+      ${isMgr ? `<td style="font-weight:600">${esc(lv.user?.name)}</td>` : ''}
+      <td>${attTypeBadge(lv.type)}</td>
+      <td>${lv.type === 'leave'
+          ? `${fmtDate(lv.startDate)}${lv.endDate ? ' → ' + fmtDate(lv.endDate) : ''}`
+          : `${fmtDate(lv.startDate)} · ${lv.startTime}–${lv.endTime}`}</td>
+      <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(lv.reason)}">${esc(lv.reason) || '—'}</td>
+      <td>${badge(lv.status)}${lv.rejectReason ? `<div style="font-size:11px;color:#dc2626;margin-top:3px" title="${esc(lv.rejectReason)}">${esc(lv.rejectReason)}</div>` : ''}</td>
+      <td>${esc(lv.reviewedBy?.name) || '—'}</td>
+    </tr>`).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:26px">No applications yet — click "+ Apply Leave / Break"</td></tr>`}
+    </tbody></table>
+  </div>`;
+
+  document.getElementById('content').innerHTML = toggleCard + teamCard + approvalsCard + historyCard + appsCard;
+
+  if (loggedIn && myOpen) {
+    const tick = () => {
+      const el = document.getElementById('att-timer');
+      if (!el) { clearInterval(_attTimer); _attTimer = null; return; }
+      const secs = Math.floor((Date.now() - new Date(myOpen.loginAt))/1000);
+      const h = Math.floor(secs/3600), m = Math.floor((secs%3600)/60), s = secs%60;
+      el.textContent = h ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
+    };
+    tick();
+    _attTimer = setInterval(tick, 1000);
+  }
+}
+
+async function toggleAttendance(input) {
+  const wantLogin = input.checked;
+  input.disabled = true;
+  const r = await api('POST', '/api/attendance', { action: wantLogin ? 'login' : 'logout' });
+  input.disabled = false;
+  if (!r?.success) { toast(r?.error || 'Could not update attendance', 'error'); renderAttendance(); return; }
+  toast(wantLogin ? 'Logged in — have a good shift!' : 'Logged out — session saved', 'success');
+  invalidateCache('/api/attendance');
+  invalidateCache('/api/leaves');
+  renderAttendance();
+}
+
+function attTypeChange() {
+  const t = document.getElementById('mf-lv-type').value;
+  document.getElementById('att-leave-fields').style.display  = t === 'leave' ? '' : 'none';
+  document.getElementById('att-break-fields').style.display = t === 'leave' ? 'none' : '';
+}
+
+function openLeaveModal() {
+  const today = new Date().toISOString().slice(0,10);
+  showModal('Apply Leave / Break', `
+  <div class="fg"><label>Type *</label><select id="mf-lv-type" onchange="attTypeChange()">
+    <option value="leave">Leave (full day / multi-day)</option>
+    <option value="lunch_break">Lunch Break (same day)</option>
+    <option value="tea_break">Tea Break (same day)</option>
+  </select></div>
+  <div id="att-leave-fields">
+    <div class="form-row">
+      <div class="fg"><label>Start Date *</label><input id="mf-lv-start" type="date" value="${today}"/></div>
+      <div class="fg"><label>End Date (optional)</label><input id="mf-lv-end" type="date"/></div>
+    </div>
+  </div>
+  <div id="att-break-fields" style="display:none">
+    <div class="fg"><label>Date *</label><input id="mf-lv-bdate" type="date" value="${today}"/></div>
+    <div class="form-row">
+      <div class="fg"><label>From *</label><input id="mf-lv-start-time" type="time" value="13:00"/></div>
+      <div class="fg"><label>To *</label><input id="mf-lv-end-time" type="time" value="14:00"/></div>
+    </div>
+  </div>
+  <div class="fg"><label>Reason</label><textarea id="mf-lv-reason" placeholder="Optional note for your manager..."></textarea></div>`,
+  async () => {
+    const type = document.getElementById('mf-lv-type').value;
+    const body = { type, reason: document.getElementById('mf-lv-reason').value };
+    if (type === 'leave') {
+      body.startDate = document.getElementById('mf-lv-start').value;
+      const end = document.getElementById('mf-lv-end').value;
+      if (end) body.endDate = end;
+      if (!body.startDate) { toast('Start date is required', 'error'); return; }
+      if (end && end < body.startDate) { toast('End date cannot be before start date', 'error'); return; }
+    } else {
+      body.startDate = document.getElementById('mf-lv-bdate').value;
+      body.startTime = document.getElementById('mf-lv-start-time').value;
+      body.endTime   = document.getElementById('mf-lv-end-time').value;
+      if (!body.startDate || !body.startTime || !body.endTime) { toast('Date and times are required', 'error'); return; }
+      if (body.endTime <= body.startTime) { toast('End time must be after start time', 'error'); return; }
+    }
+    const r = await api('POST', '/api/leaves', body);
+    if (!r?.success) { toast(r?.error || 'Could not submit request', 'error'); return; }
+    closeModal();
+    toast(type === 'leave' ? 'Leave request submitted for approval' : 'Break request submitted for approval', 'success');
+    invalidateCache('/api/leaves');
+    renderAttendance();
+  });
+}
+
+async function reviewLeave(id, status) {
+  if (status === 'rejected') {
+    showModal('Reject Request', `
+    <div class="fg"><label>Reason *</label><textarea id="mf-rj-reason" placeholder="Why is this being rejected?"></textarea></div>`,
+    async () => {
+      const reason = document.getElementById('mf-rj-reason').value.trim();
+      if (!reason) { toast('A rejection reason is required', 'error'); return; }
+      const r = await api('PATCH', `/api/leaves/${id}`, { status: 'rejected', rejectReason: reason });
+      if (!r?.success) { toast(r?.error || 'Could not reject request', 'error'); return; }
+      closeModal();
+      toast('Request rejected', 'success');
+      invalidateCache('/api/leaves');
+      renderAttendance();
+    });
+    return;
+  }
+  if (!confirm('Approve this request?')) return;
+  const r = await api('PATCH', `/api/leaves/${id}`, { status: 'approved' });
+  if (!r?.success) { toast(r?.error || 'Could not approve request', 'error'); return; }
+  toast(`Approved by ${r.data?.reviewedBy?.name || 'you'}`, 'success');
+  invalidateCache('/api/leaves');
+  renderAttendance();
+}
+
+async function downloadAttendanceReport() {
+  const from = document.getElementById('att-from')?.value;
+  const to   = document.getElementById('att-to')?.value;
+  const q = new URLSearchParams();
+  if (from) q.set('dateFrom', from);
+  if (to)   q.set('dateTo', to);
+  toast('Preparing Excel file...', 'info');
+  try {
+    const r = await fetch(API + '/api/attendance/export' + (q.toString() ? `?${q}` : ''), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!r.ok) { toast('Export failed', 'error'); return; }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    // Content-Disposition isn't exposed cross-origin, so derive the dated
+    // filename locally to match what the backend would have sent.
+    const fname = 'ync-attendance-' + (from || new Date(Date.now() - 30*86400000).toISOString().slice(0,10))
+                      + '-to-' + (to || new Date().toISOString().slice(0,10)) + '.xlsx';
+    a.href = url;
+    a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    toast('Excel report downloaded', 'success');
+  } catch (e) { toast('Export failed', 'error'); }
+}
+
 // ─── MODALS ────────────────────────────────────────────────────────────────
 let _usersCache = null;
 async function getUsersForAssign() {
@@ -2104,6 +2392,7 @@ function openAddModal() {
     case 'tasks':          openTaskModal(null); break;
     case 'invoices':       openInvoiceModal(null); break;
     case 'users':          openUserModal(null); break;
+    case 'attendance':     openLeaveModal(); break;
   }
 }
 
