@@ -206,7 +206,8 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .badge-lunch_break{background:var(--orange-bg);color:var(--orange)}
 .badge-tea_break{background:var(--yellow-bg);color:var(--yellow)}
 /* attendance login/logout switch */
-.att-card{background:var(--white);border:1px solid var(--gray3);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:18px}
+.att-wrap > * + *{margin-top:18px}
+.att-card{background:var(--white);border:1px solid var(--gray3);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
 .att-status-txt{font-size:15px;font-weight:700}
 .att-sub{font-size:12.5px;color:var(--gray);margin-top:2px}
 .att-switch{position:relative;display:inline-block;width:64px;height:32px;flex-shrink:0}
@@ -218,6 +219,14 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .att-switch input:disabled + .att-slider{opacity:.5;cursor:not-allowed}
 .att-live{font-variant-numeric:tabular-nums;font-weight:700;color:var(--green)}
 .att-dl{margin-left:auto}
+/* break-type dropdown (Lunch / Tea) */
+.att-dd{position:relative;display:inline-block}
+.att-dd-btn{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:inherit}
+.att-dd-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--white);border:1.5px solid var(--gray3);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.14);min-width:190px;z-index:60;overflow:hidden}
+.att-dd.open .att-dd-menu{display:block}
+.att-dd-item{padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;color:var(--black);white-space:nowrap}
+.att-dd-item:hover{background:var(--gray4)}
+.att-dd-item + .att-dd-item{border-top:1px solid var(--gray3)}
 /* sub-nav category filters */
 .cat-filters{padding:2px 0 6px 0}
 .cat-filter{display:block;padding:5px 12px 5px 42px;font-size:12px;color:rgba(255,255,255,.5);cursor:pointer;border-radius:6px;transition:all .15s;margin-bottom:1px}
@@ -771,7 +780,7 @@ const PAGE_TITLES = {
 const ADD_LABELS = {
   contacts: '+ Contact', 'quote-leads': '+ Quote Lead',
   'shipment-leads': '+ Shipment Lead', tasks: '+ Task', users: '+ Team Member',
-  invoices: '+ Invoice', attendance: '+ Apply Leave / Break'
+  invoices: '+ Invoice', attendance: '+ Apply Leave'
 };
 
 function setActivePage(page) {
@@ -2098,7 +2107,9 @@ async function renderAttendance() {
   const today = new Date().toISOString().slice(0,10);
   const todayStr = new Date().toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long' });
 
-  const toggleCard = `
+  // Login/logout switch is for sales reps & managers only — admins don't
+  // track their own attendance, they just get the report/export bar.
+  const toggleCard = me?.role !== 'admin' ? `
   <div class="att-card">
     <label class="att-switch">
       <input type="checkbox" id="att-toggle" ${loggedIn ? 'checked' : ''} onchange="toggleAttendance(this)"/>
@@ -2112,14 +2123,21 @@ async function renderAttendance() {
       <div class="stat-label">Today's work</div>
       <div class="att-status-txt">${meRow ? attHM(meRow.workMins) : '0m'}</div>
     </div>
-    ${me?.role === 'admin' ? `
-    <div class="att-dl" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+  </div>` : '';
+
+  const reportCard = me?.role === 'admin' ? `
+  <div class="att-card">
+    <div>
+      <div class="att-status-txt">📊 Attendance Report</div>
+      <div class="att-sub">Download attendance &amp; leave data as Excel</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto">
       <input id="att-from" type="date" value="${new Date(Date.now()-30*86400000).toISOString().slice(0,10)}" style="font-family:inherit;font-size:12.5px;padding:6px 8px;border:1.5px solid var(--gray3);border-radius:8px"/>
       <span style="color:var(--gray);font-size:12px">to</span>
       <input id="att-to" type="date" value="${today}" style="font-family:inherit;font-size:12.5px;padding:6px 8px;border:1.5px solid var(--gray3);border-radius:8px"/>
       <button class="btn-primary" onclick="downloadAttendanceReport()">⬇ Excel Report</button>
-    </div>` : ''}
-  </div>`;
+    </div>
+  </div>` : '';
 
   const teamCard = isMgr ? `
   <div class="table-card">
@@ -2173,14 +2191,23 @@ async function renderAttendance() {
         <td><strong>${attHM(mins)}</strong></td>
         <td>${l.logoutAt ? '<span class="badge badge-completed">Closed</span>' : '<span class="badge badge-in_progress">Live</span>'}</td>
       </tr>`;
-    }).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:26px">No sessions yet — flip the switch above to start</td></tr>`}
+    }).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:26px">${me?.role === 'admin' ? 'No sessions recorded' : 'No sessions yet — flip the switch above to start'}</td></tr>`}
     </tbody></table>
   </div>`;
 
   const appsCard = `
   <div class="table-card">
     <div class="table-header"><div class="table-title">📋 Leave &amp; Break Applications</div>
-      <div style="font-size:12px;color:var(--gray)">${isMgr ? 'Yours + your team' : 'Yours'}</div></div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:12px;color:var(--gray)">${isMgr ? 'Yours + your team' : 'Yours'}</div>
+        <div class="att-dd" id="att-break-dd">
+          <button class="btn-primary att-dd-btn" onclick="event.stopPropagation();attDDToggle()">Apply Break ▾</button>
+          <div class="att-dd-menu">
+            <div class="att-dd-item" onclick="openBreakModal('lunch_break')">🍴 Lunch Break</div>
+            <div class="att-dd-item" onclick="openBreakModal('tea_break')">🍵 Tea Break</div>
+          </div>
+        </div>
+      </div></div>
     <table><thead><tr>${isMgr ? '<th>Employee</th>' : ''}<th>Type</th><th>When</th><th>Reason</th><th>Status</th><th>Reviewed By</th></tr></thead><tbody>
     ${leaves.length ? leaves.map(lv => `<tr>
       ${isMgr ? `<td style="font-weight:600">${esc(lv.user?.name)}</td>` : ''}
@@ -2191,11 +2218,11 @@ async function renderAttendance() {
       <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(lv.reason)}">${esc(lv.reason) || '—'}</td>
       <td>${badge(lv.status)}${lv.rejectReason ? `<div style="font-size:11px;color:#dc2626;margin-top:3px" title="${esc(lv.rejectReason)}">${esc(lv.rejectReason)}</div>` : ''}</td>
       <td>${esc(lv.reviewedBy?.name) || '—'}</td>
-    </tr>`).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:26px">No applications yet — click "+ Apply Leave / Break"</td></tr>`}
+    </tr>`).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:26px">No applications yet — use "+ Apply Leave" or the Apply Break dropdown</td></tr>`}
     </tbody></table>
   </div>`;
 
-  document.getElementById('content').innerHTML = toggleCard + teamCard + approvalsCard + historyCard + appsCard;
+  document.getElementById('content').innerHTML = '<div class="att-wrap">' + toggleCard + reportCard + teamCard + approvalsCard + historyCard + appsCard + '</div>';
 
   if (loggedIn && myOpen) {
     const tick = () => {
@@ -2222,54 +2249,67 @@ async function toggleAttendance(input) {
   renderAttendance();
 }
 
-function attTypeChange() {
-  const t = document.getElementById('mf-lv-type').value;
-  document.getElementById('att-leave-fields').style.display  = t === 'leave' ? '' : 'none';
-  document.getElementById('att-break-fields').style.display = t === 'leave' ? 'none' : '';
+function attDDToggle() {
+  const dd = document.getElementById('att-break-dd');
+  if (dd) dd.classList.toggle('open');
 }
+// close the Apply Break dropdown on any outside click
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('att-break-dd');
+  if (dd && !dd.contains(e.target)) dd.classList.remove('open');
+});
 
 function openLeaveModal() {
   const today = new Date().toISOString().slice(0,10);
-  showModal('Apply Leave / Break', `
-  <div class="fg"><label>Type *</label><select id="mf-lv-type" onchange="attTypeChange()">
-    <option value="leave">Leave (full day / multi-day)</option>
-    <option value="lunch_break">Lunch Break (same day)</option>
-    <option value="tea_break">Tea Break (same day)</option>
-  </select></div>
-  <div id="att-leave-fields">
-    <div class="form-row">
-      <div class="fg"><label>Start Date *</label><input id="mf-lv-start" type="date" value="${today}"/></div>
-      <div class="fg"><label>End Date (optional)</label><input id="mf-lv-end" type="date"/></div>
-    </div>
-  </div>
-  <div id="att-break-fields" style="display:none">
-    <div class="fg"><label>Date *</label><input id="mf-lv-bdate" type="date" value="${today}"/></div>
-    <div class="form-row">
-      <div class="fg"><label>From *</label><input id="mf-lv-start-time" type="time" value="13:00"/></div>
-      <div class="fg"><label>To *</label><input id="mf-lv-end-time" type="time" value="14:00"/></div>
-    </div>
+  showModal('Apply Leave', `
+  <div class="form-row">
+    <div class="fg"><label>Start Date *</label><input id="mf-lv-start" type="date" value="${today}"/></div>
+    <div class="fg"><label>End Date (optional)</label><input id="mf-lv-end" type="date"/></div>
   </div>
   <div class="fg"><label>Reason</label><textarea id="mf-lv-reason" placeholder="Optional note for your manager..."></textarea></div>`,
   async () => {
-    const type = document.getElementById('mf-lv-type').value;
-    const body = { type, reason: document.getElementById('mf-lv-reason').value };
-    if (type === 'leave') {
-      body.startDate = document.getElementById('mf-lv-start').value;
-      const end = document.getElementById('mf-lv-end').value;
-      if (end) body.endDate = end;
-      if (!body.startDate) { toast('Start date is required', 'error'); return; }
-      if (end && end < body.startDate) { toast('End date cannot be before start date', 'error'); return; }
-    } else {
-      body.startDate = document.getElementById('mf-lv-bdate').value;
-      body.startTime = document.getElementById('mf-lv-start-time').value;
-      body.endTime   = document.getElementById('mf-lv-end-time').value;
-      if (!body.startDate || !body.startTime || !body.endTime) { toast('Date and times are required', 'error'); return; }
-      if (body.endTime <= body.startTime) { toast('End time must be after start time', 'error'); return; }
-    }
+    const body = { type: 'leave', reason: document.getElementById('mf-lv-reason').value };
+    body.startDate = document.getElementById('mf-lv-start').value;
+    const end = document.getElementById('mf-lv-end').value;
+    if (end) body.endDate = end;
+    if (!body.startDate) { toast('Start date is required', 'error'); return; }
+    if (end && end < body.startDate) { toast('End date cannot be before start date', 'error'); return; }
     const r = await api('POST', '/api/leaves', body);
     if (!r?.success) { toast(r?.error || 'Could not submit request', 'error'); return; }
     closeModal();
-    toast(type === 'leave' ? 'Leave request submitted for approval' : 'Break request submitted for approval', 'success');
+    toast('Leave request submitted for approval', 'success');
+    invalidateCache('/api/leaves');
+    renderAttendance();
+  });
+}
+
+function openBreakModal(type) {
+  const dd = document.getElementById('att-break-dd');
+  if (dd) dd.classList.remove('open');
+  const today = new Date().toISOString().slice(0,10);
+  const label = type === 'lunch_break' ? 'Lunch Break' : 'Tea Break';
+  const def = type === 'lunch_break' ? ['13:00', '14:00'] : ['16:30', '16:50'];
+  showModal(`Apply ${label}`, `
+  <div class="fg"><label>Date *</label><input id="mf-lv-bdate" type="date" value="${today}"/></div>
+  <div class="form-row">
+    <div class="fg"><label>From *</label><input id="mf-lv-start-time" type="time" value="${def[0]}"/></div>
+    <div class="fg"><label>To *</label><input id="mf-lv-end-time" type="time" value="${def[1]}"/></div>
+  </div>
+  <div class="fg"><label>Reason</label><textarea id="mf-lv-reason" placeholder="Optional note for your manager..."></textarea></div>`,
+  async () => {
+    const body = {
+      type,
+      startDate: document.getElementById('mf-lv-bdate').value,
+      startTime: document.getElementById('mf-lv-start-time').value,
+      endTime:   document.getElementById('mf-lv-end-time').value,
+      reason:    document.getElementById('mf-lv-reason').value,
+    };
+    if (!body.startDate || !body.startTime || !body.endTime) { toast('Date and times are required', 'error'); return; }
+    if (body.endTime <= body.startTime) { toast('End time must be after start time', 'error'); return; }
+    const r = await api('POST', '/api/leaves', body);
+    if (!r?.success) { toast(r?.error || 'Could not submit request', 'error'); return; }
+    closeModal();
+    toast(`${label} request submitted for approval`, 'success');
     invalidateCache('/api/leaves');
     renderAttendance();
   });
