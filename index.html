@@ -3658,6 +3658,10 @@ async function assignedFilterHtml() {
 // across pages and filter changes until you assign it or press Clear.
 // Shipments and Book A Shipment share the same records, so both use 'shipment'.
 const bulkSel = { quote: new Set(), shipment: new Set() };
+// null = not chosen yet, '' = explicitly "Unassigned", else a user id.
+// Kept in state (not read back from the <select>) because the 15s auto-refresh
+// re-renders the bar and would otherwise silently snap the pick to the first option.
+const bulkAssignee = { quote: null, shipment: null };
 
 function bulkEnabled()       { return me?.role === 'admin' || me?.role === 'manager'; }
 function bulkApiPath(type)   { return type === 'quote' ? '/api/quote-leads/bulk-assign' : '/api/shipment-leads/bulk-assign'; }
@@ -3665,11 +3669,13 @@ function bulkApiPath(type)   { return type === 'quote' ? '/api/quote-leads/bulk-
 function bulkBarHtml(type) {
   if (!bulkEnabled()) return '';
   const n = bulkSel[type].size;
+  const chosen = bulkAssignee[type];
   return `<div class="bulk-bar" id="bulk-bar-${type}">
     <span class="bulk-count" id="bulk-count-${type}">${n} selected</span>
-    <select class="filter-select" id="bulk-assignee-${type}" title="Assign selected rows to">
-      <option value="">Unassigned</option>
-      ${(_usersCache||[]).map(u=>`<option value="${u.id}">${esc(u.name)} (${fmtStatus(u.role)})${u.isActive===false?' — inactive':''}</option>`).join('')}
+    <select class="filter-select" id="bulk-assignee-${type}" title="Assign selected rows to" onchange="setBulkAssignee('${type}', this.value)">
+      <option value="__pick__" ${chosen === null ? 'selected' : ''} disabled>Choose assignee…</option>
+      <option value="__none__" ${chosen === '' ? 'selected' : ''}>Unassigned</option>
+      ${(_usersCache||[]).map(u=>`<option value="${u.id}" ${chosen === u.id ? 'selected' : ''}>${esc(u.name)} (${fmtStatus(u.role)})${u.isActive===false?' — inactive':''}</option>`).join('')}
     </select>
     <button type="button" class="btn-primary" style="width:auto;padding:7px 14px;font-size:13px" id="bulk-assign-btn-${type}" ${n?'':'disabled'} onclick="runBulkAssign('${type}')">👤 Assign ${n}</button>
     <button type="button" class="btn-view" id="bulk-clear-${type}" style="${n?'':'display:none'}" onclick="clearBulk('${type}')">✕ Clear</button>
@@ -3721,14 +3727,29 @@ function syncBulkBar(type) {
 
 function clearBulk(type) {
   bulkSel[type].clear();
+  bulkAssignee[type] = null;
   document.querySelectorAll('table tbody input.bulk-cb').forEach(cb => { cb.checked = false; });
+  const sel = document.getElementById(`bulk-assignee-${type}`);
+  if (sel) sel.value = '__pick__';
   syncBulkBar(type);
+}
+
+function setBulkAssignee(type, v) {
+  bulkAssignee[type] = v === '__pick__' ? null : (v === '__none__' ? '' : v);
 }
 
 async function runBulkAssign(type) {
   const ids = [...bulkSel[type]];
   if (!ids.length) return;
-  const assignedToId = document.getElementById(`bulk-assignee-${type}`)?.value || '';
+  const assignedToId = bulkAssignee[type];
+  if (assignedToId === null) {
+    toast('Pick who to assign these rows to first', 'error');
+    document.getElementById(`bulk-assignee-${type}`)?.focus();
+    return;
+  }
+  if (assignedToId === '' && !confirm(`Unassign ${ids.length} row(s)?\n\nThey will be hidden from every rep and only visible to admins/managers under the Unassigned view.`)) {
+    return;
+  }
   const btn = document.getElementById(`bulk-assign-btn-${type}`);
   if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
   const r = await api('POST', bulkApiPath(type), { ids, assignedToId });
@@ -3739,6 +3760,7 @@ async function runBulkAssign(type) {
     : 'nobody (Unassigned)';
   toast(`Assigned ${r?.data?.updated ?? ids.length} of ${ids.length} row(s) to ${name}`, 'success');
   bulkSel[type].clear();
+  bulkAssignee[type] = null;
   renderPage(curPage);
 }
 
