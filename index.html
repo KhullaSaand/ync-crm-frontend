@@ -180,6 +180,9 @@ td{padding:12px 16px;font-size:13.5px;vertical-align:middle}
 .tbtn-assign:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
 .bulk-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:var(--gray4);border-bottom:1px solid var(--gray3)}
 .bulk-count{font-size:12.5px;font-weight:700;color:var(--brand);white-space:nowrap}
+.bulk-del{padding:6px 14px;background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.bulk-del:hover:not(:disabled){background:#dc2626;color:#fff;border-color:#dc2626}
+.bulk-del:disabled{opacity:.5;cursor:not-allowed}
 .bulk-cb{width:15px;height:15px;cursor:pointer;accent-color:var(--brand);vertical-align:middle}
 .bulk-bar .btn-primary:disabled{opacity:.45;cursor:not-allowed}
 .lead-id{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;font-weight:600;letter-spacing:.02em;color:#334155;background:var(--gray4);border:1px solid var(--gray3);border-radius:5px;padding:2px 6px;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -3665,6 +3668,7 @@ const bulkAssignee = { quote: null, shipment: null };
 
 function bulkEnabled()       { return me?.role === 'admin' || me?.role === 'manager'; }
 function bulkApiPath(type)   { return type === 'quote' ? '/api/quote-leads/bulk-assign' : '/api/shipment-leads/bulk-assign'; }
+function bulkDeletePath(type){ return type === 'quote' ? '/api/quote-leads/bulk-delete' : '/api/shipment-leads/bulk-delete'; }
 
 function bulkBarHtml(type) {
   if (!bulkEnabled()) return '';
@@ -3678,6 +3682,7 @@ function bulkBarHtml(type) {
       ${(_usersCache||[]).map(u=>`<option value="${u.id}" ${chosen === u.id ? 'selected' : ''}>${esc(u.name)} (${fmtStatus(u.role)})${u.isActive===false?' — inactive':''}</option>`).join('')}
     </select>
     <button type="button" class="btn-primary" style="width:auto;padding:7px 14px;font-size:13px" id="bulk-assign-btn-${type}" ${n?'':'disabled'} onclick="runBulkAssign('${type}')">👤 Assign ${n}</button>
+    ${me?.role === 'admin' ? `<button type="button" class="bulk-del" id="bulk-del-btn-${type}" ${n?'':'disabled'} onclick="runBulkDelete('${type}')" title="Remove the selected rows from every screen (soft delete — they stay in the database)">🗑 Delete ${n}</button>` : ''}
     <button type="button" class="btn-view" id="bulk-clear-${type}" style="${n?'':'display:none'}" onclick="clearBulk('${type}')">✕ Clear</button>
   </div>`;
 }
@@ -3716,6 +3721,8 @@ function syncBulkBar(type) {
   if (cnt) cnt.textContent = `${n} selected`;
   const btn = document.getElementById(`bulk-assign-btn-${type}`);
   if (btn) { btn.disabled = !n; btn.textContent = `👤 Assign ${n}`; }
+  const del = document.getElementById(`bulk-del-btn-${type}`);
+  if (del) { del.disabled = !n; del.textContent = `🗑 Delete ${n}`; }
   const clr = document.getElementById(`bulk-clear-${type}`);
   if (clr) clr.style.display = n ? '' : 'none';
   const hd = document.getElementById(`bulk-all-${type}`);
@@ -3759,6 +3766,23 @@ async function runBulkAssign(type) {
     ? ((_usersCache||[]).find(u=>u.id===assignedToId)?.name || 'the selected person')
     : 'nobody (Unassigned)';
   toast(`Assigned ${r?.data?.updated ?? ids.length} of ${ids.length} row(s) to ${name}`, 'success');
+  bulkSel[type].clear();
+  bulkAssignee[type] = null;
+  renderPage(curPage);
+}
+
+// Admin-only. Soft delete — the rows leave every screen but stay in Postgres.
+async function runBulkDelete(type) {
+  const ids = [...bulkSel[type]];
+  if (!ids.length) return;
+  const what = type === 'quote' ? 'lead(s)' : 'shipment(s)';
+  if (!confirm(`Delete ${ids.length} ${what}?\n\nThey disappear from every screen straight away. This is a soft delete: the rows stay in the database, but nobody can see them until they are restored.`)) return;
+  const btn = document.getElementById(`bulk-del-btn-${type}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+  const r = await api('POST', bulkDeletePath(type), { ids });
+  if (btn) { btn.disabled = false; btn.textContent = `🗑 Delete ${ids.length}`; }
+  if (!r?.success) { toast(r?.error || 'Error deleting rows', 'error'); syncBulkBar(type); return; }
+  toast(`Deleted ${r?.data?.deleted ?? ids.length} of ${ids.length} ${what}`, 'success');
   bulkSel[type].clear();
   bulkAssignee[type] = null;
   renderPage(curPage);
