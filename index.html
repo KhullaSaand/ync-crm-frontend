@@ -3188,11 +3188,17 @@ function invDetailMain(inv, gstMode) {
   const dueSub = (inv.terms === 'Due on Receipt') ? 'Payable Immediately' : 'Payable by ' + fmtINVDate(inv.dueDate);
   const gstOwnRate = (Number(inv.cgstRate) || 0) + (Number(inv.sgstRate) || 0);
   const gstOwnAmt = (Number(inv.cgstAmount) || 0) + (Number(inv.sgstAmount) || 0);
+  // Discount is rendered only when a rupee amount was actually cut — invoices
+  // saved without one carry discountAmount = 0 and show nothing at all.
+  const discAmt = Math.max(0, Number(inv.discountAmount) || 0);
+  const discType = inv.discountType || '';
+  const discVal = Number(inv.discountValue) || 0;
+  const discLabel = discType === 'percent' ? `Discount (${discVal}%)` : 'Discount';
   let gstRate = 0, gstAmt = 0, gsub = Number(inv.subtotal) || 0, gitems = items;
   if (gstOwnRate > 0 || gstOwnAmt > 0) {
     gstRate = gstOwnRate;
     gstAmt = Math.round(gstOwnAmt * 100) / 100;
-  } else if (gstMode && inv.paymentStatus === 'paid') {
+  } else if (gstMode && inv.paymentStatus === 'paid' && discAmt <= 0) {
     const tot = Math.round((Number(inv.total) || 0) * 100) / 100;
     gstRate = 18;
     gsub = Math.round((tot / 1.18) * 100) / 100;
@@ -3281,6 +3287,7 @@ function invDetailMain(inv, gstMode) {
       </div>
       <div class="inv-totals">
         <div class="inv-trow"><span>Sub Total</span><span class="v">${invMoney(gsub)}</span></div>
+        ${discAmt > 0 ? `<div class="inv-trow" style="color:#dc2626;font-weight:600"><span>${discLabel}</span><span class="v">-${invMoney(discAmt)}</span></div>` : ''}
         <div class="inv-trow" style="color:#64748b"><span>GST (${gstRate}%)</span><span class="v">${invMoney(gstAmt)}</span></div>
         <div class="inv-total-box"><span>Total</span><span class="amt">${invMoney(inv.total)}</span></div>
         <div class="inv-trow"><span>Amount Paid</span><span class="v">${invMoney(inv.amountPaid)}</span></div>
@@ -3324,6 +3331,9 @@ function openInvoiceModal(inv, prefill) {
   const dueDate = inv?.dueDate ? String(inv.dueDate).slice(0, 10) : '';
   const termsOpts = ['Due on Receipt', 'Net 7', 'Net 15', 'Net 30'];
   const curTerms = inv?.terms || prefill.terms || 'Due on Receipt';
+  // Discount — blank type means the invoice carries no discount at all
+  const discType = inv?.discountType || '';
+  const discVal  = discType ? (inv?.discountValue ?? '') : '';
 
   showModal(inv ? `Edit Invoice ${inv.invoiceNo}` : 'New Invoice', `
   <div class="fg" style="background:var(--blue-bg);border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 14px;margin-bottom:14px">
@@ -3370,6 +3380,16 @@ function openInvoiceModal(inv, prefill) {
     <div class="fg"><label>GST %</label><input type="number" min="0" step="any" id="inv-gst" value="${((Number(inv?.cgstRate) || 0) + (Number(inv?.sgstRate) || 0))}" oninput="invCalcTotals()"/></div>
     <div class="fg"><label>Amount Paid (₹)</label><input type="number" min="0" step="any" id="inv-paid" value="${inv?.amountPaid ?? 0}" oninput="invCalcTotals()"/></div>
   </div>
+  <div class="form-row">
+    <div class="fg"><label>Discount type</label>
+      <select id="inv-disc-type" onchange="invDiscTypeChange()">
+        <option value="" ${!discType ? 'selected' : ''}>No discount</option>
+        <option value="percent" ${discType === 'percent' ? 'selected' : ''}>Percent (%)</option>
+        <option value="amount" ${discType === 'amount' ? 'selected' : ''}>Amount (₹)</option>
+      </select>
+    </div>
+    <div class="fg"><label>Discount value</label><input type="number" min="0" step="any" id="inv-disc-val" placeholder="0" value="${esc(discVal)}" oninput="invCalcTotals()" ${discType ? '' : 'disabled'}/></div>
+  </div>
   <div class="inv-totals-live" id="inv-totals"></div>
   <div class="fg" style="margin-top:12px"><label>Notes (optional)</label><textarea id="inv-notes" style="min-height:60px" placeholder="Payment remarks, PO reference...">${esc(inv?.notes || '')}</textarea></div>
   `, async () => {
@@ -3393,6 +3413,8 @@ function openInvoiceModal(inv, prefill) {
       items: items.map(l => ({ description: l.description.trim(), details: (l.details || '').trim(), qty: Number(l.qty) || 1, rate: Number(l.rate) || 0 })),
       cgstRate: Number(document.getElementById('inv-gst').value) || 0,
       sgstRate: 0,
+      discountType: document.getElementById('inv-disc-type').value || null,
+      discountValue: Number(document.getElementById('inv-disc-val').value) || 0,
       amountPaid: Number(document.getElementById('inv-paid').value) || 0,
       notes: document.getElementById('inv-notes').value,
       sourceLeadId: (leadId && leadId !== '—') ? leadId : null,
@@ -3424,16 +3446,36 @@ function invLinesRender() {
 function invLineField(i, k, v) { if (!_invLines[i]) return; _invLines[i][k] = v; invCalcTotals(); }
 function invLineAdd() { _invLines.push({ description: '', details: '', qty: 1, rate: '' }); invLinesRender(); invCalcTotals(); }
 function invLineRemove(i) { _invLines.splice(i, 1); invLinesRender(); invCalcTotals(); }
+function invDiscTypeChange() {
+  const t = document.getElementById('inv-disc-type'), v = document.getElementById('inv-disc-val');
+  if (!t || !v) return;
+  if (!t.value) v.value = '';
+  v.disabled = !t.value;
+  invCalcTotals();
+}
+// Draft discount for the live bar — mirrors what the backend computes
+// (0 when no type is chosen or the value is empty/zero, so nothing shows)
+function invDiscountDraft(sub) {
+  const t = document.getElementById('inv-disc-type')?.value || '';
+  const v = Number(document.getElementById('inv-disc-val')?.value) || 0;
+  if (!t || v <= 0) return 0;
+  const raw = t === 'percent' ? (sub * v) / 100 : v;
+  return Math.round(Math.min(Math.max(raw, 0), sub) * 100) / 100;
+}
 function invCalcTotals() {
   const el = document.getElementById('inv-totals');
   if (!el) return;
   const sub = _invLines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.rate) || 0), 0);
+  const disc = invDiscountDraft(sub);
   const c = Number(document.getElementById('inv-gst')?.value) || 0;
-  const ca = sub * c / 100, tot = sub + ca;
+  const taxable = sub - disc;
+  const ca = taxable * c / 100, tot = taxable + ca;
   const paid = Number(document.getElementById('inv-paid')?.value) || 0;
   const bal = Math.max(0, tot - paid);
+  const dt = document.getElementById('inv-disc-type')?.value || '';
   el.innerHTML = `
     <span>Sub Total: <b>${invMoney(sub)}</b></span>
+    ${disc > 0 ? `<span style="color:#dc2626">Discount${dt === 'percent' ? ` (${document.getElementById('inv-disc-val')?.value}%)` : ''}: <b>-${invMoney(disc)}</b></span>` : ''}
     <span>GST (${c}%): <b>${invMoney(ca)}</b></span>
     <span>Balance: <b style="color:${bal > 0 ? '#dc2626' : '#059669'}">${invMoney(bal)}</b></span>
     <span style="margin-left:auto">Total: <b style="font-size:14px;color:var(--brand)">${invMoney(tot)}</b></span>`;
