@@ -610,6 +610,14 @@ td.actions-col>*+*,th.actions-col>*+*{margin-left:6px}
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 const API = 'https://ync-crm-backend.vercel.app';
 
+// ─── TIMEZONE ──────────────────────────────────────────────────────────────
+// Everything is stored in UTC in the database, but the whole team works out
+// of India — every date/time is DISPLAYED in IST (Asia/Kolkata) no matter
+// what timezone the viewer's laptop happens to be set to.
+const TZ = 'Asia/Kolkata';
+// Today's date as YYYY-MM-DD, computed in IST — used for date-input defaults.
+function istToday() { return new Date().toLocaleDateString('en-CA', { timeZone: TZ }); }
+
 // ─── STATE ─────────────────────────────────────────────────────────────────
 let token    = localStorage.getItem('ync_token') || '';
 let me       = JSON.parse(localStorage.getItem('ync_me') || 'null');
@@ -2104,7 +2112,7 @@ let _attTimer = null;
 let _attOpenBreak = null; // the caller's live (open) break, if any
 function attDT(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', hour12:true });
+  return new Date(d).toLocaleString('en-IN', { timeZone: TZ, day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', hour12:true });
 }
 function attHrs(mins) { return (Math.round((mins/60)*100)/100).toFixed(1) + ' h'; }
 function attHM(mins) {
@@ -2133,8 +2141,8 @@ async function renderAttendance() {
   const loggedIn = !!myOpen;
   const onBreak = !!_attOpenBreak;
   const breakName = _attOpenBreak ? (_attOpenBreak.type === 'lunch_break' ? 'Lunch Break' : 'Tea Break') : '';
-  const today = new Date().toISOString().slice(0,10);
-  const todayStr = new Date().toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long' });
+  const today = istToday();
+  const todayStr = new Date().toLocaleDateString('en-IN', { timeZone: TZ, weekday:'long', day:'numeric', month:'long' });
 
   // Login/logout switch is for sales reps & managers only — admins don't
   // track their own attendance, they just get the report/export bar.
@@ -2174,7 +2182,7 @@ async function renderAttendance() {
       <div class="att-sub">Download attendance &amp; leave data as Excel</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto">
-      <input id="att-from" type="date" value="${new Date(Date.now()-30*86400000).toISOString().slice(0,10)}" style="font-family:inherit;font-size:12.5px;padding:6px 8px;border:1.5px solid var(--gray3);border-radius:8px"/>
+      <input id="att-from" type="date" value="${new Date(Date.now()-30*86400000).toLocaleDateString('en-CA', { timeZone: TZ })}" style="font-family:inherit;font-size:12.5px;padding:6px 8px;border:1.5px solid var(--gray3);border-radius:8px"/>
       <span style="color:var(--gray);font-size:12px">to</span>
       <input id="att-to" type="date" value="${today}" style="font-family:inherit;font-size:12.5px;padding:6px 8px;border:1.5px solid var(--gray3);border-radius:8px"/>
       <button class="btn-primary" onclick="downloadAttendanceReport()">⬇ Excel Report</button>
@@ -2305,7 +2313,7 @@ document.addEventListener('click', (e) => {
 });
 
 function openLeaveModal() {
-  const today = new Date().toISOString().slice(0,10);
+  const today = istToday();
   showModal('Apply Leave', `
   <div class="form-row">
     <div class="fg"><label>Start Date *</label><input id="mf-lv-start" type="date" value="${today}"/></div>
@@ -2394,8 +2402,8 @@ async function downloadAttendanceReport() {
     const a = document.createElement('a');
     // Content-Disposition isn't exposed cross-origin, so derive the dated
     // filename locally to match what the backend would have sent.
-    const fname = 'ync-attendance-' + (from || new Date(Date.now() - 30*86400000).toISOString().slice(0,10))
-                      + '-to-' + (to || new Date().toISOString().slice(0,10)) + '.xlsx';
+    const fname = 'ync-attendance-' + (from || new Date(Date.now() - 30*86400000).toLocaleDateString('en-CA', { timeZone: TZ }))
+                      + '-to-' + (to || istToday()) + '.xlsx';
     a.href = url;
     a.download = fname;
     document.body.appendChild(a); a.click(); a.remove();
@@ -2967,7 +2975,7 @@ let _invLines = [];
 let _invLeadType = null;
 
 function invMoney(n) { if (n == null || isNaN(Number(n))) return '₹0.00'; return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-function fmtINVDate(d) { if (!d) return '—'; const dt = new Date(d); if (isNaN(dt.getTime())) return '—'; const p = x => String(x).padStart(2, '0'); return `${p(dt.getDate())}/${p(dt.getMonth() + 1)}/${dt.getFullYear()}`; }
+function fmtINVDate(d) { if (!d) return '—'; const dt = new Date(d); if (isNaN(dt.getTime())) return '—'; return new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day:'2-digit', month:'2-digit', year:'numeric' }).format(dt); } // dd/mm/yyyy, always IST
 function payBadge(s) { const m = { paid: 'Paid', partial: 'Partial', due: 'Due', cancelled: 'Cancelled' }; return `<span class="badge badge-${s}">${m[s] || esc(s)}</span>`; }
 function invBalance(inv) { return Math.max(0, Math.round(((Number(inv.total) || 0) - (Number(inv.amountPaid) || 0)) * 100) / 100); }
 function invWords(num) {
@@ -3044,8 +3052,8 @@ async function renderGstInvoices() {
     if (!df && !dt) return true;
     const d = new Date(inv.invoiceDate);
     if (isNaN(d.getTime())) return false;
-    if (df && d < new Date(df + 'T00:00:00')) return false;
-    if (dt && d > new Date(dt + 'T23:59:59')) return false;
+    if (df && d < new Date(df + 'T00:00:00+05:30')) return false;
+    if (dt && d > new Date(dt + 'T23:59:59+05:30')) return false;
     return true;
   });
   let sumTax = 0, sumGst = 0, sumTot = 0;
@@ -3326,7 +3334,7 @@ function openInvoiceModal(inv, prefill) {
     : (Array.isArray(prefill.items) && prefill.items.length)
       ? prefill.items.map(i => ({ description: i.description || '', details: i.details || '', qty: i.qty ?? 1, rate: i.rate ?? '' }))
       : [{ description: '', details: '', qty: 1, rate: '' }];
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istToday();
   const invDate = inv?.invoiceDate ? String(inv.invoiceDate).slice(0, 10) : today;
   const dueDate = inv?.dueDate ? String(inv.dueDate).slice(0, 10) : '';
   const termsOpts = ['Due on Receipt', 'Net 7', 'Net 15', 'Net 30'];
@@ -3674,7 +3682,7 @@ async function inlineAssign(id, assignedToId, sel) {
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function fmtDT(d) { if (!d) return ''; const dt = new Date(d); if (isNaN(dt.getTime())) return ''; return dt.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function fmtDT(d) { if (!d) return ''; const dt = new Date(d); if (isNaN(dt.getTime())) return ''; return dt.toLocaleString('en-IN',{timeZone:TZ,day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
 
 // ─── ROW LOCK (sales rep sees other reps' records only as locked search hits) ─
 function rowLocked(r) { return !!(me && me.role === 'sales_rep' && (!r || !r.assignedTo || r.assignedTo.id !== me.id)); }
@@ -3946,7 +3954,7 @@ function fmtStatus(s) {
   return map[s] || s?.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()) || s;
 }
 function roleLabel(r) { return {admin:'Admin',manager:'Manager',sales_rep:'Sales Rep'}[r]||r; }
-function fmtDate(d) { if (!d) return '—'; return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
+function fmtDate(d) { if (!d) return '—'; return new Date(d).toLocaleDateString('en-IN',{timeZone:TZ,day:'2-digit',month:'short',year:'numeric'}); }
 function fmtCur(v) { if (!v && v!==0) return '—'; const n = Number(v); if (isNaN(n)) return '—'; return '₹'+n.toLocaleString('en-IN',{maximumFractionDigits:0}); }
 function emptyState(icon, title, sub) {
   return `<div class="empty"><div class="empty-icon">${icon}</div><div class="empty-title">${title}</div><div class="empty-sub">${sub}</div></div>`;
@@ -3964,7 +3972,7 @@ function toast(msg, type='info') {
 // On the first app open each day, remind the user of their overdue + due-today
 // tasks with a browser notification (when permitted) and an in-app banner.
 // "First open of the day" is tracked per browser in localStorage.
-function _todayISO() { return new Date().toLocaleDateString('en-CA'); } // YYYY-MM-DD
+function _todayISO() { return new Date().toLocaleDateString('en-CA', { timeZone: TZ }); } // YYYY-MM-DD (IST)
 
 function dismissBriefing(persist) {
   const b = document.getElementById('briefing');
@@ -3980,7 +3988,7 @@ async function maybeMorningBriefing() {
   try {
     const r = await api('GET', '/api/tasks?page=1&limit=200');
     const all = r?.data || [];
-    const dayOf = t => new Date(t.dueDate).toLocaleDateString('en-CA');
+    const dayOf = t => new Date(t.dueDate).toLocaleDateString('en-CA', { timeZone: TZ });
     const mine = all.filter(t => !t.isDone && t.assignedTo?.id === me.id && t.dueDate);
     const overdue  = mine.filter(t => dayOf(t) < today).sort((a,b) => (dayOf(a) < dayOf(b) ? -1 : 1));
     const dueToday = mine.filter(t => dayOf(t) === today);
@@ -4097,9 +4105,12 @@ async function addTrackingEntry() {
   if (!statusText) { toast('Status text is required', 'error'); return; }
   const location = document.getElementById('tl-location')?.value?.trim() || null;
   const statusDate = document.getElementById('tl-date')?.value || null;
+  // datetime-local gives "YYYY-MM-DDTHH:MM" — read it as IST wall-clock so a
+  // typed time means the same instant no matter what timezone the laptop uses.
+  const statusIso = statusDate ? new Date(statusDate.length === 16 ? statusDate + ':00+05:30' : statusDate + '+05:30').toISOString() : undefined;
 
   const r = await api('POST', `/api/tracking/${_trackId}/statuses`, {
-    status_text: statusText, location, status_date: statusDate ? new Date(statusDate).toISOString() : undefined,
+    status_text: statusText, location, status_date: statusIso,
   });
   if (!r?.success) { toast(r?.error || 'Error adding status', 'error'); return; }
 
@@ -4974,7 +4985,7 @@ async function openSgBooking(id) {
     : `<input id="sgbk-service" placeholder="e.g. Shipglobal Direct" value=""/>`;
 
   const invNo = l.leadId || ('INV-' + Date.now());
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istToday();
   const dimsTxt = (() => {
     const p0 = Array.isArray(l.packingList) && l.packingList.length ? l.packingList[0] : null;
     if (p0) return `${p0.length || 50}×${p0.width || 40}×${p0.height || 30} cm`;
