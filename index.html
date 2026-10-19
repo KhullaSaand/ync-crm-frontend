@@ -3354,6 +3354,13 @@ function openInvoiceModal(inv, prefill) {
     <div style="font-size:11.5px;margin-top:6px;color:var(--gray)">Linked lead: <b id="inv-lead" style="font-family:monospace;color:var(--black)">${esc(inv?.sourceLeadId || prefill.sourceLeadId || '—')}</b></div>
   </div>
 
+  ${isAdmin() ? `
+  <div class="fg" style="margin-bottom:10px">
+    <label>Invoice No (admin override, optional)</label>
+    <input id="inv-no" value="${esc(inv?.invoiceNo || '')}" placeholder="Blank = next auto number (sequential)"/>
+    <div style="font-size:11px;color:var(--gray);margin-top:4px">Auto numbers always continue from the highest number in use — typing one here just sets it explicitly.</div>
+  </div>` : ''}
+
   <div class="form-row">
     <div class="fg"><label>Invoice Date *</label><input type="date" id="inv-date" value="${invDate}" onchange="invTermsChange(document.getElementById('inv-terms').value)"/></div>
     <div class="fg"><label>Terms</label><select id="inv-terms" onchange="invTermsChange(this.value)">${termsOpts.map(t => `<option ${t === curTerms ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
@@ -3405,7 +3412,10 @@ function openInvoiceModal(inv, prefill) {
     if (!document.getElementById('inv-customer').value.trim()) { toast('Sender name is required', 'error'); return; }
     if (!items.length || !items.every(l => l.description && l.description.trim())) { toast('Each line needs a description', 'error'); return; }
     const leadId = document.getElementById('inv-lead').textContent.trim();
+    // Admin-only override — blank means "auto sequential number"
+    const manualNo = document.getElementById('inv-no')?.value.trim() || '';
     const body = {
+      ...(manualNo ? { invoiceNo: manualNo } : {}),
       invoiceDate: document.getElementById('inv-date').value || today,
       dueDate: document.getElementById('inv-duedate').value || null,
       terms: document.getElementById('inv-terms').value,
