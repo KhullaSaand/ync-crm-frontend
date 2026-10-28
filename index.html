@@ -5014,6 +5014,13 @@ async function openSgBooking(id) {
       <div class="fg"><label>Invoice No *</label><input id="sgbk-inv" value="${esc(invNo)}"/></div>
       <div class="fg"><label>Invoice Date *</label><input id="sgbk-invdate" type="date" value="${today}"/></div>
     </div>
+    <div class="fg"><label>Customs Filing *</label>
+      <select id="sgbk-csb">
+        <option value="4" selected>CSB-4 — non-commercial, gift/sample (value up to ₹25,000)</option>
+        <option value="5">CSB-5 — commercial export (needs GST/IEC, up to ₹10 lakh)</option>
+      </select>
+      <div style="font-size:11.5px;color:var(--gray2);margin-top:6px;line-height:1.5">CSB-4 for gifts, samples and personal-use parcels. CSB-5 for commercial goods and duty drawback / IGST refund — ShipGlobal must have CSB-5 activated on our account for these to go through.</div>
+    </div>
     <button class="btn-primary" id="sgbk-btn" onclick="executeSgBooking()" style="width:100%;margin-top:12px">🚚 Book Shipment</button>
     <div id="sgbk-msg" style="margin-top:10px;font-size:12.5px;text-align:center"></div>
   `);
@@ -5027,6 +5034,7 @@ async function executeSgBooking() {
   const service = svcEl?.tagName === 'SELECT' ? svcEl.value : (svcEl?.value || '').trim();
   const invNo = (document.getElementById('sgbk-inv')?.value || '').trim();
   const invDate = (document.getElementById('sgbk-invdate')?.value || '').trim();
+  const csb = document.getElementById('sgbk-csb')?.value === '5' ? 5 : 4;
   if (!service) { toast('Select or enter a service', 'error'); return; }
   if (!invNo || !invDate) { toast('Invoice number and date are required', 'error'); return; }
 
@@ -5064,6 +5072,17 @@ async function executeSgBooking() {
     items = [{ vendor_order_item_name: l.cargoType || 'Parcel', vendor_order_item_sku: '', vendor_order_item_quantity: String(qty), vendor_order_item_unit_price: String(+(val / qty).toFixed(2)), vendor_order_item_hsn: '0000', vendor_order_item_tax_rate: '0' }];
   }
 
+  // CSB-4 is only valid for non-commercial consignments up to ₹25,000 — refuse
+  // rather than let ShipGlobal bounce it (or a wrong filing reach Customs).
+  const CSB4_LIMIT = 25000;
+  const declaredTotal = items.reduce((n, it) => n + (Number(it.vendor_order_item_quantity) || 1) * (Number(it.vendor_order_item_unit_price) || 0), 0);
+  if (csb === 4 && declaredTotal > CSB4_LIMIT) {
+    const m = document.getElementById('sgbk-msg');
+    if (m) m.innerHTML = `<span style="color:var(--red)">Declared value ₹${declaredTotal.toLocaleString('en-IN')} is above the CSB-4 limit of ₹25,000 — pick CSB-5 (commercial) for this shipment.</span>`;
+    toast('Declared value exceeds the CSB-4 limit of ₹25,000', 'error');
+    return;
+  }
+
   let L = 50, B = 40, H = 30;
   if (packing.length) {
     L = parseFloat(packing[0].length) || L; B = parseFloat(packing[0].width) || B; H = parseFloat(packing[0].height) || H;
@@ -5085,7 +5104,7 @@ async function executeSgBooking() {
     package_breadth: String(B),
     package_height: String(H),
     currency_code: currency,
-    csb5_status: 1,
+    csb5_status: csb === 5 ? 1 : 0,
     customer_shipping_firstname: firstname,
     customer_shipping_lastname: lastname,
     customer_shipping_mobile: phone,
